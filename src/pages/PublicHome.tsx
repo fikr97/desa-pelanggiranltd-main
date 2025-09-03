@@ -81,16 +81,49 @@ const PublicHome = () => {
     }
   });
 
-  // Fetch statistik penduduk  
+  // Fetch statistik penduduk dengan pagination seperti di dashboard
   const { data: statistikData } = useQuery({
     queryKey: ['public-statistik'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_penduduk_stats');
-      if (error) {
+      try {
+        let allPenduduk: any[] = [];
+        let offset = 0;
+        const limit = 1000;
+        let hasMore = true;
+
+        // Fetch data per batch 1000 seperti di dashboard
+        while (hasMore) {
+          const { data: batchData, error } = await supabase
+            .from('penduduk')
+            .select('jenis_kelamin, status_hubungan')
+            .range(offset, offset + limit - 1);
+
+          if (error) {
+            console.error('Error fetching population batch:', error);
+            break;
+          }
+
+          if (batchData && batchData.length > 0) {
+            allPenduduk = [...allPenduduk, ...batchData];
+            offset += limit;
+            hasMore = batchData.length === limit; // Continue if we got full batch
+          } else {
+            hasMore = false;
+          }
+        }
+
+        console.log(`Total penduduk fetched: ${allPenduduk.length}`);
+
+        const total = allPenduduk.length;
+        const laki = allPenduduk.filter(p => p.jenis_kelamin === 'Laki-laki').length;
+        const perempuan = allPenduduk.filter(p => p.jenis_kelamin === 'Perempuan').length;
+        const kk = allPenduduk.filter(p => p.status_hubungan === 'Kepala Keluarga').length;
+
+        return { total, laki, perempuan, kk };
+      } catch (error) {
         console.error('Error fetching statistics:', error);
         return { total: 0, laki: 0, perempuan: 0, kk: 0 };
       }
-      return data;
     }
   });
 
