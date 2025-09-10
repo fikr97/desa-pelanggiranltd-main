@@ -28,7 +28,7 @@ const TemplateDesigner = ({ template, onSave, onCancel }: TemplateDesignerProps)
     nama_template: '',
     deskripsi: '',
     konten_template: '', // Akan berisi nama file DOCX
-    format_nomor_surat: '[indeks_no]/[no]/[kode]/[kode_desa]/[bulan_romawi]/[tahun]',
+    format_nomor_surat: '[indeks_no]/[no]/[kode]/[kode_desa]/[tahun]',
     indeks_nomor: 470,
     kode_surat: 'UMUM',
     kode_desa: 'DSA',
@@ -48,7 +48,7 @@ const TemplateDesigner = ({ template, onSave, onCancel }: TemplateDesignerProps)
         nama_template: template.nama_template || '',
         deskripsi: template.deskripsi || '',
         konten_template: template.konten_template || '',
-        format_nomor_surat: template.format_nomor_surat || '[indeks_no]/[no]/[kode]/[kode_desa]/[bulan_romawi]/[tahun]',
+        format_nomor_surat: template.format_nomor_surat || '[indeks_no]/[no]/[kode]/[kode_desa]/[tahun]',
         indeks_nomor: template.indeks_nomor || 470,
         kode_surat: template.kode_surat || 'UMUM',
         kode_desa: template.kode_desa || 'DSA',
@@ -143,6 +143,7 @@ const TemplateDesigner = ({ template, onSave, onCancel }: TemplateDesignerProps)
           .from('surat_template')
           .update({
             ...formData,
+            indeks_nomor: formData.indeks_nomor.toString(),
             updated_at: new Date().toISOString()
           })
           .eq('id', template.id);
@@ -152,7 +153,10 @@ const TemplateDesigner = ({ template, onSave, onCancel }: TemplateDesignerProps)
         // Create new template
         const { data, error } = await supabase
           .from('surat_template')
-          .insert([formData])
+          .insert([{
+            ...formData,
+            indeks_nomor: formData.indeks_nomor.toString()
+          }])
           .select()
           .single();
         
@@ -163,9 +167,8 @@ const TemplateDesigner = ({ template, onSave, onCancel }: TemplateDesignerProps)
       // Save placeholders using the new atomic RPC function
       if (templateId) {
         // The function handles both cases: new placeholders and empty placeholders.
-        const { error: rpcError } = await supabase.rpc('update_surat_field_mapping', {
-          template_id_param: templateId,
-          placeholders_data: placeholders
+        const { error: rpcError } = await supabase.rpc('generate_nomor_surat', {
+          template_id_param: templateId
         });
 
         if (rpcError) throw rpcError;
@@ -296,10 +299,10 @@ const TemplateDesigner = ({ template, onSave, onCancel }: TemplateDesignerProps)
                   id="format_nomor_surat"
                   value={formData.format_nomor_surat}
                   onChange={(e) => setFormData(prev => ({ ...prev, format_nomor_surat: e.target.value }))}
-                  placeholder="[indeks_no]/[no]/[kode]/[kode_desa]/[bulan_romawi]/[tahun]"
+                  placeholder="[indeks_no]/[no]/[kode]/[kode_desa]/[tahun]"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Gunakan: [indeks_no], [no], [kode], [kode_desa], [bulan_romawi], [tahun]
+                  Gunakan: [indeks_no], [no], [kode], [kode_desa], [tahun]
                 </p>
               </div>
             </CardContent>

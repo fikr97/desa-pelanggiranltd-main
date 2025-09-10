@@ -144,7 +144,7 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
               )}
             </div>
             {!isCollapsed && <div className="min-w-0 flex-1">
-                <h1 className="text-xl font-bold text-foreground truncate">OpenSID</h1>
+                <h1 className="text-xl font-bold text-foreground truncate">SIDesa</h1>
                 <p className="text-sm text-muted-foreground truncate">Sistem Informasi Desa</p>
               </div>}
           </div>
@@ -180,7 +180,7 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg font-bold text-foreground truncate">OpenSID</h1>
+                <h1 className="text-lg font-bold text-foreground truncate">SIDesa</h1>
                 <p className="text-xs text-muted-foreground truncate">Sistem Informasi Desa</p>
               </div>
             </div>

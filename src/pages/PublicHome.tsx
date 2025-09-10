@@ -81,45 +81,36 @@ const PublicHome = () => {
     }
   });
 
-  // Fetch statistik penduduk dengan pagination seperti di dashboard
+  // Fetch statistik penduduk menggunakan secure function
   const { data: statistikData } = useQuery({
     queryKey: ['public-statistik'],
     queryFn: async () => {
       try {
-        let allPenduduk: any[] = [];
-        let offset = 0;
-        const limit = 1000;
-        let hasMore = true;
+        console.log('Fetching population statistics using secure function...');
+        
+        // Use the secure function instead of direct database access
+        const { data, error } = await supabase.rpc('get_public_population_stats');
 
-        // Fetch data per batch 1000 seperti di dashboard
-        while (hasMore) {
-          const { data: batchData, error } = await supabase
-            .from('penduduk')
-            .select('jenis_kelamin, status_hubungan')
-            .range(offset, offset + limit - 1);
-
-          if (error) {
-            console.error('Error fetching population batch:', error);
-            break;
-          }
-
-          if (batchData && batchData.length > 0) {
-            allPenduduk = [...allPenduduk, ...batchData];
-            offset += limit;
-            hasMore = batchData.length === limit; // Continue if we got full batch
-          } else {
-            hasMore = false;
-          }
+        if (error) {
+          console.error('Error fetching statistics from secure function:', error);
+          throw error;
         }
 
-        console.log(`Total penduduk fetched: ${allPenduduk.length}`);
-
-        const total = allPenduduk.length;
-        const laki = allPenduduk.filter(p => p.jenis_kelamin === 'Laki-laki').length;
-        const perempuan = allPenduduk.filter(p => p.jenis_kelamin === 'Perempuan').length;
-        const kk = allPenduduk.filter(p => p.status_hubungan === 'Kepala Keluarga').length;
-
-        return { total, laki, perempuan, kk };
+        if (data) {
+          console.log('Statistics received from secure function:', data);
+          
+          // Type cast the data to the expected structure
+          const stats = data as { total: number; laki: number; perempuan: number; kk: number };
+          
+          return {
+            total: stats.total || 0,
+            laki: stats.laki || 0,
+            perempuan: stats.perempuan || 0,
+            kk: stats.kk || 0
+          };
+        } else {
+          return { total: 0, laki: 0, perempuan: 0, kk: 0 };
+        }
       } catch (error) {
         console.error('Error fetching statistics:', error);
         return { total: 0, laki: 0, perempuan: 0, kk: 0 };
@@ -161,7 +152,7 @@ const PublicHome = () => {
                   </span>
                 </h1>
                 <p className="text-xl md:text-2xl opacity-90 mb-2">
-                  {infoDesaData?.nama_kecamatan ? `Kecamatan ${infoDesaData.nama_kecamatan}` : 'Kecamatan'}
+                  {infoDesaData?.nama_kecamatan ? `${infoDesaData.nama_kecamatan}` : 'Kecamatan'}
                 </p>
                 <p className="text-lg opacity-80">
                   {infoDesaData?.nama_kabupaten ? `${infoDesaData.nama_kabupaten}, ${infoDesaData.nama_provinsi}` : 'Kabupaten, Provinsi'}
@@ -638,7 +629,7 @@ const PublicHome = () => {
           <div className="border-t border-border pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
               <div className="text-sm text-muted-foreground text-center md:text-left">
-                <p className="font-medium">OpenSID - Sistem Informasi Desa</p>
+                <p className="font-medium">SIDesa - Sistem Informasi Desa</p>
                 <p>© 2024 Ihsanul Fikri. All rights reserved.</p>
               </div>
               

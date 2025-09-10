@@ -35,7 +35,7 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
     urutan: 1,
     default_value: '',
     custom_field_options: {
-      indeks_nomor: 470,
+      indeks_nomor: '470',
       kode_surat: 'UMUM',
       kode_desa: 'DSA'
     }
@@ -185,7 +185,7 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
       urutan: 1,
       default_value: '',
       custom_field_options: {
-        indeks_nomor: 470,
+        indeks_nomor: '470',
         kode_surat: 'UMUM',
         kode_desa: 'DSA'
       }
@@ -412,9 +412,9 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
                   <Label htmlFor="custom_indeks_nomor">Indeks Nomor</Label>
                   <Input
                     id="custom_indeks_nomor"
-                    type="number"
+                    type="text"
                     value={newPlaceholder.custom_field_options.indeks_nomor}
-                    onChange={(e) => setNewPlaceholder(prev => ({ ...prev, custom_field_options: { ...prev.custom_field_options, indeks_nomor: parseInt(e.target.value) || 0 } }))}
+                    onChange={(e) => setNewPlaceholder(prev => ({ ...prev, custom_field_options: { ...prev.custom_field_options, indeks_nomor: e.target.value } }))}
                   />
                 </div>
                 <div>

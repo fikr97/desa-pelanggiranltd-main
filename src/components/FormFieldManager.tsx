@@ -6,7 +6,60 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+
+const DATE_FORMAT_OPTIONS = [
+  { value: 'dd MMMM yyyy', label: '05 September 2025' },
+  { value: 'dd-MM-yyyy', label: '05-09-2025' },
+  { value: 'EEEE, dd MMMM yyyy', label: 'Jumat, 05 September 2025' },
+  { value: 'd/M/yy', label: '5/9/25' },
+  { value: 'custom', label: 'Format Kustom...' },
+];
+
+const DateFormatEditor = ({ value, onChange }) => {
+  const [isCustomFormat, setIsCustomFormat] = useState(value && !DATE_FORMAT_OPTIONS.some(opt => opt.value === value));
+
+  const handleFormatChange = (newValue) => {
+    if (newValue === 'custom') {
+      setIsCustomFormat(true);
+      onChange(''); // Clear the format when switching to custom
+    } else {
+      setIsCustomFormat(false);
+      onChange(newValue);
+    }
+  };
+
+  return (
+    <div className="mt-2 space-y-2">
+      <Label className="text-xs">Format Tanggal</Label>
+      <Select value={isCustomFormat ? 'custom' : value || ''} onValueChange={handleFormatChange}>
+        <SelectTrigger className="h-8">
+          <SelectValue placeholder="Pilih format tanggal..." />
+        </SelectTrigger>
+        <SelectContent>
+          {DATE_FORMAT_OPTIONS.map(opt => (
+            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {isCustomFormat && (
+        <div>
+          <Input
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Contoh: dd-MM-yyyy"
+            className="h-8 mt-1"
+          />
+           <p className="text-xs text-muted-foreground mt-1">
+            Lihat <a href="https://date-fns.org/v2/docs/format" target="_blank" rel="noopener noreferrer" className="underline">referensi lengkap</a>.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const PREDEFINED_FIELDS = [
   { value: 'nik', label: 'NIK' },
@@ -56,7 +109,7 @@ const PredefinedFieldDialog = ({ onSave, existingFields }) => {
       return {
         label_field: field.label,
         nama_field: field.value,
-        tipe_field: 'predefined',
+        tipe_field: field.value === 'tanggal_lahir' ? 'date' : 'predefined',
         sumber_data: `penduduk.${field.value}`,
       };
     });
@@ -98,10 +151,17 @@ interface FormFieldManagerProps {
 const CustomFieldDialog = ({ onSave }) => {
   const [label, setLabel] = useState('');
   const [type, setType] = useState('text');
+  const [options, setOptions] = useState('');
 
   const handleSave = () => {
     const name = label.toLowerCase().replace(/\s+/g, '_');
-    onSave({ label_field: label, nama_field: name, tipe_field: type });
+    const fieldData = { 
+      label_field: label, 
+      nama_field: name,
+      tipe_field: type,
+      opsi_pilihan: type === 'dropdown' ? options.split('\n').filter(o => o.trim() !== '') : null
+    };
+    onSave(fieldData);
   };
 
   return (
@@ -126,9 +186,21 @@ const CustomFieldDialog = ({ onSave }) => {
               <SelectItem value="textarea">Teks Panjang</SelectItem>
               <SelectItem value="number">Angka</SelectItem>
               <SelectItem value="date">Tanggal</SelectItem>
+              <SelectItem value="dropdown">Dropdown (Pilihan)</SelectItem>
             </SelectContent>
           </Select>
         </div>
+        {type === 'dropdown' && (
+          <div>
+            <Label htmlFor="field-options">Pilihan (satu per baris)</Label>
+            <Textarea
+              id="field-options"
+              value={options}
+              onChange={(e) => setOptions(e.target.value)}
+              placeholder="Contoh:\nYa\nTidak"
+            />
+          </div>
+        )}
       </div>
       <DialogFooter>
         <Button onClick={handleSave}>Simpan Field</Button>
@@ -167,6 +239,12 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
     onFieldsChange(newFields);
   };
 
+  const updateField = (index: number, newProps: any) => {
+    const newFields = [...fields];
+    newFields[index] = { ...newFields[index], ...newProps };
+    onFieldsChange(newFields);
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -202,6 +280,15 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
                 <div>
                   <p className="font-medium">{field.label_field}</p>
                   <p className="text-sm text-muted-foreground">Tipe: {field.tipe_field} ({field.nama_field})</p>
+                  {field.tipe_field === 'dropdown' && field.opsi_pilihan && (
+                    <p className="text-xs text-muted-foreground">Pilihan: {Array.isArray(field.opsi_pilihan) ? field.opsi_pilihan.join(', ') : ''}</p>
+                  )}
+                  {field.tipe_field === 'date' && (
+                    <DateFormatEditor 
+                      value={field.format_tanggal} 
+                      onChange={(newValue) => updateField(index, { format_tanggal: newValue })} 
+                    />
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button size="icon" variant="ghost" onClick={() => moveField(index, 'up')} disabled={index === 0}>
@@ -210,7 +297,7 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
                   <Button size="icon" variant="ghost" onClick={() => moveField(index, 'down')} disabled={index === fields.length - 1}>
                     <ArrowDown className="h-4 w-4" />
                   </Button>
-                  <Button size="icon" variant="destructive-outline" onClick={() => removeField(index)}>
+                  <Button size="icon" variant="destructive" onClick={() => removeField(index)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>

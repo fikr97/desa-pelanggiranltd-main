@@ -213,21 +213,43 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
     setIsLoading(true);
 
     try {
-      console.log('Submitting form data:', formData);
-      
-      if (penduduk?.id) {
-        console.log('Updating penduduk with ID:', penduduk.id);
-        // Update existing penduduk
-        const { data, error } = await supabase
-          .from('penduduk')
-          .update({
-            ...formData,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', penduduk.id)
-          .select();
+      const originalDusun = penduduk?.dusun;
+      const dusunHasChanged = penduduk?.id && originalDusun !== formData.dusun;
 
-        console.log('Update result:', { data, error });
+      if (penduduk?.id) {
+        // This is an UPDATE operation
+        let error = null;
+
+        // 1. If dusun has changed, call the RPC function to move the resident
+        if (dusunHasChanged) {
+          console.log(`Dusun changed from '${originalDusun}' to '${formData.dusun}'. Calling RPC...`);
+          const { error: rpcError } = await supabase.rpc('move_penduduk', {
+            resident_id: penduduk.id,
+            new_dusun: formData.dusun
+          });
+
+          if (rpcError) {
+            console.error('RPC Error moving resident:', rpcError);
+            // Throw the error to be caught by the catch block
+            throw new Error(`Gagal memindahkan dusun: ${rpcError.message}`);
+          }
+          console.log('RPC call successful.');
+        }
+
+        // 2. Update the rest of the form data (excluding dusun if it was changed)
+        const dataToUpdate = { ...formData };
+        if (dusunHasChanged) {
+          // We already handled the dusun update via RPC, so remove it from this update payload
+          delete (dataToUpdate as { dusun?: string }).dusun;
+        }
+        
+        console.log('Updating remaining data:', dataToUpdate);
+        const { error: updateError } = await supabase
+          .from('penduduk')
+          .update(dataToUpdate)
+          .eq('id', penduduk.id);
+
+        error = updateError;
 
         if (error) {
           console.error('Update error:', error);
@@ -238,15 +260,14 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
           title: 'Data berhasil diperbarui',
           description: 'Data penduduk telah diperbarui dalam sistem',
         });
+
       } else {
+        // This is a CREATE operation
         console.log('Creating new penduduk');
-        // Create new penduduk
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('penduduk')
           .insert([formData])
           .select();
-
-        console.log('Insert result:', { data, error });
 
         if (error) {
           console.error('Insert error:', error);

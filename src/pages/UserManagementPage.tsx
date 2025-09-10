@@ -35,8 +35,6 @@ const UserManagementPage = () => {
   const [role, setRole] = useState<'admin' | 'kadus'>('kadus');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [dusunOptions, setDusunOptions] = useState<string[]>([]);
-  
   const queryClient = useQueryClient();
 
   // Fetch all user profiles
@@ -53,23 +51,24 @@ const UserManagementPage = () => {
     }
   });
 
-  // Fetch dusun options
-  React.useEffect(() => {
-    const fetchDusunOptions = async () => {
+  // Fetch dusun options from the 'wilayah' table for consistency
+  const { data: dusunOptions = [] } = useQuery({
+    queryKey: ['wilayah-dusun'],
+    queryFn: async () => {
       const { data, error } = await supabase
-        .from('penduduk')
-        .select('dusun')
-        .not('dusun', 'is', null)
-        .neq('dusun', '')
-        .neq('dusun', 'Tidak Diketahui');
-      
-      if (data && !error) {
-        const uniqueDusun = [...new Set(data.map(item => item.dusun))].sort();
-        setDusunOptions(uniqueDusun);
+        .from('wilayah')
+        .select('nama')
+        .eq('jenis', 'Dusun')
+        .eq('status', 'Aktif')
+        .order('nama', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching dusun options:', error);
+        return [];
       }
-    };
-    fetchDusunOptions();
-  }, []);
+      return data.map(item => item.nama).filter(Boolean);
+    }
+  });
 
   // Update user profile mutation
   const updateUserMutation = useMutation({
@@ -94,15 +93,14 @@ const UserManagementPage = () => {
   // Create user mutation
   const createUserMutation = useMutation({
     mutationFn: async (userData: { nama: string; email: string; password: string; role: 'admin' | 'kadus'; dusun?: string }) => {
-      const { data, error } = await supabase.auth.admin.createUser({
-        email: userData.email,
-        password: userData.password,
-        email_confirm: true,
-        user_metadata: {
+      const { data, error } = await supabase.functions.invoke('create-new-user', {
+        body: {
+          email: userData.email,
+          password: userData.password,
           nama: userData.nama,
           role: userData.role,
           dusun: userData.role === 'kadus' ? userData.dusun : null
-        }
+        },
       });
       
       if (error) throw error;
@@ -114,15 +112,20 @@ const UserManagementPage = () => {
       handleCreateDialogClose();
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Gagal membuat user');
+      // Check if the error is from the function and has the specific 409 status
+      if (error.context && error.context.status === 409) {
+        toast.error('Gagal membuat user: Email ini sudah terdaftar.');
+      } else {
+        toast.error(error.message || 'Gagal membuat user');
+      }
     }
   });
 
   // Reset password mutation
   const resetPasswordMutation = useMutation({
     mutationFn: async (userData: { userId: string; newPassword: string }) => {
-      const { error } = await supabase.auth.admin.updateUserById(userData.userId, {
-        password: userData.newPassword
+      const { error } = await supabase.functions.invoke('reset-user-password', {
+        body: { userId: userData.userId, newPassword: userData.newPassword },
       });
       
       if (error) throw error;
@@ -139,8 +142,9 @@ const UserManagementPage = () => {
   // Delete user mutation
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      // First delete from auth.users (this will cascade to profiles)
-      const { error } = await supabase.auth.admin.deleteUser(userId);
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { userId },
+      });
       if (error) throw error;
     },
     onSuccess: () => {

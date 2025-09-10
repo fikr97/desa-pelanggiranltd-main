@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, PlusCircle, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, Download, PlusCircle, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import DataEntryForm from '@/components/DataEntryForm';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 import {
   Dialog,
   DialogContent,
@@ -132,17 +134,16 @@ const FormDataEntry = () => {
 
   const handleSave = async ({ residentId, data: formData, entryId }) => {
     setIsSaving(true);
-    const customData = {};
+    
+    const dataToSave = {};
     data.formDef.fields.forEach(field => {
-      if (field.tipe_field !== 'predefined') {
-        customData[field.nama_field] = formData[field.nama_field];
-      }
+        dataToSave[field.nama_field] = formData[field.nama_field];
     });
 
     const payload = {
       form_tugas_id: formId,
       penduduk_id: residentId,
-      data_custom: customData,
+      data_custom: dataToSave, // Save everything here
       user_id: user?.id,
     };
 
@@ -176,11 +177,48 @@ const FormDataEntry = () => {
     const dataForSheet = data.entries.map(entry => {
       const row = {};
       data.formDef.fields.forEach(field => {
-        if (field.tipe_field === 'predefined') {
-          row[field.label_field] = entry.penduduk ? entry.penduduk[field.nama_field] : '';
+        const customValue = entry.data_custom?.[field.nama_field];
+        let value;
+
+        if (customValue !== undefined && customValue !== null && customValue !== '') {
+          if (field.tipe_field === 'date' && field.format_tanggal) {
+            try {
+              let formatString = field.format_tanggal;
+              if (formatString === 'd MMMM yyyy') {
+                formatString = 'dd MMMM yyyy';
+              } else if (formatString === 'EEEE, d MMMM yyyy') {
+                formatString = 'EEEE, dd MMMM yyyy';
+              }
+              value = format(new Date(customValue), formatString, { locale: id });
+            } catch (e) {
+              console.error("Invalid date or format for export:", e);
+              value = customValue;
+            }
+          } else {
+            value = customValue;
+          }
+        } else if (field.tipe_field === 'predefined') {
+            const predefValue = entry.penduduk?.[field.nama_field];
+            if (field.nama_field === 'tanggal_lahir' && predefValue && field.format_tanggal) {
+                try {
+                    let formatString = field.format_tanggal;
+                    if (formatString === 'd MMMM yyyy') {
+                        formatString = 'dd MMMM yyyy';
+                    } else if (formatString === 'EEEE, d MMMM yyyy') {
+                        formatString = 'EEEE, dd MMMM yyyy';
+                    }
+                    value = format(new Date(predefValue), formatString, { locale: id });
+                } catch (e) {
+                    console.error("Invalid date or format for predefined field in export:", e);
+                    value = predefValue;
+                }
+            } else {
+                value = predefValue || '';
+            }
         } else {
-          row[field.label_field] = entry.data_custom ? entry.data_custom[field.nama_field] : '';
+          value = '';
         }
+        row[field.label_field] = value;
       });
       return row;
     });
@@ -198,15 +236,60 @@ const FormDataEntry = () => {
   const { formDef, entries, residents } = data;
 
   const getFieldValue = (entry, field) => {
-    const value = field.tipe_field === 'predefined'
-      ? entry.penduduk?.[field.nama_field]
-      : entry.data_custom?.[field.nama_field];
-    return value || 'N/A';
+    const customValue = entry.data_custom?.[field.nama_field];
+    
+    if (customValue !== undefined && customValue !== null && customValue !== '') {
+      if (field.tipe_field === 'date' && field.format_tanggal) {
+        try {
+          let formatString = field.format_tanggal;
+          if (formatString === 'd MMMM yyyy') {
+            formatString = 'dd MMMM yyyy';
+          } else if (formatString === 'EEEE, d MMMM yyyy') {
+            formatString = 'EEEE, dd MMMM yyyy';
+          }
+          return format(new Date(customValue), formatString, { locale: id });
+        } catch (e) {
+          console.error("Invalid date or format:", e);
+          return customValue; // Fallback to original value
+        }
+      }
+      return customValue;
+    }
+
+    // Fallback to penduduk data for predefined fields if not in custom_data
+    if (field.tipe_field === 'predefined') {
+      const predefValue = entry.penduduk?.[field.nama_field];
+      if (field.nama_field === 'tanggal_lahir' && predefValue && field.format_tanggal) {
+          try {
+            let formatString = field.format_tanggal;
+            if (formatString === 'd MMMM yyyy') {
+              formatString = 'dd MMMM yyyy';
+            } else if (formatString === 'EEEE, d MMMM yyyy') {
+              formatString = 'EEEE, dd MMMM yyyy';
+            }
+            return format(new Date(predefValue), formatString, { locale: id });
+          } catch (e) {
+              console.error("Invalid date or format for predefined field:", e);
+              return predefValue;
+          }
+      }
+      return predefValue || 'N/A';
+    }
+
+    return 'N/A';
   };
 
   return (
     <>
       <div className="container mx-auto p-4 md:p-6">
+        <div className="mb-4">
+          <Link to="/form-tugas">
+            <Button variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Kembali ke Form Tugas
+            </Button>
+          </Link>
+        </div>
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-bold">Data: {formDef.nama_tugas}</h1>

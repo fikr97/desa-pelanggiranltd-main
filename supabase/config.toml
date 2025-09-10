@@ -129,8 +129,8 @@ redirect_uri = ""
 # or any other third-party OIDC providers.
 url = ""
 
-[edge_functions]
-enabled = true
+#[edge_functions]
+#enabled = true
 
 [functions.generate-surat]
 verify_jwt = false

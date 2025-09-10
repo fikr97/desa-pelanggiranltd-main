@@ -103,6 +103,8 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
           label_field: field.label_field,
           tipe_field: field.tipe_field,
           sumber_data: field.sumber_data,
+          opsi_pilihan: field.opsi_pilihan,
+          format_tanggal: field.format_tanggal, // Added this line
           urutan: index,
         }));
 
@@ -118,6 +120,23 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         title: 'Berhasil!',
         description: 'Form tugas telah berhasil disimpan.',
       });
+
+      // Notify kadus
+      const message = formId
+        ? `Form tugas "${formData.nama_tugas}" telah diperbarui.`
+        : `Form tugas baru "${formData.nama_tugas}" telah dibuat.`;
+      const link = formId ? `/form-tugas/${formId}/data` : '/form-tugas';
+
+      const { error: rpcError } = await supabase.rpc('notify_kadus', {
+        p_message: message,
+        p_link: link,
+        p_actor_id: user.id
+      });
+
+      if (rpcError) {
+        console.error('Error notifying kadus:', rpcError);
+      }
+
       onSave();
 
     } catch (error) {

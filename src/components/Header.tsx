@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTheme } from '@/components/ThemeProvider';
 import UserMenu from './UserMenu';
 import DateTime from './DateTime';
+import NotificationPopover from './NotificationPopover';
 
 interface HeaderProps {
   onMobileMenuToggle?: () => void;
@@ -77,10 +78,7 @@ const Header = ({ onMobileMenuToggle, isSidebarCollapsed = false }: HeaderProps)
             )}
           </Button>
           
-          <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 hover:bg-primary/10 relative">
-            <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
-            <span className="absolute -top-1 -right-1 h-3 w-3 bg-destructive rounded-full animate-pulse"></span>
-          </Button>
+          <NotificationPopover />
           
           <UserMenu />
         </div>
