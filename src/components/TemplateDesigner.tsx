@@ -166,13 +166,18 @@ const TemplateDesigner = ({ template, onSave, onCancel }: TemplateDesignerProps)
 
       // Save placeholders using the new atomic RPC function
       if (templateId) {
-        // The function handles both cases: new placeholders and empty placeholders.
-        const { error: rpcError } = await supabase.rpc('generate_nomor_surat', {
-          template_id_param: templateId
+        const { error: rpcError } = await supabase.rpc('upsert_surat_field_mappings', {
+          template_id_param: templateId,
+          placeholders: placeholders
         });
 
         if (rpcError) throw rpcError;
       }
+
+      toast({
+        title: 'Berhasil',
+        description: 'Template dan field berhasil disimpan.',
+      });
 
       onSave();
     } catch (error) {

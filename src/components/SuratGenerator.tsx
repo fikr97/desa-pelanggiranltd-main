@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Download } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { pekerjaanOptions, agamaOptions, statusKawinOptions, pendidikanOptions, golonganDarahOptions, statusHubunganOptions } from '@/lib/options';
 
 const formatRupiah = (angka: string | number) => {
@@ -1580,72 +1581,96 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
         </CardContent>
       </Card>
 
-      {/* Grouped Form Fields by Section */}
-      {Object.entries(groupedPlaceholders().grouped).map(([sectionName, sectionPlaceholders]) => (
-        <Card key={sectionName}>
-          <CardHeader>
-            <CardTitle className="text-lg">{sectionName}</CardTitle>
-            {getSectionDescription(sectionName) && (
-              <p className="text-sm text-muted-foreground">{getSectionDescription(sectionName)}</p>
-            )}
-            
-            {/* Search untuk section ini - hanya jika ada field kependudukan */}
-            {sectionHasResidentFields(sectionName) && (
-              <div className="mt-3 space-y-2">
-                <Label>Cari Data Penduduk</Label>
-                <div className="relative">
-                  <Input
-                    placeholder="Ketik nama atau NIK untuk mencari..."
-                    value={formData.sectionSearchTerms[sectionName] || ''}
-                    onChange={(e) => handleSectionSearch(sectionName, e.target.value)}
-                  />
-                  
-                  {/* Search Results */}
-                  {formData.sectionSearchResults[sectionName]?.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 bg-background border border-input rounded-md shadow-lg z-10 max-h-60 overflow-y-auto">
-                      {formData.sectionSearchResults[sectionName].map((resident: any) => (
-                        <div
-                          key={resident.id}
-                          className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
-                          onClick={() => handleResidentSelect(sectionName, resident)}
-                        >
-                          <div className="font-medium">{resident.nama}</div>
-                          <div className="text-sm text-muted-foreground">NIK: {resident.nik}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                
-                {formData.sectionResidents[sectionName] && (
-                  <p className="text-sm text-green-600">
-                    ✓ Data terpilih: {formData.sectionResidents[sectionName].nama} ({formData.sectionResidents[sectionName].nik})
-                  </p>
-                )}
-              </div>
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {sectionPlaceholders.map(placeholder => renderPlaceholderField(placeholder, sectionName))}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+      {/* Form Fields in a Tabbed Layout */}
+      {(() => {
+        const { grouped, withoutSection } = groupedPlaceholders();
+        const sections = Object.keys(grouped);
+        if (withoutSection.length > 0) {
+          sections.push('Data Tambahan');
+        }
 
-      {/* Fields without section */}
-      {groupedPlaceholders().withoutSection.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Data Tambahan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {groupedPlaceholders().withoutSection.map(placeholder => renderPlaceholderField(placeholder))}
+        if (sections.length === 0) {
+          return null; // No fields to render
+        }
+
+        return (
+          <Tabs defaultValue={sections[0]} className="w-full">
+            <div className="overflow-x-auto scrollbar-hide pb-1">
+              <TabsList className="flex gap-2 min-w-max">
+                {sections.map(sectionName => (
+                  <TabsTrigger key={sectionName} value={sectionName} className="whitespace-nowrap">
+                    {sectionName}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
             </div>
-          </CardContent>
-        </Card>
-      )}
+
+            {Object.entries(grouped).map(([sectionName, sectionPlaceholders]) => (
+              <TabsContent key={sectionName} value={sectionName}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{sectionName}</CardTitle>
+                    {getSectionDescription(sectionName) && (
+                      <p className="text-sm text-muted-foreground">{getSectionDescription(sectionName)}</p>
+                    )}
+                    {sectionHasResidentFields(sectionName) && (
+                      <div className="mt-3 space-y-2">
+                        <Label>Cari Data Penduduk</Label>
+                        <div className="relative">
+                          <Input
+                            placeholder="Ketik nama atau NIK untuk mencari..."
+                            value={formData.sectionSearchTerms[sectionName] || ''}
+                            onChange={(e) => handleSectionSearch(sectionName, e.target.value)}
+                          />
+                          {formData.sectionSearchResults[sectionName]?.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 bg-background border border-input rounded-md shadow-lg z-10 max-h-60 overflow-y-auto">
+                              {formData.sectionSearchResults[sectionName].map((resident: any) => (
+                                <div
+                                  key={resident.id}
+                                  className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                                  onClick={() => handleResidentSelect(sectionName, resident)}
+                                >
+                                  <div className="font-medium">{resident.nama}</div>
+                                  <div className="text-sm text-muted-foreground">NIK: {resident.nik}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {formData.sectionResidents[sectionName] && (
+                          <p className="text-sm text-green-600">
+                            ✓ Data terpilih: {formData.sectionResidents[sectionName].nama} ({formData.sectionResidents[sectionName].nik})
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {sectionPlaceholders.map(placeholder => renderPlaceholderField(placeholder, sectionName))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            ))}
+
+            {withoutSection.length > 0 && (
+              <TabsContent value="Data Tambahan">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Data Tambahan</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {withoutSection.map(placeholder => renderPlaceholderField(placeholder))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+          </Tabs>
+        );
+      })()}
 
       {/* Action Buttons */}
       <div className="flex justify-end gap-2 pt-4 border-t">
