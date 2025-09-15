@@ -80,7 +80,7 @@ const NotificationPopover = () => {
               Anda memiliki {unreadCount} notifikasi belum dibaca.
             </p>
           </div>
-          <div className="grid gap-2">
+          <div className="grid gap-2 max-h-96 overflow-y-auto">
             {isLoading ? (
               <p>Loading...</p>
             ) : notifications && notifications.length > 0 ? (

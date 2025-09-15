@@ -203,20 +203,93 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
     setEditingId(null);
   };
 
-  const moveUp = (index: number) => {
-    if (index === 0) return;
-    const newPlaceholders = [...placeholders];
-    [newPlaceholders[index], newPlaceholders[index - 1]] = [newPlaceholders[index - 1], newPlaceholders[index]];
+  const moveSection = (sectionId: string, direction: 'up' | 'down') => {
+    const allItems = [...placeholders];
+    
+    // 1. Get all section markers in their current order
+    const sectionMarkers = allItems.filter(p => p.field_type === 'section');
+    
+    // 2. Find the index of the section to move
+    const currentSectionMarkerIndex = sectionMarkers.findIndex(s => s.id === sectionId);
+    if (currentSectionMarkerIndex === -1) return;
+
+    // 3. Determine the target index for the swap
+    let targetSectionMarkerIndex;
+    if (direction === 'up') {
+      if (currentSectionMarkerIndex === 0) return;
+      targetSectionMarkerIndex = currentSectionMarkerIndex - 1;
+    } else {
+      if (currentSectionMarkerIndex === sectionMarkers.length - 1) return;
+      targetSectionMarkerIndex = currentSectionMarkerIndex + 1;
+    }
+
+    // 4. Swap the section markers
+    const movedSection = sectionMarkers[currentSectionMarkerIndex];
+    sectionMarkers.splice(currentSectionMarkerIndex, 1);
+    sectionMarkers.splice(targetSectionMarkerIndex, 0, movedSection);
+
+    // 5. Group all placeholders by their section name
+    const itemsBySection = new Map<string, any[]>();
+    const itemsWithoutSection: any[] = [];
+    allItems.forEach(p => {
+      if (p.field_type === 'section') return;
+      if (p.section_name) {
+        if (!itemsBySection.has(p.section_name)) {
+          itemsBySection.set(p.section_name, []);
+        }
+        const sectionItems = itemsBySection.get(p.section_name);
+        if (sectionItems) {
+          sectionItems.push(p);
+        }
+      } else {
+        itemsWithoutSection.push(p);
+      }
+    });
+
+    // 6. Rebuild the entire array based on the new section order
+    const newPlaceholders: any[] = [];
+    sectionMarkers.forEach(s => {
+      newPlaceholders.push(s);
+      if (s.section_name) {
+        const children = itemsBySection.get(s.section_name) || [];
+        newPlaceholders.push(...children);
+      }
+    });
+    newPlaceholders.push(...itemsWithoutSection);
+
+    // 7. Update urutan and call the state update
     newPlaceholders.forEach((p, i) => p.urutan = i + 1);
     onPlaceholdersChange(newPlaceholders);
   };
 
-  const moveDown = (index: number) => {
-    if (index === placeholders.length - 1) return;
+  const moveUp = (index: number) => {
+    if (index === 0) return;
     const newPlaceholders = [...placeholders];
-    [newPlaceholders[index], newPlaceholders[index + 1]] = [newPlaceholders[index + 1], newPlaceholders[index]];
-    newPlaceholders.forEach((p, i) => p.urutan = i + 1);
-    onPlaceholdersChange(newPlaceholders);
+    const item = newPlaceholders[index];
+    const prevItem = newPlaceholders[index - 1];
+
+    if (item.field_type === 'section') {
+      moveSection(item.id, 'up');
+    } else if (item.section_name === prevItem.section_name) { // Only move if in the same section
+      [newPlaceholders[index], newPlaceholders[index - 1]] = [prevItem, item];
+      newPlaceholders.forEach((p, i) => p.urutan = i + 1);
+      onPlaceholdersChange(newPlaceholders);
+    }
+  };
+
+  const moveDown = (index: number) => {
+    if (index >= placeholders.length - 1) return;
+    const newPlaceholders = [...placeholders];
+    const item = newPlaceholders[index];
+    const nextItem = newPlaceholders[index + 1];
+
+    if (item.field_type === 'section') {
+      moveSection(item.id, 'down');
+    } else if (item.section_name === nextItem.section_name) { // Only move if in the same section
+      [newPlaceholders[index], newPlaceholders[index + 1]] = [nextItem, item];
+      newPlaceholders.forEach((p, i) => p.urutan = i + 1);
+      onPlaceholdersChange(newPlaceholders);
+    }
   };
 
   // Group placeholders by section

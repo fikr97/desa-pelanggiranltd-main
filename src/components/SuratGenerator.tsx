@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Download } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { pekerjaanOptions, agamaOptions, statusKawinOptions, pendidikanOptions, golonganDarahOptions, statusHubunganOptions } from '@/lib/options';
 
 const formatRupiah = (angka: string | number) => {
@@ -1581,35 +1581,18 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
         </CardContent>
       </Card>
 
-      {/* Form Fields in a Tabbed Layout */}
-      {(() => {
-        const { grouped, withoutSection } = groupedPlaceholders();
-        const sections = Object.keys(grouped);
-        if (withoutSection.length > 0) {
-          sections.push('Data Tambahan');
-        }
+      {/* Form Fields */}
+      <div className="space-y-6">
+        {(() => {
+          const { grouped, withoutSection } = groupedPlaceholders();
 
-        if (sections.length === 0) {
-          return null; // No fields to render
-        }
-
-        return (
-          <Tabs defaultValue={sections[0]} className="w-full">
-            <div className="overflow-x-auto scrollbar-hide pb-1">
-              <TabsList className="flex gap-2 min-w-max">
-                {sections.map(sectionName => (
-                  <TabsTrigger key={sectionName} value={sectionName} className="whitespace-nowrap">
-                    {sectionName}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </div>
-
-            {Object.entries(grouped).map(([sectionName, sectionPlaceholders]) => (
-              <TabsContent key={sectionName} value={sectionName}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{sectionName}</CardTitle>
+          return (
+            <>
+              {Object.entries(grouped).map(([sectionName, sectionPlaceholders]) => (
+                <Card key={sectionName}>
+                  <CardHeader className="relative bg-muted/50 p-4">
+                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary rounded-l-lg"></div>
+                    <CardTitle className="text-xl font-bold text-primary">{sectionName}</CardTitle>
                     {getSectionDescription(sectionName) && (
                       <p className="text-sm text-muted-foreground">{getSectionDescription(sectionName)}</p>
                     )}
@@ -1651,14 +1634,13 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
                     </div>
                   </CardContent>
                 </Card>
-              </TabsContent>
-            ))}
+              ))}
 
-            {withoutSection.length > 0 && (
-              <TabsContent value="Data Tambahan">
+              {withoutSection.length > 0 && (
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Data Tambahan</CardTitle>
+                  <CardHeader className="relative bg-muted/50 p-4">
+                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary rounded-l-lg"></div>
+                    <CardTitle className="text-xl font-bold text-primary">Data Tambahan</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1666,11 +1648,11 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
                     </div>
                   </CardContent>
                 </Card>
-              </TabsContent>
-            )}
-          </Tabs>
-        );
-      })()}
+              )}
+            </>
+          );
+        })()}
+      </div>
 
       {/* Action Buttons */}
       <div className="flex justify-end gap-2 pt-4 border-t">

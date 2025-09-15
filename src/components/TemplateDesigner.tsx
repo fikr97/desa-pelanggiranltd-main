@@ -87,30 +87,62 @@ const TemplateDesigner = ({ template, onSave, onCancel }: TemplateDesignerProps)
       return;
     }
 
+    const oldTemplateUrl = formData.konten_template; // Capture old URL before upload
+
     setTemplateFile(file);
     setIsLoading(true);
 
     try {
-      // Upload file to Supabase storage
+      // Upload new file
       const fileName = `template_${Date.now()}_${file.name}`;
-      const { data, error } = await supabase.storage
+      const filePath = `templates/${fileName}`;
+      const { error: uploadError } = await supabase.storage
         .from('surat-docx')
-        .upload(`templates/${fileName}`, file);
+        .upload(filePath, file);
 
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
-      // Get public URL
+      // Get public URL of the new file
       const { data: { publicUrl } } = supabase.storage
         .from('surat-docx')
-        .getPublicUrl(`templates/${fileName}`);
+        .getPublicUrl(filePath);
 
       setTemplateUrl(publicUrl);
       setFormData(prev => ({ ...prev, konten_template: publicUrl }));
 
       toast({
         title: 'Berhasil',
-        description: 'Template DOCX berhasil diupload',
+        description: 'Template DOCX baru berhasil diupload',
       });
+
+      // Delete the old template file if it exists
+      if (oldTemplateUrl) {
+        try {
+          const oldFilePath = new URL(oldTemplateUrl).pathname.split('/surat-docx/')[1];
+          if (oldFilePath) {
+            console.log(`Attempting to delete old template: ${oldFilePath}`);
+            const { error: deleteError } = await supabase.storage
+              .from('surat-docx')
+              .remove([oldFilePath]);
+
+            if (deleteError) {
+              console.error('Failed to delete old template:', deleteError);
+              toast({
+                title: 'Info Tambahan',
+                description: 'Template lama gagal dihapus, namun template baru berhasil digunakan.',
+              });
+            } else {
+              console.log('Old template deleted successfully.');
+              toast({
+                title: 'Info',
+                description: 'Template lama telah berhasil dihapus.',
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing or deleting old template path:', e);
+        }
+      }
     } catch (error) {
       console.error('Error uploading template:', error);
       toast({
@@ -359,7 +391,7 @@ const TemplateDesigner = ({ template, onSave, onCancel }: TemplateDesignerProps)
                   <li>1. Buat dokumen Word dengan konten surat</li>
                   <li>2. Gunakan placeholder dengan format: {'{nama_field}'}</li>
                   <li>3. Contoh: {'{nama}'}, {'{nik}'}, {'{alamat_lengkap}'}, {'{tanggal_surat}'}</li>
-                  <li>4. Untuk multiple data gunakan: {'{nama_1}'}, {'{nama_2}'}</li>
+                  <li>4. Untuk multiple data gunakan "Section" </li>
                   <li>5. Simpan sebagai file .docx</li>
                 </ul>
               </div>
