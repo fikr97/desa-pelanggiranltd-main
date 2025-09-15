@@ -262,6 +262,18 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
     onPlaceholdersChange(newPlaceholders);
   };
 
+  const handlePlaceholderOptionChange = (id: string, option: string, value: any) => {
+    onPlaceholdersChange(
+      placeholders.map(p => {
+        if (p.id === id) {
+          const newOptions = { ...(p.custom_field_options || {}), [option]: value };
+          return { ...p, custom_field_options: newOptions };
+        }
+        return p;
+      })
+    );
+  };
+
   const moveUp = (index: number) => {
     if (index === 0) return;
     const newPlaceholders = [...placeholders];
@@ -605,6 +617,16 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
                                 <p className="text-sm text-muted-foreground">
                                   Sumber: {placeholder.field_source || 'Custom field'}
                                 </p>
+                                {placeholder.field_source === 'tanggal_lahir' && (
+                                  <div className="flex items-center space-x-2 mt-2">
+                                    <Switch
+                                      id={`show-age-${placeholder.id}`}
+                                      checked={!!placeholder.custom_field_options?.show_age}
+                                      onCheckedChange={(checked) => handlePlaceholderOptionChange(placeholder.id, 'show_age', checked)}
+                                    />
+                                    <Label htmlFor={`show-age-${placeholder.id}`}>Tampilkan Usia</Label>
+                                  </div>
+                                )}
                                 {placeholder.field_source === 'nomor_surat_kustom' && placeholder.custom_field_options && (
                                   <div className="text-xs text-muted-foreground mt-1 space-x-2">
                                     <span>Indeks: {placeholder.custom_field_options.indeks_nomor}</span>

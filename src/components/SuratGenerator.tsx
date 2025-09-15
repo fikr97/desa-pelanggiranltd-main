@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Download } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 
 import { pekerjaanOptions, agamaOptions, statusKawinOptions, pendidikanOptions, golonganDarahOptions, statusHubunganOptions } from '@/lib/options';
 
@@ -77,7 +77,19 @@ const toRoman = (num: number): string => {
   return roman[num - 1];
 };
 
+const calculateAge = (birthDate: string): number | null => {
+  if (!birthDate) return null;
+  const today = new Date();
+  const birth = new Date(birthDate);
+  if (isNaN(birth.getTime())) return null;
 
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDifference = today.getMonth() - birth.getMonth();
+  if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 interface SuratGeneratorProps {
   template: any;
@@ -98,6 +110,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
   const [placeholders, setPlaceholders] = useState<any[]>([]);
   const [dusunList, setDusunList] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [generatedSurat, setGeneratedSurat] = useState<any>(null);
   const { toast } = useToast();
 
@@ -567,24 +580,32 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
         if (placeholder.field_source === 'tanggal_lahir') {
           const formatKey = `${placeholderKey}_format`;
           const selectedFormat = formData.placeholderValues[formatKey] || 'indonesia';
+          const age = calculateAge(fieldValue);
 
           return (
-            <div key={placeholder.id}>
+            <div key={placeholder.id} className="space-y-2">
               <Label htmlFor={placeholderKey}>
                 {placeholder.field_name} ({getFieldLabel(placeholder.field_source)})
               </Label>
-              <Input
-                id={placeholderKey}
-                type="date"
-                value={fieldValue || ''} // fieldValue will now be YYYY-MM-DD or empty
-                onChange={(e) => {
-                  handleValueChange(placeholderKey, e.target.value); // e.target.value is already YYYY-MM-DD
-                }}
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  id={placeholderKey}
+                  type="date"
+                  value={fieldValue || ''}
+                  onChange={(e) => {
+                    handleValueChange(placeholderKey, e.target.value);
+                  }}
+                  className="flex-grow"
+                />
+                {age !== null && (
+                  <div className="p-2 bg-muted rounded-md text-sm whitespace-nowrap">
+                    <span className="font-semibold">{age}</span> Tahun
+                  </div>
+                )}
+              </div>
               
-              {/* Format Selection for tanggal_lahir */}
               <div>
-                <Label htmlFor={formatKey}>Format Tanggal Lahir</Label>
+                <Label htmlFor={formatKey}>Format Output di Dokumen</Label>
                 <Select
                   value={selectedFormat}
                   onValueChange={(value) => handleValueChange(formatKey, value)}
@@ -596,12 +617,13 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
                     <SelectItem value="indonesia">Bahasa Indonesia (13 Agustus 2025)</SelectItem>
                     <SelectItem value="dd-mm-yyyy">DD-MM-YYYY (13-08-2025)</SelectItem>
                     <SelectItem value="dd/mm/yyyy">DD/MM/YYYY (13/08/2025)</SelectItem>
+                    <SelectItem value="umur">Umur (Contoh: 27)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               
-              <p className="text-xs text-muted-foreground mt-1">
-                Placeholder: {`{${placeholderKey}}`} - Akan terisi otomatis dari pencarian atau manual
+              <p className="text-xs text-muted-foreground">
+                Placeholder: {`{${placeholderKey}}`}. Format output di dokumen sesuai pilihan di atas.
               </p>
             </div>
           );
@@ -1271,6 +1293,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
   const handleDownload = async () => {
     if (!generatedSurat) return;
 
+    setIsDownloading(true);
     try {
       // Prepare merge data with proper formatting and default values
       const mergeData = { ...formData.placeholderValues };
@@ -1352,7 +1375,6 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           isDateField = true;
           formatKey = 'format_tanggal';
         } else if (placeholder.field_type === 'penduduk' && placeholder.field_source === 'tanggal_lahir') {
-          // Tambahan untuk tanggal_lahir
           isDateField = true;
           formatKey = `${placeholderKey}_format`;
         }
@@ -1361,7 +1383,10 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           const dateFormat = mergeData[formatKey] || 'indonesia';
           const date = new Date(mergeData[placeholderKey]);
 
-          if (!isNaN(date.getTime())) {
+          if (dateFormat === 'umur' && placeholder.field_source === 'tanggal_lahir') {
+            const age = calculateAge(mergeData[placeholderKey]);
+            mergeData[placeholderKey] = age !== null ? `${age} Tahun` : '';
+          } else if (!isNaN(date.getTime())) {
             if (dateFormat === 'dd-mm-yyyy') {
               mergeData[placeholderKey] = date.toLocaleDateString('id-ID', {
                 day: '2-digit',
@@ -1503,6 +1528,8 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
         description: `Terjadi kesalahan saat mendownload surat: ${error}`,
         variant: 'destructive',
       });
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -1680,4 +1707,3 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
 };
 
 export default SuratGenerator;
-
