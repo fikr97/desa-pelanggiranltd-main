@@ -61,7 +61,7 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
     },
     {
       icon: FileSignature,
-      label: 'Template Surat',
+      label: 'Surat Menyurat',
       path: '/template-surat'
     },
     {
