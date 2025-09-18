@@ -16,6 +16,7 @@ import StatistikPage from "./pages/StatistikPage";
 import LaporanPage from "./pages/LaporanPage";
 import PengaturanPage from "./pages/PengaturanPage";
 import TemplateSuratPage from "./pages/TemplateSuratPage";
+import ArsipSuratKeluarPage from "./pages/ArsipSuratKeluarPage";
 import FormTugasPage from "./pages/FormTugasPage";
 import FormDataEntryPage from "./pages/FormDataEntryPage";
 import NotFound from "./pages/NotFound";
@@ -98,6 +99,11 @@ const App = () => (
             <Route path="/template-surat" element={
               <ProtectedRoute>
                 <TemplateSuratPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/arsip-surat-keluar" element={
+              <ProtectedRoute>
+                <ArsipSuratKeluarPage />
               </ProtectedRoute>
             } />
             <Route path="/form-tugas" element={

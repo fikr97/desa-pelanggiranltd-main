@@ -1248,6 +1248,15 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
         nomorSurat = nomorData;
       }
 
+      // Ensure [bulan_romawi] and [tahun] are always replaced, even from RPC result
+      const currentMonthRoman = toRoman(new Date().getMonth() + 1);
+      const currentYear = new Date().getFullYear().toString();
+      if (nomorSurat) {
+        nomorSurat = nomorSurat
+          .replace(/\[bulan_romawi\]/gi, currentMonthRoman)
+          .replace(/\[tahun\]/gi, currentYear);
+      }
+
       // Prepare surat data dengan struktur yang lebih baik
       const suratData = {
         template_id: template.id,
@@ -1273,10 +1282,48 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
 
       setGeneratedSurat(data);
 
-      toast({
-        title: 'Berhasil',
-        description: 'Surat berhasil dibuat dengan nomor: ' + nomorSurat,
-      });
+      // --- START of new logic for arsip_surat_keluar ---
+
+      try {
+        // 1. Get Applicant Name (Nama Pemohon)
+        const applicantSection = Object.keys(formData.sectionResidents)[0];
+        const applicantName = applicantSection ? formData.sectionResidents[applicantSection].nama : 'Tidak Diketahui';
+
+        // 2. Get Person in Charge (Penanggung Jawab)
+        const { data: infoDesaData } = await supabase.from('info_desa').select('nama_kepala_desa').limit(1).single();
+        const penanggungJawab = infoDesaData?.nama_kepala_desa || 'Kepala Desa';
+
+        // 3. Prepare archive data
+        const arsipData = {
+          nama_pemohon: applicantName,
+          no_surat: nomorSurat,
+          tanggal_surat: new Date().toISOString().split('T')[0],
+          perihal: template.nama_template,
+          penanggung_jawab: penanggungJawab,
+          tanggal_pengiriman: new Date().toISOString().split('T')[0]
+        };
+
+        // 4. Insert into arsip_surat_keluar
+        const { error: arsipError } = await supabase.from('arsip_surat_keluar').insert([arsipData]);
+
+        if (arsipError) {
+          throw arsipError;
+        }
+
+        toast({
+          title: 'Berhasil',
+          description: 'Surat berhasil dibuat dan diarsipkan dengan nomor: ' + nomorSurat,
+        });
+
+      } catch (arsipError) {
+        console.error('Error saving to arsip_surat_keluar:', arsipError);
+        toast({
+          title: 'Peringatan',
+          description: 'Surat berhasil dibuat, tetapi gagal menyimpan ke arsip.',
+          variant: 'destructive',
+        });
+      }
+      
       
     } catch (error) {
       console.error('Error generating surat:', error);
@@ -1511,7 +1558,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${generatedSurat.nomor_surat.replace(/\//g, '-')}.docx`;
+      a.download = `${generatedSurat.nomor_surat.replace(/\//g, '-')} - ${generatedSurat.judul_surat}.docx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
