@@ -8,6 +8,30 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+
+const TEXT_FORMAT_OPTIONS = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'uppercase', label: 'UPPERCASE' },
+  { value: 'lowercase', label: 'lowercase' },
+  { value: 'capitalize', label: 'Capitalize' },
+];
+
+const TextFormatSelector = ({ value, onChange }) => (
+  <div className="mt-2 space-y-2">
+    <Label className="text-xs">Format Teks</Label>
+    <Select value={value || 'normal'} onValueChange={onChange}>
+      <SelectTrigger className="h-8">
+        <SelectValue placeholder="Pilih format teks..." />
+      </SelectTrigger>
+      <SelectContent>
+        {TEXT_FORMAT_OPTIONS.map(opt => (
+          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
+);
 
 const DATE_FORMAT_OPTIONS = [
   { value: 'dd MMMM yyyy', label: '05 September 2025' },
@@ -209,6 +233,19 @@ const CustomFieldDialog = ({ onSave }) => {
   );
 }
 
+const isFormattableField = (field) => {
+  // Disable for date and number types
+  if (field.tipe_field === 'date' || field.tipe_field === 'number') {
+    return false;
+  }
+  // Disable for predefined date field
+  if (field.sumber_data === 'penduduk.tanggal_lahir') {
+      return false;
+  }
+  // Enable for all others (text, textarea, dropdown, most predefined)
+  return true;
+};
+
 const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => {
   const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
   const [isPredefinedDialogOpen, setIsPredefinedDialogOpen] = useState(false);
@@ -276,30 +313,49 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
             <p className="text-muted-foreground text-center py-8">Belum ada field yang ditambahkan.</p>
           ) : (
             fields.map((field, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border rounded-lg bg-background">
-                <div>
-                  <p className="font-medium">{field.label_field}</p>
+              <div key={index} className="flex items-start justify-between p-4 border rounded-lg bg-background">
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{field.label_field}</p>
+                    {field.is_required && <span className="px-2 py-0.5 text-xs font-semibold text-red-800 bg-red-100 rounded-full">Wajib</span>}
+                  </div>
                   <p className="text-sm text-muted-foreground">Tipe: {field.tipe_field} ({field.nama_field})</p>
                   {field.tipe_field === 'dropdown' && field.opsi_pilihan && (
                     <p className="text-xs text-muted-foreground">Pilihan: {Array.isArray(field.opsi_pilihan) ? field.opsi_pilihan.join(', ') : ''}</p>
                   )}
-                  {field.tipe_field === 'date' && (
+                  {(field.tipe_field === 'date' || (field.tipe_field === 'predefined' && field.sumber_data === 'penduduk.tanggal_lahir')) && (
                     <DateFormatEditor 
                       value={field.format_tanggal} 
                       onChange={(newValue) => updateField(index, { format_tanggal: newValue })} 
                     />
                   )}
+                                    {isFormattableField(field) && (
+                    <TextFormatSelector
+                      value={field.text_format}
+                      onChange={(newValue) => updateField(index, { text_format: newValue })}
+                    />
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button size="icon" variant="ghost" onClick={() => moveField(index, 'up')} disabled={index === 0}>
-                    <ArrowUp className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => moveField(index, 'down')} disabled={index === fields.length - 1}>
-                    <ArrowDown className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="destructive" onClick={() => removeField(index)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="flex flex-col items-end gap-3 ml-4">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor={`required-switch-${index}`} className="text-sm font-normal">Wajib diisi</Label>
+                    <Switch
+                      id={`required-switch-${index}`}
+                      checked={field.is_required || false}
+                      onCheckedChange={(checked) => updateField(index, { is_required: checked })}
+                    />
+                  </div>
+                  <div className="flex items-center">
+                    <Button size="icon" variant="ghost" onClick={() => moveField(index, 'up')} disabled={index === 0}>
+                      <ArrowUp className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => moveField(index, 'down')} disabled={index === fields.length - 1}>
+                      <ArrowDown className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="destructive" onClick={() => removeField(index)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))

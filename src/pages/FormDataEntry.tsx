@@ -134,6 +134,28 @@ const FormDataEntry = () => {
 
   const handleSave = async ({ residentId, data: formData, entryId }) => {
     setIsSaving(true);
+
+    // Validasi field yang wajib diisi
+    const requiredFields = data.formDef.fields.filter(field => field.is_required);
+    const missingFields = [];
+
+    for (const field of requiredFields) {
+      const value = formData[field.nama_field];
+      // Check for null, undefined, empty string, or empty array
+      if (value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
+        missingFields.push(field.label_field);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      toast({
+        title: 'Validasi Gagal',
+        description: `Field berikut wajib diisi: ${missingFields.join(', ')}`,
+        variant: 'destructive',
+      });
+      setIsSaving(false);
+      return;
+    }
     
     const dataToSave = {};
     data.formDef.fields.forEach(field => {

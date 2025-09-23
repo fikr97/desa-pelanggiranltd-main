@@ -12,12 +12,6 @@ import { toast } from '@/components/ui/use-toast';
 
 const Pengaturan = () => {
   const navigate = useNavigate();
-  const [profileData, setProfileData] = useState({
-    namaAdmin: 'Administrator',
-    emailAdmin: 'admin@desasejahtera.id',
-    nomorTelepon: '(022) 1234567'
-  });
-
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
     smsNotifications: false,
@@ -32,14 +26,6 @@ const Pengaturan = () => {
     passwordExpiry: '90',
     loginAttempts: '5'
   });
-
-  const handleSaveProfile = () => {
-    console.log('Saving profile:', profileData);
-    toast({
-      title: "Profil Disimpan",
-      description: "Pengaturan profil administrator berhasil disimpan."
-    });
-  };
 
   const handleSaveNotifications = () => {
     console.log('Saving notifications:', notifications);
@@ -68,12 +54,8 @@ const Pengaturan = () => {
         <p className="text-muted-foreground">Kelola pengaturan sistem dan konfigurasi aplikasi</p>
       </div>
 
-      <Tabs defaultValue="profil" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="profil" className="flex items-center space-x-2">
-            <User className="h-4 w-4" />
-            <span>Profil</span>
-          </TabsTrigger>
+      <Tabs defaultValue="keamanan" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="keamanan" className="flex items-center space-x-2">
             <Shield className="h-4 w-4" />
             <span>Keamanan</span>
@@ -87,52 +69,6 @@ const Pengaturan = () => {
             <span>Sistem</span>
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="profil">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <User className="h-5 w-5" />
-                <span>Profil Administrator</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="namaAdmin">Nama Administrator</Label>
-                  <Input
-                    id="namaAdmin"
-                    value={profileData.namaAdmin}
-                    onChange={(e) => setProfileData({...profileData, namaAdmin: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="emailAdmin">Email Administrator</Label>
-                  <Input
-                    id="emailAdmin"
-                    type="email"
-                    value={profileData.emailAdmin}
-                    onChange={(e) => setProfileData({...profileData, emailAdmin: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="nomorTelepon">Nomor Telepon</Label>
-                  <Input
-                    id="nomorTelepon"
-                    value={profileData.nomorTelepon}
-                    onChange={(e) => setProfileData({...profileData, nomorTelepon: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button onClick={handleSaveProfile}>
-                  <Settings className="h-4 w-4 mr-2" />
-                  Simpan Profil
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="keamanan">
           <Card>

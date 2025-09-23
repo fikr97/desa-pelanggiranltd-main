@@ -104,7 +104,9 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
           tipe_field: field.tipe_field,
           sumber_data: field.sumber_data,
           opsi_pilihan: field.opsi_pilihan,
-          format_tanggal: field.format_tanggal, // Added this line
+          format_tanggal: field.format_tanggal,
+          is_required: field.is_required || false,
+          text_format: field.text_format || 'normal',
           urutan: index,
         }));
 

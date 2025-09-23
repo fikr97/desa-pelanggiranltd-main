@@ -24,6 +24,24 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
   const [formData, setFormData] = useState({});
   const [dusunList, setDusunList] = useState<string[]>([]);
 
+  const applyFormat = (value, field) => {
+    let processedValue = value;
+    if (field && field.text_format && typeof value === 'string') {
+      switch (field.text_format) {
+        case 'uppercase':
+          processedValue = value.toUpperCase();
+          break;
+        case 'lowercase':
+          processedValue = value.toLowerCase();
+          break;
+        case 'capitalize':
+          processedValue = value.replace(/\b\w/g, char => char.toUpperCase());
+          break;
+      }
+    }
+    return processedValue;
+  };
+
   useEffect(() => {
     const fetchDusun = async () => {
       const { data, error } = await supabase.from('wilayah').select('nama').eq('jenis', 'Dusun').order('nama', { ascending: true });
@@ -41,14 +59,16 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       
       const combinedData = {};
       formDef.fields.forEach(field => {
+        let value;
         const customValue = initialData.data_custom?.[field.nama_field];
         if (customValue !== undefined && customValue !== null) {
-          combinedData[field.nama_field] = customValue;
+          value = customValue;
         } else if (field.sumber_data && field.sumber_data.startsWith('penduduk.')) {
-          combinedData[field.nama_field] = resident ? resident[field.nama_field] : '';
+          value = resident ? resident[field.nama_field] : '';
         } else {
-          combinedData[field.nama_field] = '';
+          value = '';
         }
+        combinedData[field.nama_field] = applyFormat(value, field);
       });
       setFormData(combinedData);
 
@@ -62,18 +82,39 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
     if (selectedResident && !initialData) {
       const newFormData = {};
       formDef.fields.forEach(field => {
+        let value = '';
         if (field.sumber_data && field.sumber_data.startsWith('penduduk.')) {
-          newFormData[field.nama_field] = selectedResident[field.nama_field] || '';
+          value = selectedResident[field.nama_field] || '';
         } else {
-          newFormData[field.nama_field] = formData[field.nama_field] || '';
+          value = formData[field.nama_field] || '';
         }
+        newFormData[field.nama_field] = applyFormat(value, field);
       });
       setFormData(newFormData);
     }
   }, [selectedResident, formDef, initialData]);
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = (fieldName, value) => {
+    const fieldDef = formDef.fields.find(f => f.nama_field === fieldName);
+    let processedValue = value;
+
+    if (fieldDef && fieldDef.text_format && typeof value === 'string') {
+      switch (fieldDef.text_format) {
+        case 'uppercase':
+          processedValue = value.toUpperCase();
+          break;
+        case 'lowercase':
+          processedValue = value.toLowerCase();
+          break;
+        case 'capitalize':
+          processedValue = value.replace(/\b\w/g, char => char.toUpperCase());
+          break;
+        default:
+          // 'normal' or any other case
+          break;
+      }
+    }
+    setFormData(prev => ({ ...prev, [fieldName]: processedValue }));
   };
 
   const getDropdownOptions = (fieldName) => {
@@ -94,10 +135,12 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
     const value = formData[field.nama_field] || '';
     const dropdownFields = ['jenis_kelamin', 'golongan_darah', 'agama', 'status_kawin', 'status_hubungan', 'pendidikan', 'pekerjaan', 'dusun'];
 
+    const requiredIndicator = field.is_required ? <span className="text-red-500 ml-1">*</span> : null;
+
     if (field.tipe_field === 'predefined' && dropdownFields.includes(field.nama_field)) {
       return (
         <div key={field.id}>
-          <Label htmlFor={field.nama_field}>{field.label_field}</Label>
+          <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
           <Select value={value} onValueChange={(newValue) => handleInputChange(field.nama_field, newValue)}>
             <SelectTrigger id={field.nama_field}>
               <SelectValue placeholder={`Pilih ${field.label_field}...`} />
@@ -116,14 +159,14 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       case 'textarea':
         return (
           <div key={field.id}>
-            <Label htmlFor={field.nama_field}>{field.label_field}</Label>
+            <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
             <Textarea id={field.nama_field} value={value} onChange={e => handleInputChange(field.nama_field, e.target.value)} />
           </div>
         );
       case 'number':
         return (
           <div key={field.id}>
-            <Label htmlFor={field.nama_field}>{field.label_field}</Label>
+            <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
             <Input id={field.nama_field} type="number" value={value} onChange={e => handleInputChange(field.nama_field, e.target.value)} />
           </div>
         );
@@ -147,7 +190,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
 
         return (
           <div key={field.id}>
-            <Label htmlFor={field.nama_field}>{field.label_field}</Label>
+            <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
             <div className="flex items-center gap-2">
                <Input 
                 type="text" 
@@ -170,7 +213,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       case 'dropdown':
         return (
           <div key={field.id}>
-            <Label htmlFor={field.nama_field}>{field.label_field}</Label>
+            <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
             <Select value={value} onValueChange={(newValue) => handleInputChange(field.nama_field, newValue)}>
               <SelectTrigger id={field.nama_field}>
                 <SelectValue placeholder="Pilih..." />
@@ -186,7 +229,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       default: // 'text', 'predefined', etc.
         return (
           <div key={field.id}>
-            <Label htmlFor={field.nama_field}>{field.label_field}</Label>
+            <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
             <Input id={field.nama_field} value={value} onChange={e => handleInputChange(field.nama_field, e.target.value)} />
           </div>
         );
@@ -194,12 +237,8 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
   };
 
   const handleSubmit = () => {
-    if (!selectedResident) {
-      console.error("Penduduk belum dipilih");
-      return;
-    }
     onSave({ 
-      residentId: selectedResident.id, 
+      residentId: selectedResident ? selectedResident.id : null, 
       data: formData,
       entryId: initialData ? initialData.id : null
     });
@@ -208,13 +247,16 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
   return (
     <div className="space-y-6">
       <div>
-        <Label>Pilih Penduduk</Label>
+        <Label>Pilih Penduduk (Opsional)</Label>
         <ResidentSearchCombobox 
           residents={residents || []} 
           onSelect={setSelectedResident} 
           value={selectedResident ? selectedResident.nik : ''}
           placeholder="Ketik untuk mencari NIK atau Nama..."
         />
+        <p className="text-xs text-muted-foreground mt-1">
+          Pilih penduduk untuk mengisi data secara otomatis. Biarkan kosong jika data untuk penduduk luar.
+        </p>
       </div>
 
       <div className="space-y-4">
@@ -223,7 +265,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       
       <div className="flex justify-end pt-4 gap-2">
         <Button variant="ghost" onClick={onCancel}>Batal</Button>
-        <Button onClick={handleSubmit} disabled={isLoading || !selectedResident}>
+        <Button onClick={handleSubmit} disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Simpan Data
         </Button>
