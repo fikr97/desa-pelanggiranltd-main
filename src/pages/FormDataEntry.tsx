@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, PlusCircle, Pencil, Trash2, ArrowLeft } from 'lucide-react';
+import { Loader2, Download, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown } from 'lucide-react';
 import DataEntryForm from '@/components/DataEntryForm';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,6 +37,53 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
+const getFieldValue = (entry, field) => {
+  let value;
+  const customValue = entry.data_custom?.[field.nama_field];
+
+  if (customValue !== undefined && customValue !== null && customValue !== '') {
+    value = customValue;
+  } else if (field.tipe_field === 'predefined') {
+    value = entry.penduduk?.[field.nama_field] || 'N/A';
+  } else {
+    value = 'N/A';
+  }
+
+  // Apply text format transformation first
+  if (field.text_format && typeof value === 'string') {
+    switch (field.text_format) {
+      case 'uppercase':
+        value = value.toUpperCase();
+        break;
+      case 'lowercase':
+        value = value.toLowerCase();
+        break;
+      case 'capitalize':
+        value = value.replace(/\b\w/g, char => char.toUpperCase());
+        break;
+    }
+  }
+
+  // Apply date format transformation if applicable
+  if ((field.tipe_field === 'date' || field.sumber_data === 'penduduk.tanggal_lahir') && value && value !== 'N/A' && field.format_tanggal) {
+    try {
+      let formatString = field.format_tanggal;
+      if (formatString === 'd MMMM yyyy') {
+        formatString = 'dd MMMM yyyy';
+      } else if (formatString === 'EEEE, d MMMM yyyy') {
+        formatString = 'EEEE, dd MMMM yyyy';
+      }
+      return format(new Date(value), formatString, { locale: id });
+    } catch (e) {
+      console.error("Invalid date or format:", e);
+      // Fallback to the (potentially text-formatted) value
+      return value;
+    }
+  }
+
+  return value;
+};
+
 const FormDataEntry = () => {
   const { formId } = useParams();
   const { toast } = useToast();
@@ -47,6 +94,7 @@ const FormDataEntry = () => {
   const [entryToDelete, setEntryToDelete] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['form_data_and_def', formId],
@@ -55,30 +103,20 @@ const FormDataEntry = () => {
       const fieldsQuery = supabase.from('form_tugas_fields').select('*').eq('form_tugas_id', formId).order('urutan');
       const entriesQuery = supabase.from('form_tugas_data').select('*, penduduk(*)').eq('form_tugas_id', formId).order('created_at');
       const residentsQuery = (async () => {
-        let allData: any[] = [];
+        let allData = [];
         let from = 0;
-        const limit = 1000; // Supabase default limit per query
+        const limit = 1000;
         let hasMore = true;
-
         while (hasMore) {
-          const { data, error } = await supabase
-            .from('penduduk')
-            .select('*')
-            .range(from, from + limit - 1);
-
+          const { data, error } = await supabase.from('penduduk').select('*').range(from, from + limit - 1);
           if (error) {
             console.error('Error fetching residents in FormDataEntry:', error);
-            // Return a structure that Promise.all can handle
             return { data: null, error }; 
           }
-
           if (data) {
             allData = [...allData, ...data];
-            if (data.length < limit) {
-              hasMore = false;
-            } else {
-              from += limit;
-            }
+            if (data.length < limit) hasMore = false;
+            else from += limit;
           } else {
             hasMore = false;
           }
@@ -101,6 +139,41 @@ const FormDataEntry = () => {
     },
     enabled: !!formId,
   });
+
+  const sortedEntries = useMemo(() => {
+    if (!data?.entries) return [];
+    const sortableEntries = [...data.entries];
+    sortableEntries.sort((a, b) => {
+      let aValue, bValue;
+
+      if (sortConfig.key === 'created_at') {
+        aValue = new Date(a.created_at);
+        bValue = new Date(b.created_at);
+      } else {
+        const field = data.formDef.fields.find(f => f.nama_field === sortConfig.key);
+        if (!field) return 0;
+        aValue = getFieldValue(a, field);
+        bValue = getFieldValue(b, field);
+      }
+
+      if (aValue < bValue) {
+        return sortConfig.direction === 'ascending' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'ascending' ? 1 : -1;
+      }
+      return 0;
+    });
+    return sortableEntries;
+  }, [data?.entries, sortConfig, data?.formDef.fields]);
+
+  const requestSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const handleAddNew = () => {
     setEditingEntry(null);
@@ -134,19 +207,14 @@ const FormDataEntry = () => {
 
   const handleSave = async ({ residentId, data: formData, entryId }) => {
     setIsSaving(true);
-
-    // Validasi field yang wajib diisi
     const requiredFields = data.formDef.fields.filter(field => field.is_required);
     const missingFields = [];
-
     for (const field of requiredFields) {
       const value = formData[field.nama_field];
-      // Check for null, undefined, empty string, or empty array
       if (value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
         missingFields.push(field.label_field);
       }
     }
-
     if (missingFields.length > 0) {
       toast({
         title: 'Validasi Gagal',
@@ -156,33 +224,26 @@ const FormDataEntry = () => {
       setIsSaving(false);
       return;
     }
-    
     const dataToSave = {};
     data.formDef.fields.forEach(field => {
         dataToSave[field.nama_field] = formData[field.nama_field];
     });
-
     const payload = {
       form_tugas_id: formId,
       penduduk_id: residentId,
-      data_custom: dataToSave, // Save everything here
+      data_custom: dataToSave,
       user_id: user?.id,
     };
-
     try {
       let error;
       if (entryId) {
-        // Update
         const { error: updateError } = await supabase.from('form_tugas_data').update(payload).eq('id', entryId);
         error = updateError;
       } else {
-        // Insert
         const { error: insertError } = await supabase.from('form_tugas_data').insert(payload);
         error = insertError;
       }
-
       if (error) throw error;
-
       toast({ title: 'Berhasil', description: 'Data berhasil disimpan.' });
       queryClient.invalidateQueries({ queryKey: ['form_data_and_def', formId] });
       setIsFormOpen(false);
@@ -196,55 +257,13 @@ const FormDataEntry = () => {
 
   const handleExport = () => {
     const headers = data.formDef.fields.map(f => f.label_field);
-    const dataForSheet = data.entries.map(entry => {
+    const dataForSheet = sortedEntries.map(entry => {
       const row = {};
       data.formDef.fields.forEach(field => {
-        const customValue = entry.data_custom?.[field.nama_field];
-        let value;
-
-        if (customValue !== undefined && customValue !== null && customValue !== '') {
-          if (field.tipe_field === 'date' && field.format_tanggal) {
-            try {
-              let formatString = field.format_tanggal;
-              if (formatString === 'd MMMM yyyy') {
-                formatString = 'dd MMMM yyyy';
-              } else if (formatString === 'EEEE, d MMMM yyyy') {
-                formatString = 'EEEE, dd MMMM yyyy';
-              }
-              value = format(new Date(customValue), formatString, { locale: id });
-            } catch (e) {
-              console.error("Invalid date or format for export:", e);
-              value = customValue;
-            }
-          } else {
-            value = customValue;
-          }
-        } else if (field.tipe_field === 'predefined') {
-            const predefValue = entry.penduduk?.[field.nama_field];
-            if (field.nama_field === 'tanggal_lahir' && predefValue && field.format_tanggal) {
-                try {
-                    let formatString = field.format_tanggal;
-                    if (formatString === 'd MMMM yyyy') {
-                        formatString = 'dd MMMM yyyy';
-                    } else if (formatString === 'EEEE, d MMMM yyyy') {
-                        formatString = 'EEEE, dd MMMM yyyy';
-                    }
-                    value = format(new Date(predefValue), formatString, { locale: id });
-                } catch (e) {
-                    console.error("Invalid date or format for predefined field in export:", e);
-                    value = predefValue;
-                }
-            } else {
-                value = predefValue || '';
-            }
-        } else {
-          value = '';
-        }
-        row[field.label_field] = value;
+        row[field.label_field] = getFieldValue(entry, field);
       });
       return row;
     });
-
     const worksheet = XLSX.utils.json_to_sheet(dataForSheet, { header: headers });
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
@@ -256,50 +275,6 @@ const FormDataEntry = () => {
   if (!data || !data.formDef) return <div className="p-6"><p>Form tidak ditemukan.</p></div>;
 
   const { formDef, entries, residents } = data;
-
-  const getFieldValue = (entry, field) => {
-    const customValue = entry.data_custom?.[field.nama_field];
-    
-    if (customValue !== undefined && customValue !== null && customValue !== '') {
-      if (field.tipe_field === 'date' && field.format_tanggal) {
-        try {
-          let formatString = field.format_tanggal;
-          if (formatString === 'd MMMM yyyy') {
-            formatString = 'dd MMMM yyyy';
-          } else if (formatString === 'EEEE, d MMMM yyyy') {
-            formatString = 'EEEE, dd MMMM yyyy';
-          }
-          return format(new Date(customValue), formatString, { locale: id });
-        } catch (e) {
-          console.error("Invalid date or format:", e);
-          return customValue; // Fallback to original value
-        }
-      }
-      return customValue;
-    }
-
-    // Fallback to penduduk data for predefined fields if not in custom_data
-    if (field.tipe_field === 'predefined') {
-      const predefValue = entry.penduduk?.[field.nama_field];
-      if (field.nama_field === 'tanggal_lahir' && predefValue && field.format_tanggal) {
-          try {
-            let formatString = field.format_tanggal;
-            if (formatString === 'd MMMM yyyy') {
-              formatString = 'dd MMMM yyyy';
-            } else if (formatString === 'EEEE, d MMMM yyyy') {
-              formatString = 'EEEE, dd MMMM yyyy';
-            }
-            return format(new Date(predefValue), formatString, { locale: id });
-          } catch (e) {
-              console.error("Invalid date or format for predefined field:", e);
-              return predefValue;
-          }
-      }
-      return predefValue || 'N/A';
-    }
-
-    return 'N/A';
-  };
 
   return (
     <>
@@ -340,13 +315,20 @@ const FormDataEntry = () => {
                   <TableRow>
                     <TableHead className="w-12">No</TableHead>
                     {formDef.fields.map(field => (
-                      <TableHead key={field.id}>{field.label_field}</TableHead>
+                      <TableHead key={field.id} onClick={() => requestSort(field.nama_field)} className="cursor-pointer hover:bg-muted">
+                        <div className="flex items-center gap-2">
+                          {field.label_field}
+                          {sortConfig.key === field.nama_field && (
+                            <ArrowUpDown className="h-4 w-4" />
+                          )}
+                        </div>
+                      </TableHead>
                     ))}
                     <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {entries.map((entry, index) => (
+                  {sortedEntries.map((entry, index) => (
                     <TableRow key={entry.id}>
                       <TableCell>{index + 1}</TableCell>
                       {formDef.fields.map(field => (

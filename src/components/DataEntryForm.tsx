@@ -24,8 +24,33 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
   const [formData, setFormData] = useState({});
   const [dusunList, setDusunList] = useState<string[]>([]);
 
+  const getDropdownOptions = (fieldName) => {
+    switch (fieldName) {
+      case 'jenis_kelamin': return jenisKelaminOptions;
+      case 'golongan_darah': return golonganDarahOptions;
+      case 'agama': return agamaOptions;
+      case 'status_kawin': return statusKawinOptions;
+      case 'status_hubungan': return statusHubunganOptions;
+      case 'pendidikan': return pendidikanOptions;
+      case 'pekerjaan': return pekerjaanOptions;
+      case 'dusun': return dusunList;
+      default: return [];
+    }
+  };
+
   const applyFormat = (value, field) => {
     let processedValue = value;
+    const dropdownFields = ['jenis_kelamin', 'golongan_darah', 'agama', 'status_kawin', 'status_hubungan', 'pendidikan', 'pekerjaan', 'dusun'];
+
+    // Special handling for dropdowns to find a case-insensitive match
+    if (dropdownFields.includes(field.nama_field) && typeof value === 'string' && value) {
+      const options = getDropdownOptions(field.nama_field);
+      const foundOption = options.find(opt => opt.toLowerCase() === value.toLowerCase());
+      if (foundOption) {
+        return foundOption;
+      }
+    }
+
     if (field && field.text_format && typeof value === 'string') {
       switch (field.text_format) {
         case 'uppercase':
@@ -53,6 +78,12 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
   }, []);
 
   useEffect(() => {
+    // Wait until dusunList is loaded if the form includes a dusun field
+    const hasDusunField = formDef.fields.some(f => f.nama_field === 'dusun');
+    if (hasDusunField && dusunList.length === 0) {
+      return; // Don't run until dusunList is populated
+    }
+
     if (initialData) {
       const resident = residents.find(r => r.id === initialData.penduduk_id);
       setSelectedResident(resident || null);
@@ -76,23 +107,28 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       setSelectedResident(null);
       setFormData({});
     }
-  }, [initialData, residents, formDef]);
+  }, [initialData, residents, formDef, dusunList]);
 
   useEffect(() => {
+    // Wait until dusunList is loaded if the form includes a dusun field
+    const hasDusunField = formDef.fields.some(f => f.nama_field === 'dusun');
+    if (hasDusunField && dusunList.length === 0) {
+      return; // Don't run until dusunList is populated
+    }
+
     if (selectedResident && !initialData) {
       const newFormData = {};
       formDef.fields.forEach(field => {
         let value = '';
         if (field.sumber_data && field.sumber_data.startsWith('penduduk.')) {
           value = selectedResident[field.nama_field] || '';
-        } else {
-          value = formData[field.nama_field] || '';
         }
+        // This now correctly resets custom fields to empty when a new resident is selected
         newFormData[field.nama_field] = applyFormat(value, field);
       });
       setFormData(newFormData);
     }
-  }, [selectedResident, formDef, initialData]);
+  }, [selectedResident, formDef, initialData, dusunList]);
 
   const handleInputChange = (fieldName, value) => {
     const fieldDef = formDef.fields.find(f => f.nama_field === fieldName);
@@ -115,20 +151,6 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       }
     }
     setFormData(prev => ({ ...prev, [fieldName]: processedValue }));
-  };
-
-  const getDropdownOptions = (fieldName) => {
-    switch (fieldName) {
-      case 'jenis_kelamin': return jenisKelaminOptions;
-      case 'golongan_darah': return golonganDarahOptions;
-      case 'agama': return agamaOptions;
-      case 'status_kawin': return statusKawinOptions;
-      case 'status_hubungan': return statusHubunganOptions;
-      case 'pendidikan': return pendidikanOptions;
-      case 'pekerjaan': return pekerjaanOptions;
-      case 'dusun': return dusunList;
-      default: return [];
-    }
   };
 
   const renderField = (field) => {
