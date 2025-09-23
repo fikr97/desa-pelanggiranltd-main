@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -18,6 +19,7 @@ const AuthPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showContactDialog, setShowContactDialog] = useState(false);
   const navigate = useNavigate();
 
   // Fetch village information for logo and name
@@ -26,15 +28,15 @@ const AuthPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('info_desa')
-        .select('nama_desa, logo_desa')
+        .select('nama_desa, logo_desa, email, telepon, alamat_kantor')
         .maybeSingle();
       
       if (error) {
         console.error('Error fetching village info:', error);
-        return { nama_desa: 'Sistem Desa', logo_desa: null };
+        return { nama_desa: 'Sistem Desa', logo_desa: null, email: null, telepon: null, alamat_kantor: null };
       }
       
-      return data || { nama_desa: 'Sistem Desa', logo_desa: null };
+      return data || { nama_desa: 'Sistem Desa', logo_desa: null, email: null, telepon: null, alamat_kantor: null };
     }
   });
 
@@ -266,14 +268,20 @@ const AuthPage = () => {
               <div className="text-center space-y-4">
                 <p className="text-sm text-muted-foreground/70">
                   Belum memiliki akun?{" "}
-                  <span className="text-primary hover:text-primary/80 cursor-pointer font-medium transition-colors">
+                  <span 
+                    className="text-primary hover:text-primary/80 cursor-pointer font-medium transition-colors"
+                    onClick={() => setShowContactDialog(true)}
+                  >
                     Hubungi Administrator
                   </span>
                 </p>
                 
                 <p className="text-xs text-muted-foreground/60">
                   Dengan masuk, Anda menyetujui{" "}
-                  <span className="text-primary hover:text-primary/80 cursor-pointer">
+                  <span 
+                    className="text-primary hover:text-primary/80 cursor-pointer"
+                    onClick={() => navigate('/terms-of-service')}
+                  >
                     Syarat & Ketentuan
                   </span>{" "}
                   kami
@@ -288,6 +296,57 @@ const AuthPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Contact Administrator Dialog */}
+      <Dialog open={showContactDialog} onOpenChange={setShowContactDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-center">Hubungi Administrator</DialogTitle>
+            <DialogDescription className="text-center">
+              Jika Anda belum memiliki akun, silakan hubungi administrator sistem desa untuk mendapatkan akses.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="rounded-lg border p-4 bg-muted/50">
+              <h3 className="font-semibold text-lg mb-2">Cara Menghubungi:</h3>
+              <ul className="space-y-2 text-sm">
+                {infoDesa?.email && (
+                  <li className="flex items-start">
+                    <span className="mr-2">📧</span>
+                    <span>Email: {infoDesa.email}</span>
+                  </li>
+                )}
+                {infoDesa?.telepon && (
+                  <li className="flex items-start">
+                    <span className="mr-2">📞</span>
+                    <span>Telepon: {infoDesa.telepon}</span>
+                  </li>
+                )}
+                {infoDesa?.alamat_kantor && (
+                  <li className="flex items-start">
+                    <span className="mr-2">🏢</span>
+                    <span>{infoDesa.alamat_kantor}</span>
+                  </li>
+                )}
+                {!infoDesa?.email && !infoDesa?.telepon && !infoDesa?.alamat_kantor && (
+                  <li className="text-muted-foreground">
+                    Informasi kontak belum tersedia. Silakan hubungi kantor desa secara langsung.
+                  </li>
+                )}
+              </ul>
+            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              Administrator akan membantu Anda dalam proses pembuatan akun dan memberikan informasi lebih lanjut.
+            </p>
+            <Button 
+              className="w-full button-elegant"
+              onClick={() => setShowContactDialog(false)}
+            >
+              Tutup
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
