@@ -28,15 +28,32 @@ const ArsipSuratKeluarForm = ({ arsip, perangkatList, templateList, onClose }: A
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isPerihalOpen, setIsPerihalOpen] = useState(false);
+  const [defaultKepalaDesa, setDefaultKepalaDesa] = useState<string>('');
   const { toast } = useToast();
 
   useEffect(() => {
     const fetchDefaultPenanggungJawab = async () => {
       if (!arsip) { // Only for new entries
         try {
+          // Get Kepala Desa from info_desa table (this is the primary source)
           const { data: infoDesa } = await supabase.from('info_desa').select('nama_kepala_desa').single();
-          const kades = perangkatList.find(p => p.jabatan.toLowerCase() === 'kepala desa');
-          const defaultValue = kades ? `${kades.nama} (${kades.jabatan})` : (infoDesa?.nama_kepala_desa || '');
+          
+          // Check if Kepala Desa exists in perangkatList
+          const kadesInPerangkat = perangkatList.find(p => 
+            typeof p.jabatan === 'string' && 
+            p.jabatan.toLowerCase().includes('kepala desa')
+          );
+          
+          let defaultValue = '';
+          if (kadesInPerangkat) {
+            // Use perangkat desa if exists
+            defaultValue = `${kadesInPerangkat.nama} (${kadesInPerangkat.jabatan})`;
+          } else if (infoDesa?.nama_kepala_desa) {
+            // Use info desa as fallback
+            defaultValue = `${infoDesa.nama_kepala_desa} (Kepala Desa)`;
+          }
+          
+          setDefaultKepalaDesa(defaultValue);
           setFormData(prev => ({ ...prev, penanggung_jawab: defaultValue }));
         } catch (error) {
           console.error("Error fetching default penanggung jawab:", error);
@@ -142,6 +159,13 @@ const ArsipSuratKeluarForm = ({ arsip, perangkatList, templateList, onClose }: A
               <SelectValue placeholder="Pilih penanggung jawab..." />
             </SelectTrigger>
             <SelectContent>
+              {/* Default option for Kepala Desa from Info Desa */}
+              {defaultKepalaDesa && (
+                <SelectItem value={defaultKepalaDesa}>
+                  {defaultKepalaDesa} (Dari Info Desa)
+                </SelectItem>
+              )}
+              
               {perangkatList.map((p) => (
                 <SelectItem key={`${p.nama}-${p.jabatan}`} value={`${p.nama} (${p.jabatan})`}>
                   {p.nama} ({p.jabatan})

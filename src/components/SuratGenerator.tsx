@@ -1290,7 +1290,16 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
         const applicantName = applicantSection ? formData.sectionResidents[applicantSection].nama : 'Tidak Diketahui';
 
         // 2. Get Person in Charge (Penanggung Jawab)
-        const { data: infoDesaData } = await supabase.from('info_desa').select('nama_kepala_desa').limit(1).single();
+        const { data: infoDesaData, error: infoDesaError } = await supabase.from('info_desa').select('nama_kepala_desa').limit(1).single();
+        
+        if (infoDesaError) {
+          console.error('Error fetching penanggung jawab:', infoDesaError);
+          toast({
+            title: 'Peringatan',
+            description: 'Gagal mengambil data Kepala Desa. Penanggung jawab mungkin tidak sesuai.',
+            variant: 'destructive',
+          });
+        }
         const penanggungJawab = infoDesaData?.nama_kepala_desa || 'Kepala Desa';
 
         // 3. Prepare archive data
@@ -1388,6 +1397,11 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
         mergeData.nama_kec = mergeData.nama_kec || infoDesaData.nama_kecamatan?.replace('Kecamatan ', '');
         mergeData.nama_kab_kota = mergeData.nama_kab_kota || infoDesaData.nama_kabupaten?.replace('Kabupaten ', '');
         mergeData.nama_prop = mergeData.nama_prop || infoDesaData.nama_provinsi;
+        
+        // Selalu gunakan nama kepala desa dari info_desa untuk konsistensi
+        if (!mergeData.nama_kepala_desa) {
+          mergeData.nama_kepala_desa = infoDesaData.nama_kepala_desa || '';
+        }
       }
 
       // Override location fields if they are empty

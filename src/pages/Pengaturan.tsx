@@ -1,15 +1,17 @@
 
 import React, { useState } from 'react';
-import { Settings, User, Shield, Database, Bell } from 'lucide-react';
+import { Settings, User, Shield, Database, Bell, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import PengaturanInfoDesa from './PengaturanInfoDesa';
+import { useNavigate } from 'react-router-dom';
+import { toast } from '@/components/ui/use-toast';
 
 const Pengaturan = () => {
+  const navigate = useNavigate();
   const [profileData, setProfileData] = useState({
     namaAdmin: 'Administrator',
     emailAdmin: 'admin@desasejahtera.id',
@@ -33,14 +35,30 @@ const Pengaturan = () => {
 
   const handleSaveProfile = () => {
     console.log('Saving profile:', profileData);
+    toast({
+      title: "Profil Disimpan",
+      description: "Pengaturan profil administrator berhasil disimpan."
+    });
   };
 
   const handleSaveNotifications = () => {
     console.log('Saving notifications:', notifications);
+    toast({
+      title: "Notifikasi Disimpan",
+      description: "Pengaturan notifikasi berhasil disimpan."
+    });
   };
 
   const handleSaveSecurity = () => {
     console.log('Saving security:', security);
+    toast({
+      title: "Keamanan Disimpan",
+      description: "Pengaturan keamanan berhasil disimpan."
+    });
+  };
+
+  const handleManageDesaInfo = () => {
+    navigate('/info-desa');
   };
 
   return (
@@ -253,7 +271,29 @@ const Pengaturan = () => {
         </TabsContent>
 
         <TabsContent value="sistem" className="space-y-6">
-          <PengaturanInfoDesa />
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Database className="h-5 w-5" />
+                <span>Informasi Desa</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Kelola Informasi Desa</h3>
+                <p className="text-muted-foreground mb-4">
+                  Untuk mengelola informasi desa seperti nama desa, kepala desa, alamat kantor, email, dan telepon, 
+                  silakan kunjungi menu Info Desa.
+                </p>
+                <Button onClick={handleManageDesaInfo}>
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Buka Menu Info Desa
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">

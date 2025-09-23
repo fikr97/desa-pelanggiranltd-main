@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
-import { Building2, MapPin, Phone, Mail, Globe, User, Edit, Save, X, Users, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Building2, MapPin, Phone, Mail, Globe, User, Edit, Save, X, Users, Plus, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2 } from 'lucide-react';
 import PerangkatDesaForm from '@/components/PerangkatDesaForm';
 import OrganizationalChart from '@/components/OrganizationalChart';
 
@@ -23,9 +22,12 @@ interface PerangkatDesa {
 }
 
 const InfoDesa = () => {
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Fetch info desa data
@@ -49,6 +51,13 @@ const InfoDesa = () => {
       return data;
     }
   });
+
+  // Set preview URL when infoDesaData changes
+  useEffect(() => {
+    if (infoDesaData?.logo_desa) {
+      setPreviewUrl(infoDesaData.logo_desa);
+    }
+  }, [infoDesaData]);
 
   // Fetch perangkat desa data
   const { data: perangkatDesaData, isLoading: isLoadingPerangkat, refetch: refetchPerangkat } = useQuery({
@@ -96,19 +105,47 @@ const InfoDesa = () => {
   const handleCancel = () => {
     setEditData({});
     setIsEditing(false);
+    setSelectedFile(null);
+    setPreviewUrl(infoDesaData?.logo_desa || null);
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
   };
 
   const handleSave = async () => {
     setIsLoading(true);
     try {
+      let logoUrl = editData.logo_desa;
+
+      // Upload logo if selected
+      if (selectedFile) {
+        const filePath = `public/${Date.now()}-${selectedFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('logo-desa')
+          .upload(filePath, selectedFile, { upsert: true });
+        
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage.from('logo-desa').getPublicUrl(filePath);
+        logoUrl = urlData.publicUrl;
+      }
+
+      const dataToSave = {
+        ...editData,
+        logo_desa: logoUrl,
+        updated_at: new Date().toISOString()
+      };
+
       if (infoDesaData) {
         // Update existing data
         const { error } = await supabase
           .from('info_desa')
-          .update({
-            ...editData,
-            updated_at: new Date().toISOString()
-          })
+          .update(dataToSave)
           .eq('id', infoDesaData.id);
 
         if (error) throw error;
@@ -116,7 +153,7 @@ const InfoDesa = () => {
         // Insert new data
         const { error } = await supabase
           .from('info_desa')
-          .insert([editData]);
+          .insert([dataToSave]);
 
         if (error) throw error;
       }
@@ -127,7 +164,10 @@ const InfoDesa = () => {
       });
 
       setIsEditing(false);
+      setSelectedFile(null);
       refetch();
+      queryClient.invalidateQueries({ queryKey: ['info-desa-logo'] });
+      queryClient.invalidateQueries({ queryKey: ['info-desa-header'] });
     } catch (error) {
       console.error('Error saving info desa:', error);
       toast({
@@ -273,6 +313,49 @@ const InfoDesa = () => {
           </div>
         )}
       </div>
+
+      {/* Logo Desa */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Building2 className="h-5 w-5" />
+            <span>Logo Desa</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isEditing ? (
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="w-24 h-24 rounded-lg border border-dashed flex items-center justify-center bg-muted/40">
+                  {previewUrl ? (
+                    <img src={previewUrl} alt="Preview" className="h-full w-full object-contain rounded-lg"/>
+                  ) : (
+                    <Building2 className="h-10 w-10 text-muted-foreground"/>
+                  )}
+                </div>
+                <div>
+                  <Input id="logo-upload" type="file" accept="image/*" onChange={handleFileChange} className="max-w-xs"/>
+                  <p className="text-sm text-muted-foreground mt-2">Unggah file gambar (PNG, JPG, SVG) maks 2MB.</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-4">
+              <div className="w-24 h-24 rounded-lg border flex items-center justify-center bg-muted/40">
+                {displayData?.logo_desa ? (
+                  <img src={displayData.logo_desa} alt="Logo Desa" className="h-full w-full object-contain rounded-lg"/>
+                ) : (
+                  <Building2 className="h-10 w-10 text-muted-foreground"/>
+                )}
+              </div>
+              <div>
+                <p className="font-medium">Logo Desa</p>
+                <p className="text-sm text-muted-foreground">Logo resmi desa</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Informasi Umum */}
       <Card>

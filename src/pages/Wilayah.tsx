@@ -11,10 +11,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import WilayahForm from '@/components/WilayahForm';
+import WilayahPreviewDialog from '@/components/WilayahPreviewDialog';
 
 const Wilayah = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedWilayah, setSelectedWilayah] = useState(null);
   const { toast } = useToast();
 
@@ -111,8 +113,8 @@ const Wilayah = () => {
   };
 
   const handleView = (item: any) => {
-    console.log('View wilayah:', item);
-    // TODO: Implementasi view detail
+    setSelectedWilayah(item);
+    setIsPreviewOpen(true);
   };
 
   const handleAddNew = () => {
@@ -124,6 +126,11 @@ const Wilayah = () => {
     setIsFormOpen(false);
     setSelectedWilayah(null);
     refetch();
+  };
+
+  const handlePreviewClose = () => {
+    setIsPreviewOpen(false);
+    setSelectedWilayah(null);
   };
 
   // Calculate summary statistics
@@ -275,6 +282,13 @@ const Wilayah = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Preview Dialog */}
+      <WilayahPreviewDialog
+        open={isPreviewOpen}
+        onOpenChange={handlePreviewClose}
+        wilayah={selectedWilayah}
+      />
     </div>
   );
 };

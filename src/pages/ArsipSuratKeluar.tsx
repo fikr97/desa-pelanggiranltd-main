@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import DataTable from '@/components/DataTable';
 import { Loader2, Plus } from 'lucide-react';
@@ -29,6 +30,20 @@ const ArsipSuratKeluar = () => {
   const [templateList, setTemplateList] = useState<any[]>([]);
   const { toast } = useToast();
 
+  // Fetch info desa data (this is the primary source for kepala desa info)
+  const { data: infoDesa } = useQuery({
+    queryKey: ['info-desa-arsip'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('info_desa')
+        .select('nama_kepala_desa')
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    }
+  });
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -53,7 +68,7 @@ const ArsipSuratKeluar = () => {
   const fetchDropdownData = useCallback(async () => {
     try {
       const [perangkatRes, templateRes] = await Promise.all([
-        supabase.from('perangkat_desa').select('nama, jabatan'),
+        supabase.from('perangkat_desa').select('nama, jabatan').eq('status', 'Aktif'),
         supabase.from('surat_template').select('nama_template')
       ]);
 
@@ -113,7 +128,22 @@ const ArsipSuratKeluar = () => {
       render: (value: string) => value ? new Date(value).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'
     },
     { key: 'perihal', label: 'Perihal' },
-    { key: 'penanggung_jawab', label: 'Penanggung Jawab' },
+    { 
+      key: 'penanggung_jawab', 
+      label: 'Penanggung Jawab',
+      render: (value: string) => {
+        // If value exists, show it as is
+        if (value) return value;
+        
+        // If no value, show kepala desa from info desa
+        if (infoDesa?.nama_kepala_desa) {
+          return `${infoDesa.nama_kepala_desa} (Kepala Desa)`;
+        }
+        
+        // Fallback
+        return '-';
+      }
+    },
     { 
       key: 'tanggal_pengiriman', 
       label: 'Tgl. Pengiriman',
