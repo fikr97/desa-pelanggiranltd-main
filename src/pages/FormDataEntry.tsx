@@ -323,7 +323,7 @@ const FormDataEntry = () => {
           {entries.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">Belum ada data yang diisi.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto relative">
               <Table className="min-w-full">
                 <TableHeader>
                   <TableRow>
@@ -338,7 +338,7 @@ const FormDataEntry = () => {
                         </div>
                       </TableHead>
                     ))}
-                    <TableHead className="text-right">Aksi</TableHead>
+                    <TableHead className="text-right sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -348,7 +348,7 @@ const FormDataEntry = () => {
                       {formDef.fields.map(field => (
                         <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
                       ))}
-                      <TableCell className="flex gap-2 justify-end">
+                      <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
                         <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
                           <Pencil className="h-4 w-4" />
                         </Button>

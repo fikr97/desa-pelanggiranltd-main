@@ -194,7 +194,7 @@ const DataTable = ({ columns, data, onEdit, onDelete, onView, itemsPerPage = 20 
 
   return (
     <div className="w-full max-w-full overflow-hidden">
-      <div className="card-elegant rounded-lg border border-border shadow-sm w-full">
+      <div className="card-elegant rounded-lg border border-border shadow-sm w-full relative">
         <div className="w-full overflow-x-auto">
           <Table className="w-full">
             <TableHeader>
@@ -222,7 +222,7 @@ const DataTable = ({ columns, data, onEdit, onDelete, onView, itemsPerPage = 20 
                     </span>
                   </TableHead>
                 ))}
-                <TableHead className="whitespace-nowrap px-2 md:px-4 text-xs md:text-sm min-w-[100px]">Aksi</TableHead>
+                <TableHead className="whitespace-nowrap px-2 md:px-4 text-xs md:text-sm min-w-[100px] sticky right-0 bg-background z-10 border-l border-border">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -235,7 +235,7 @@ const DataTable = ({ columns, data, onEdit, onDelete, onView, itemsPerPage = 20 
                       </div>
                     </TableCell>
                   ))}
-                  <TableCell className="px-2 md:px-4">
+                  <TableCell className="px-2 md:px-4 sticky right-0 bg-background z-10 border-l border-border">
                     <div className="flex flex-row gap-1">
                       {onView && (
                         <Button variant="ghost" size="sm" onClick={() => onView(item)} className="h-7 w-7 p-0">
