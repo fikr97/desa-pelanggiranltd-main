@@ -210,6 +210,45 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.nik.length !== 16) {
+      toast({ title: 'Data tidak valid', description: 'NIK harus terdiri dari 16 digit.', variant: 'destructive' });
+      return;
+    }
+    if (formData.no_kk.length !== 16) {
+      toast({ title: 'Data tidak valid', description: 'No. KK harus terdiri dari 16 digit.', variant: 'destructive' });
+      return;
+    }
+
+    if (!formData.jenis_kelamin) {
+      toast({ title: 'Data tidak lengkap', description: 'Silakan pilih Jenis Kelamin.', variant: 'destructive' });
+      return;
+    }
+    if (!formData.agama) {
+      toast({ title: 'Data tidak lengkap', description: 'Silakan pilih Agama.', variant: 'destructive' });
+      return;
+    }
+    if (!formData.status_kawin) {
+      toast({ title: 'Data tidak lengkap', description: 'Silakan pilih Status Kawin.', variant: 'destructive' });
+      return;
+    }
+    if (!formData.status_hubungan) {
+      toast({ title: 'Data tidak lengkap', description: 'Silakan pilih Status Hubungan.', variant: 'destructive' });
+      return;
+    }
+    if (!formData.pendidikan) {
+      toast({ title: 'Data tidak lengkap', description: 'Silakan pilih Pendidikan.', variant: 'destructive' });
+      return;
+    }
+    if (!formData.pekerjaan) {
+      toast({ title: 'Data tidak lengkap', description: 'Silakan pilih Pekerjaan.', variant: 'destructive' });
+      return;
+    }
+    if (!formData.dusun) {
+      toast({ title: 'Data tidak lengkap', description: 'Silakan pilih Dusun.', variant: 'destructive' });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -282,12 +321,21 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
 
       onClose();
     } catch (error: any) {
-      console.error('Error saving penduduk:', error);
-      toast({
-        title: 'Gagal menyimpan data',
-        description: error.message || 'Terjadi kesalahan saat menyimpan data penduduk',
-        variant: 'destructive',
-      });
+      if (error.code === '23505' && error.message.includes('penduduk_nik_key')) {
+        console.error('Error saving penduduk: NIK already exists.', error);
+        toast({
+          title: 'Gagal menyimpan data',
+          description: 'NIK yang Anda masukkan sudah terdaftar dalam sistem.',
+          variant: 'destructive',
+        });
+      } else {
+        console.error('Error saving penduduk:', error);
+        toast({
+          title: 'Gagal menyimpan data',
+          description: error.message || 'Terjadi kesalahan saat menyimpan data penduduk',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -309,6 +357,7 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
                 value={formData.no_kk}
                 onChange={(e) => handleInputChange('no_kk', e.target.value)}
                 placeholder="Nomor Kartu Keluarga"
+                maxLength={16}
                 required
               />
             </div>
@@ -335,7 +384,7 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
             </div>
             <div>
               <Label htmlFor="jenis_kelamin">Jenis Kelamin *</Label>
-              <Select value={formData.jenis_kelamin} onValueChange={(value) => handleInputChange('jenis_kelamin', value)}>
+              <Select required value={formData.jenis_kelamin} onValueChange={(value) => handleInputChange('jenis_kelamin', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih jenis kelamin" />
                 </SelectTrigger>
@@ -346,21 +395,23 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
               </Select>
             </div>
             <div>
-              <Label htmlFor="tempat_lahir">Tempat Lahir</Label>
+              <Label htmlFor="tempat_lahir">Tempat Lahir *</Label>
               <Input
                 id="tempat_lahir"
                 value={formData.tempat_lahir}
                 onChange={(e) => handleInputChange('tempat_lahir', e.target.value)}
                 placeholder="Kota/Kabupaten tempat lahir"
+                required
               />
             </div>
             <div>
-              <Label htmlFor="tanggal_lahir">Tanggal Lahir</Label>
+              <Label htmlFor="tanggal_lahir">Tanggal Lahir *</Label>
               <Input
                 id="tanggal_lahir"
                 type="date"
                 value={formData.tanggal_lahir}
                 onChange={(e) => handleInputChange('tanggal_lahir', e.target.value)}
+                required
               />
             </div>
           </CardContent>
@@ -387,8 +438,8 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
               </Select>
             </div>
             <div>
-              <Label htmlFor="agama">Agama</Label>
-              <Select value={formData.agama} onValueChange={(value) => handleInputChange('agama', value)}>
+              <Label htmlFor="agama">Agama *</Label>
+              <Select required value={formData.agama} onValueChange={(value) => handleInputChange('agama', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih agama" />
                 </SelectTrigger>
@@ -403,8 +454,8 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
               </Select>
             </div>
             <div>
-              <Label htmlFor="status_kawin">Status Kawin</Label>
-              <Select value={formData.status_kawin} onValueChange={(value) => handleInputChange('status_kawin', value)}>
+              <Label htmlFor="status_kawin">Status Kawin *</Label>
+              <Select required value={formData.status_kawin} onValueChange={(value) => handleInputChange('status_kawin', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih status kawin" />
                 </SelectTrigger>
@@ -417,8 +468,8 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
               </Select>
             </div>
             <div>
-              <Label htmlFor="status_hubungan">Status Hub. dalam Keluarga</Label>
-              <Select value={formData.status_hubungan} onValueChange={(value) => handleInputChange('status_hubungan', value)}>
+              <Label htmlFor="status_hubungan">Status Hub. dalam Keluarga *</Label>
+              <Select required value={formData.status_hubungan} onValueChange={(value) => handleInputChange('status_hubungan', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih status hubungan" />
                 </SelectTrigger>
@@ -437,8 +488,8 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
               </Select>
             </div>
             <div>
-              <Label htmlFor="pendidikan">Pendidikan Terakhir</Label>
-              <Select value={formData.pendidikan} onValueChange={(value) => handleInputChange('pendidikan', value)}>
+              <Label htmlFor="pendidikan">Pendidikan Terakhir *</Label>
+              <Select required value={formData.pendidikan} onValueChange={(value) => handleInputChange('pendidikan', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih pendidikan" />
                 </SelectTrigger>
@@ -457,8 +508,8 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
               </Select>
             </div>
             <div>
-              <Label htmlFor="pekerjaan">Pekerjaan</Label>
-              <Select value={formData.pekerjaan} onValueChange={(value) => handleInputChange('pekerjaan', value)}>
+              <Label htmlFor="pekerjaan">Pekerjaan *</Label>
+              <Select required value={formData.pekerjaan} onValueChange={(value) => handleInputChange('pekerjaan', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih pekerjaan" />
                 </SelectTrigger>
@@ -481,30 +532,33 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="nama_ibu">Nama Ibu</Label>
+              <Label htmlFor="nama_ibu">Nama Ibu *</Label>
               <Input
                 id="nama_ibu"
                 value={formData.nama_ibu}
                 onChange={(e) => handleInputChange('nama_ibu', e.target.value)}
                 placeholder="Nama lengkap ibu kandung"
+                required
               />
             </div>
             <div>
-              <Label htmlFor="nama_ayah">Nama Ayah</Label>
+              <Label htmlFor="nama_ayah">Nama Ayah *</Label>
               <Input
                 id="nama_ayah"
                 value={formData.nama_ayah}
                 onChange={(e) => handleInputChange('nama_ayah', e.target.value)}
                 placeholder="Nama lengkap ayah kandung"
+                required
               />
             </div>
             <div>
-              <Label htmlFor="nama_kep_kel">Nama Kepala Keluarga</Label>
+              <Label htmlFor="nama_kep_kel">Nama Kepala Keluarga *</Label>
               <Input
                 id="nama_kep_kel"
                 value={formData.nama_kep_kel}
                 onChange={(e) => handleInputChange('nama_kep_kel', e.target.value)}
                 placeholder="Nama kepala keluarga"
+                required
               />
             </div>
           </CardContent>
@@ -546,8 +600,8 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
               />
             </div>
             <div className="lg:col-span-2">
-              <Label htmlFor="dusun">Dusun</Label>
-              <Select value={formData.dusun} onValueChange={(value) => handleInputChange('dusun', value)}>
+              <Label htmlFor="dusun">Dusun *</Label>
+              <Select required value={formData.dusun} onValueChange={(value) => handleInputChange('dusun', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih dusun" />
                 </SelectTrigger>
@@ -581,39 +635,43 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="nama_prop">Provinsi</Label>
+              <Label htmlFor="nama_prop">Provinsi *</Label>
               <Input
                 id="nama_prop"
                 value={formData.nama_prop}
                 onChange={(e) => handleInputChange('nama_prop', e.target.value)}
                 placeholder="Nama provinsi"
+                required
               />
             </div>
             <div>
-              <Label htmlFor="nama_kab">Kabupaten/Kota</Label>
+              <Label htmlFor="nama_kab">Kabupaten/Kota *</Label>
               <Input
                 id="nama_kab"
                 value={formData.nama_kab}
                 onChange={(e) => handleInputChange('nama_kab', e.target.value)}
                 placeholder="Nama kabupaten/kota"
+                required
               />
             </div>
             <div>
-              <Label htmlFor="nama_kec">Kecamatan</Label>
+              <Label htmlFor="nama_kec">Kecamatan *</Label>
               <Input
                 id="nama_kec"
                 value={formData.nama_kec}
                 onChange={(e) => handleInputChange('nama_kec', e.target.value)}
                 placeholder="Nama kecamatan"
+                required
               />
             </div>
             <div>
-              <Label htmlFor="nama_kel">Kelurahan/Desa</Label>
+              <Label htmlFor="nama_kel">Kelurahan/Desa *</Label>
               <Input
                 id="nama_kel"
                 value={formData.nama_kel}
                 onChange={(e) => handleInputChange('nama_kel', e.target.value)}
                 placeholder="Nama kelurahan/desa"
+                required
               />
             </div>
           </CardContent>
