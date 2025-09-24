@@ -60,7 +60,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
           processedValue = value.toLowerCase();
           break;
         case 'capitalize':
-          processedValue = value.replace(/\b\w/g, char => char.toUpperCase());
+          processedValue = value.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
           break;
       }
     }
@@ -124,6 +124,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
           value = selectedResident[field.nama_field] || '';
         }
         // This now correctly resets custom fields to empty when a new resident is selected
+        // Apply format to the auto-filled value
         newFormData[field.nama_field] = applyFormat(value, field);
       });
       setFormData(newFormData);
@@ -131,26 +132,9 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
   }, [selectedResident, formDef, initialData, dusunList]);
 
   const handleInputChange = (fieldName, value) => {
-    const fieldDef = formDef.fields.find(f => f.nama_field === fieldName);
-    let processedValue = value;
-
-    if (fieldDef && fieldDef.text_format && typeof value === 'string') {
-      switch (fieldDef.text_format) {
-        case 'uppercase':
-          processedValue = value.toUpperCase();
-          break;
-        case 'lowercase':
-          processedValue = value.toLowerCase();
-          break;
-        case 'capitalize':
-          processedValue = value.replace(/\b\w/g, char => char.toUpperCase());
-          break;
-        default:
-          // 'normal' or any other case
-          break;
-      }
-    }
-    setFormData(prev => ({ ...prev, [fieldName]: processedValue }));
+    const field = formDef.fields.find(f => f.nama_field === fieldName);
+    const formattedValue = applyFormat(value, field);
+    setFormData(prev => ({ ...prev, [fieldName]: formattedValue }));
   };
 
   const renderField = (field) => {

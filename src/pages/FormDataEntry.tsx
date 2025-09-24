@@ -53,7 +53,23 @@ const getFieldValue = (entry, field) => {
     value = 'N/A';
   }
 
-  // Apply text format transformation first
+  // Apply date format transformation first
+  if ((field.tipe_field === 'date' || field.sumber_data === 'penduduk.tanggal_lahir') && value && value !== 'N/A' && field.format_tanggal) {
+    try {
+      let formatString = field.format_tanggal;
+      if (formatString === 'd MMMM yyyy') {
+        formatString = 'dd MMMM yyyy';
+      } else if (formatString === 'EEEE, d MMMM yyyy') {
+        formatString = 'EEEE, dd MMMM yyyy';
+      }
+      value = format(new Date(value), formatString, { locale: id });
+    } catch (e) {
+      console.error("Invalid date or format:", e);
+      // Fallback to the raw value if date formatting fails
+    }
+  }
+
+  // Apply text format transformation last
   if (field.text_format && typeof value === 'string') {
     switch (field.text_format) {
       case 'uppercase':
@@ -63,25 +79,8 @@ const getFieldValue = (entry, field) => {
         value = value.toLowerCase();
         break;
       case 'capitalize':
-        value = value.replace(/\b\w/g, char => char.toUpperCase());
+        value = value.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
         break;
-    }
-  }
-
-  // Apply date format transformation if applicable
-  if ((field.tipe_field === 'date' || field.sumber_data === 'penduduk.tanggal_lahir') && value && value !== 'N/A' && field.format_tanggal) {
-    try {
-      let formatString = field.format_tanggal;
-      if (formatString === 'd MMMM yyyy') {
-        formatString = 'dd MMMM yyyy';
-      } else if (formatString === 'EEEE, d MMMM yyyy') {
-        formatString = 'EEEE, dd MMMM yyyy';
-      }
-      return format(new Date(value), formatString, { locale: id });
-    } catch (e) {
-      console.error("Invalid date or format:", e);
-      // Fallback to the (potentially text-formatted) value
-      return value;
     }
   }
 
