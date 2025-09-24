@@ -4,11 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, ListPlus } from 'lucide-react';
+import { Settings, ListPlus, LayoutGrid } from 'lucide-react';
 import FormFieldManager from './FormFieldManager';
 import { useAuth } from '@/contexts/AuthContext';
+import DeckFieldSelector from './DeckFieldSelector';
 
 interface FormTugasDesignerProps {
   formTugas?: any; // Optional: for editing existing forms
@@ -19,10 +21,11 @@ interface FormTugasDesignerProps {
 const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerProps) => {
   const [formData, setFormData] = useState({
     nama_tugas: '',
-    deskripsi: ''
+    deskripsi: '',
+    display_type: 'table',
   });
   const [fields, setFields] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'settings' | 'fields'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'fields' | 'deck'>('settings');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -38,14 +41,23 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
       if (error) {
         toast({ title: 'Error', description: 'Gagal memuat fields.', variant: 'destructive' });
       } else {
-        setFields(data || []);
+        // Initialize deck display fields if they don't exist (handles missing columns in DB)
+        const initializedFields = data.map(field => ({
+          ...field,
+          deck_visible: field.deck_visible !== undefined ? field.deck_visible : false,
+          deck_display_order: field.deck_display_order !== undefined ? field.deck_display_order : 0,
+          deck_display_format: field.deck_display_format !== undefined ? field.deck_display_format : 'default',
+          deck_is_header: field.deck_is_header !== undefined ? field.deck_is_header : false,
+        }));
+        setFields(initializedFields);
       }
     };
 
     if (formTugas) {
       setFormData({
         nama_tugas: formTugas.nama_tugas || '',
-        deskripsi: formTugas.deskripsi || ''
+        deskripsi: formTugas.deskripsi || '',
+        display_type: formTugas.display_type || 'table',
       });
       loadFields(formTugas.id);
     } else {
@@ -107,6 +119,11 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
           format_tanggal: field.format_tanggal,
           is_required: field.is_required || false,
           text_format: field.text_format || 'normal',
+          // Set default values for deck fields if they don't exist
+          deck_visible: field.deck_visible !== undefined ? field.deck_visible : false,
+          deck_display_order: field.deck_display_order !== undefined ? field.deck_display_order : 0,
+          deck_display_format: field.deck_display_format !== undefined ? field.deck_display_format : 'default',
+          deck_is_header: field.deck_is_header !== undefined ? field.deck_is_header : false,
           urutan: index,
         }));
 
@@ -153,6 +170,9 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
     }
   };
 
+  // Filter fields that have deck display settings
+  const deckFields = fields.filter(field => field.deck_visible);
+
   return (
     <div className="h-full flex flex-col">
       {/* Tab Navigation */}
@@ -171,6 +191,15 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
           <ListPlus className="h-4 w-4 mr-2" />
           Desain Form
         </button>
+        {formData.display_type === 'deck' && (
+          <button
+            className={`px-4 py-2 font-medium flex items-center ${activeTab === 'deck' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
+            onClick={() => setActiveTab('deck')}
+          >
+            <LayoutGrid className="h-4 w-4 mr-2" />
+            Tampilan Kartu
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-auto p-1">
@@ -199,12 +228,38 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
                   placeholder="Deskripsi singkat mengenai tujuan dari pendataan ini..."
                 />
               </div>
+
+              <div>
+                <Label htmlFor="display_type">Tampilan Data</Label>
+                <Select 
+                  value={formData.display_type} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, display_type: value }))}
+                >
+                  <SelectTrigger id="display_type">
+                    <SelectValue placeholder="Pilih tampilan data" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="table">Tabel</SelectItem>
+                    <SelectItem value="deck">Kartu/Deck</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Pilih bagaimana data nantinya akan ditampilkan saat diisi
+                </p>
+              </div>
             </CardContent>
           </Card>
         )}
 
         {activeTab === 'fields' && (
           <FormFieldManager fields={fields} onFieldsChange={setFields} />
+        )}
+        
+        {activeTab === 'deck' && (
+          <DeckFieldSelector 
+            fields={fields} 
+            onFieldsUpdate={setFields} 
+          />
         )}
       </div>
 

@@ -135,6 +135,10 @@ const PredefinedFieldDialog = ({ onSave, existingFields }) => {
         nama_field: field.value,
         tipe_field: field.value === 'tanggal_lahir' ? 'date' : 'predefined',
         sumber_data: `penduduk.${field.value}`,
+        deck_visible: false,
+        deck_display_order: 0,
+        deck_display_format: 'default',
+        deck_is_header: false,
       };
     });
     onSave(newFields);
@@ -246,17 +250,105 @@ const isFormattableField = (field) => {
   return true;
 };
 
+const DeckDisplayOptions = ({ fieldIndex, field, updateField }) => {
+  // Initialize with default values if properties don't exist
+  const [deckField, setDeckField] = useState({
+    visible: field.deck_visible !== undefined ? field.deck_visible : false,
+    display_order: field.deck_display_order !== undefined ? field.deck_display_order : 0,
+    display_format: field.deck_display_format !== undefined ? field.deck_display_format : 'default',
+    is_header: field.deck_is_header !== undefined ? field.deck_is_header : false,
+  });
+
+  const handleUpdate = (key, value) => {
+    const newDeckField = { ...deckField, [key]: value };
+    setDeckField(newDeckField);
+
+    // Apply changes to the field
+    updateField(fieldIndex, {
+      deck_visible: newDeckField.visible,
+      deck_display_order: newDeckField.display_order,
+      deck_display_format: newDeckField.display_format,
+      deck_is_header: newDeckField.is_header,
+    });
+  };
+
+  return (
+    <div className="mt-3 pl-4 border-l-2 border-border space-y-2">
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={deckField.visible}
+          onCheckedChange={(checked) => handleUpdate('visible', checked)}
+        />
+        <Label className="text-xs">Tampilkan di kartu</Label>
+      </div>
+      {deckField.visible && (
+        <>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs">Format:</Label>
+            <Select value={deckField.display_format} onValueChange={(value) => handleUpdate('display_format', value)}>
+              <SelectTrigger className="h-6 w-32 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default</SelectItem>
+                <SelectItem value="header">Header</SelectItem>
+                <SelectItem value="full-width">Full Width</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {deckField.display_format === 'header' && (
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={deckField.is_header}
+                onCheckedChange={(checked) => handleUpdate('is_header', checked)}
+              />
+              <Label className="text-xs">Gunakan sebagai judul kartu</Label>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <Label className="text-xs">Urutan:</Label>
+            <Input
+              type="number"
+              min="1"
+              value={deckField.display_order}
+              onChange={(e) => handleUpdate('display_order', parseInt(e.target.value) || 0)}
+              className="h-6 w-16 text-xs"
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => {
   const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
   const [isPredefinedDialogOpen, setIsPredefinedDialogOpen] = useState(false);
 
   const handleSavePredefinedFields = (newFields) => {
-    onFieldsChange([...fields, ...newFields]);
+    // Add default deck fields if they don't exist
+    const fieldsWithDefaults = newFields.map(field => ({
+      ...field,
+      deck_visible: field.deck_visible !== undefined ? field.deck_visible : false,
+      deck_display_order: field.deck_display_order !== undefined ? field.deck_display_order : 0,
+      deck_display_format: field.deck_display_format !== undefined ? field.deck_display_format : 'default',
+      deck_is_header: field.deck_is_header !== undefined ? field.deck_is_header : false,
+    }));
+    onFieldsChange([...fields, ...fieldsWithDefaults]);
     setIsPredefinedDialogOpen(false);
   };
 
   const handleSaveCustomField = (newField) => {
-    onFieldsChange([...fields, { ...newField, sumber_data: null }]);
+    // Add default deck fields if they don't exist
+    const fieldWithDefaults = {
+      ...newField,
+      sumber_data: null,
+      deck_visible: false,
+      deck_display_order: 0,
+      deck_display_format: 'default',
+      deck_is_header: false,
+    };
+    onFieldsChange([...fields, fieldWithDefaults]);
     setIsCustomDialogOpen(false);
   };
 
@@ -329,12 +421,18 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
                       onChange={(newValue) => updateField(index, { format_tanggal: newValue })} 
                     />
                   )}
-                                    {isFormattableField(field) && (
+                  {isFormattableField(field) && (
                     <TextFormatSelector
                       value={field.text_format}
                       onChange={(newValue) => updateField(index, { text_format: newValue })}
                     />
                   )}
+                  {/* Deck display options */}
+                  <DeckDisplayOptions
+                    fieldIndex={index}
+                    field={field}
+                    updateField={updateField}
+                  />
                 </div>
                 <div className="flex flex-col items-end gap-3 ml-4">
                   <div className="flex items-center gap-2">

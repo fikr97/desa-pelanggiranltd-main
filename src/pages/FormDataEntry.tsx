@@ -3,7 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Upload, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Loader2, Download, Upload, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown, Grid3X3, List } from 'lucide-react';
 import DataEntryForm from '@/components/DataEntryForm';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -96,6 +99,7 @@ const FormDataEntry = () => {
   const [editingEntry, setEditingEntry] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
+  const [viewMode, setViewMode] = useState<'table' | 'deck'>('table'); // Default to table view
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['form_data_and_def', formId],
@@ -132,8 +136,17 @@ const FormDataEntry = () => {
       if (entriesResult.error) throw entriesResult.error;
       if (residentsResult.error) throw residentsResult.error;
 
+      // Initialize deck visibility for fields if they don't exist (handles missing columns in DB)
+      const initializedFields = fieldsResult.data?.map(field => ({
+        ...field,
+        deck_visible: field.deck_visible !== undefined ? field.deck_visible : false,
+        deck_display_order: field.deck_display_order !== undefined ? field.deck_display_order : 0,
+        deck_display_format: field.deck_display_format !== undefined ? field.deck_display_format : 'default',
+        deck_is_header: field.deck_is_header !== undefined ? field.deck_is_header : false,
+      })) || [];
+
       return {
-        formDef: { ...formResult.data, fields: fieldsResult.data || [] },
+        formDef: { ...formResult.data, fields: initializedFields },
         entries: entriesResult.data || [],
         residents: residentsResult.data || [],
       };
@@ -276,6 +289,107 @@ const FormDataEntry = () => {
   if (!data || !data.formDef) return <div className="p-6"><p>Form tidak ditemukan.</p></div>;
 
   const { formDef, entries, residents } = data;
+  
+  // Determine view mode based on form settings and user preference
+  const actualViewMode = formDef.display_type === 'deck' ? viewMode : 'table';
+  
+  // Render table view
+  const renderTableView = () => (
+    <div className="overflow-x-auto relative">
+      <Table className="min-w-full">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-12">No</TableHead>
+            {formDef.fields.map(field => (
+              <TableHead key={field.id} onClick={() => requestSort(field.nama_field)} className="cursor-pointer hover:bg-muted">
+                <div className="flex items-center gap-2">
+                  {field.label_field}
+                  {sortConfig.key === field.nama_field && (
+                    <ArrowUpDown className="h-4 w-4" />
+                  )}
+                </div>
+              </TableHead>
+            ))}
+            <TableHead className="text-right sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">Aksi</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sortedEntries.map((entry, index) => (
+            <TableRow key={entry.id}>
+              <TableCell>{index + 1}</TableCell>
+              {formDef.fields.map(field => (
+                <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
+              ))}
+              <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
+                <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+  
+  // Render deck view
+  const renderDeckView = () => {
+    // Use deck display fields from the form fields if they exist and are visible
+    // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
+    const visibleDeckFields = formDef.fields
+      .filter(field => field.deck_visible)
+      .sort((a, b) => (a.deck_display_order || 0) - (b.deck_display_order || 0));
+    
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {sortedEntries.map((entry, index) => {
+          // Find the header field if any
+          const headerField = visibleDeckFields.find(f => f.deck_is_header);
+          const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
+          
+          // Get non-header fields to display in body
+          const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
+          
+          return (
+            <Card key={entry.id} className="overflow-hidden">
+              {headerFieldValue && (
+                <CardHeader className={headerField.deck_display_format === 'header' ? 'bg-primary text-primary-foreground' : 'bg-muted'}>
+                  <CardTitle className="text-lg break-words">{headerFieldValue}</CardTitle>
+                </CardHeader>
+              )}
+              <CardContent className="p-4">
+                <div className="space-y-2">
+                  {bodyFields.map(field => {
+                    const value = getFieldValue(entry, field);
+                    return (
+                      <div key={field.id} className="flex flex-col">
+                        <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
+                        <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>{value}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                <div className="flex gap-2 mt-4">
+                  <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)} className="flex-1">
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)} className="flex-1">
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Hapus
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -318,49 +432,26 @@ const FormDataEntry = () => {
           </div>
         </div>
 
+        {/* View mode toggle - only show if form is configured for deck view */}
+        {(formDef.display_type === 'deck') && (
+          <div className="flex items-center justify-end mb-4">
+            <div className="flex items-center space-x-2">
+              <List className={`h-4 w-4 ${actualViewMode === 'table' ? 'text-primary' : 'text-muted-foreground'}`} />
+              <Switch
+                checked={actualViewMode === 'deck'}
+                onCheckedChange={(checked) => setViewMode(checked ? 'deck' : 'table')}
+              />
+              <Grid3X3 className={`h-4 w-4 ${actualViewMode === 'deck' ? 'text-primary' : 'text-muted-foreground'}`} />
+            </div>
+          </div>
+        )}
+
         <div className="bg-card p-4 sm:p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4">Daftar Data Terisi</h2>
           {entries.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">Belum ada data yang diisi.</p>
           ) : (
-            <div className="overflow-x-auto relative">
-              <Table className="min-w-full">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">No</TableHead>
-                    {formDef.fields.map(field => (
-                      <TableHead key={field.id} onClick={() => requestSort(field.nama_field)} className="cursor-pointer hover:bg-muted">
-                        <div className="flex items-center gap-2">
-                          {field.label_field}
-                          {sortConfig.key === field.nama_field && (
-                            <ArrowUpDown className="h-4 w-4" />
-                          )}
-                        </div>
-                      </TableHead>
-                    ))}
-                    <TableHead className="text-right sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedEntries.map((entry, index) => (
-                    <TableRow key={entry.id}>
-                      <TableCell>{index + 1}</TableCell>
-                      {formDef.fields.map(field => (
-                        <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
-                      ))}
-                      <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
-                        <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            actualViewMode === 'table' ? renderTableView() : renderDeckView()
           )}
         </div>
       </div>
