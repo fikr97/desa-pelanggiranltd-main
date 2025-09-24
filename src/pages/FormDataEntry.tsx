@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown } from 'lucide-react';
+import { Loader2, Download, Upload, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown } from 'lucide-react';
 import DataEntryForm from '@/components/DataEntryForm';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import ImportDataButton from '@/components/ImportDataButton';
 
 const getFieldValue = (entry, field) => {
   let value;
@@ -292,12 +293,13 @@ const FormDataEntry = () => {
             <h1 className="text-3xl font-bold">Data: {formDef.nama_tugas}</h1>
             <p className="text-muted-foreground">{formDef.deskripsi}</p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={handleAddNew} className="w-full">
+          <div className="flex flex-wrap gap-2 w-full">
+            <Button onClick={handleAddNew} className="flex-1 min-w-[150px]">
               <PlusCircle className="h-4 w-4 mr-2" />
               Tambah Data Baru
             </Button>
-            <Button variant="outline" onClick={handleExport} disabled={!entries.length} className="w-full">
+            <ImportDataButton formDef={formDef} residents={residents} />
+            <Button variant="outline" onClick={handleExport} disabled={!entries.length} className="flex-1 min-w-[150px]">
               <Download className="h-4 w-4 mr-2" />
               Ekspor ke Excel
             </Button>
