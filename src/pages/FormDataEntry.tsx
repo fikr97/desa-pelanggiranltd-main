@@ -293,15 +293,27 @@ const FormDataEntry = () => {
             <h1 className="text-3xl font-bold">Data: {formDef.nama_tugas}</h1>
             <p className="text-muted-foreground">{formDef.deskripsi}</p>
           </div>
-          <div className="flex flex-wrap gap-2 w-full">
-            <Button onClick={handleAddNew} className="flex-1 min-w-[150px]">
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Tambah Data Baru
+          <div className="flex flex-col sm:flex-row gap-2 w-full">
+            <Button 
+              onClick={handleAddNew} 
+              className="flex-1 py-2 px-3 sm:py-3 sm:px-4 text-sm min-w-[100px]"
+            >
+              <PlusCircle className="h-4 w-4 mr-1 sm:mr-2" />
+              <span>Tambah</span>
             </Button>
-            <ImportDataButton formDef={formDef} residents={residents} />
-            <Button variant="outline" onClick={handleExport} disabled={!entries.length} className="flex-1 min-w-[150px]">
-              <Download className="h-4 w-4 mr-2" />
-              Ekspor ke Excel
+            <ImportDataButton 
+              formDef={formDef} 
+              residents={residents} 
+              className="flex-1 py-2 px-3 sm:py-3 sm:px-4 text-sm min-w-[100px]"
+            />
+            <Button 
+              variant="outline" 
+              onClick={handleExport} 
+              disabled={!entries.length} 
+              className="flex-1 py-2 px-3 sm:py-3 sm:px-4 text-sm min-w-[100px]"
+            >
+              <Download className="h-4 w-4 mr-1 sm:mr-2" />
+              <span>Ekspor</span>
             </Button>
           </div>
         </div>

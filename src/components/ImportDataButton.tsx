@@ -17,10 +17,10 @@ const ImportDataButton: React.FC<ImportDataButtonProps> = ({ formDef, residents,
       <Button 
         variant="outline" 
         onClick={() => setIsDialogOpen(true)}
-        className={className || "w-full"}
+        className={className}
       >
-        <Upload className="h-4 w-4 mr-2" />
-        Impor Data
+        <Upload className="h-4 w-4 mr-1 sm:mr-2" />
+        <span>Impor</span>
       </Button>
       
       <ImportDataDialog

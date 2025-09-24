@@ -174,53 +174,55 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-4xl max-h-[80vh] overflow-y-auto p-4">
         <DialogHeader>
-          <DialogTitle>Impor Data untuk {formDef.nama_tugas}</DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">Impor Data untuk {formDef.nama_tugas}</DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-6">
-          <div>
-            <Label htmlFor="csv-upload">Pilih File CSV</Label>
+        <div className="space-y-4 max-h-[50vh] overflow-y-auto">
+          <div className="space-y-2">
+            <Label htmlFor="csv-upload" className="text-sm">Pilih File CSV</Label>
             <Input
               id="csv-upload"
               type="file"
               accept=".csv,.xlsx,.xls"
               onChange={handleFileChange}
-              className="mt-1"
+              className="text-sm"
             />
-            {fileName && <p className="text-sm text-muted-foreground mt-1">File dipilih: {fileName}</p>}
+            {fileName && <p className="text-xs text-muted-foreground mt-1">File dipilih: {fileName}</p>}
           </div>
 
           {parsedData.length > 0 && (
-            <div>
-              <Label>Mapping Field</Label>
-              <p className="text-sm text-muted-foreground mb-2">
-                Petakan kolom CSV ke field formulir. Pilih "Abaikan" jika kolom tidak perlu diimpor.
-              </p>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-sm">Mapping Field</Label>
+                <p className="text-xs text-muted-foreground">
+                  Petakan kolom CSV ke field formulir. Pilih "Abaikan" jika kolom tidak perlu diimpor.
+                </p>
+              </div>
               
-              <div className="border rounded-md p-4 max-h-60 overflow-y-auto">
+              <div className="border rounded-md p-2 max-h-[120px] overflow-y-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Kolom CSV</th>
-                      <th className="text-left p-2">Mapping ke Field Form</th>
+                    <tr className="border-b text-xs">
+                      <th className="text-left p-1">Kolom CSV</th>
+                      <th className="text-left p-1">Mapping ke Field Form</th>
                     </tr>
                   </thead>
                   <tbody>
                     {Object.keys(fieldMappings).map((header, index) => (
-                      <tr key={index} className="border-b">
-                        <td className="p-2 font-mono text-sm">{header}</td>
-                        <td className="p-2">
+                      <tr key={index} className="border-b text-xs">
+                        <td className="p-1 font-mono">{header}</td>
+                        <td className="p-1">
                           <Select
                             value={fieldMappings[header] || ''}
                             onValueChange={(value) => handleFieldMappingChange(header, value)}
                           >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Pilih field..." />
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Pilih..." />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="ignore">Abaikan Kolom Ini</SelectItem>
+                              <SelectItem value="ignore">Abaikan</SelectItem>
                               {formDef.fields.map((field: any) => (
                                 <SelectItem key={field.id} value={field.nama_field}>
                                   {field.label_field}
@@ -235,17 +237,17 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
                 </table>
               </div>
               
-              <div className="mt-4">
-                <Label>Pratinjau Data</Label>
-                <div className="border rounded-md overflow-auto max-h-60">
+              <div className="space-y-1">
+                <Label className="text-sm">Pratinjau Data</Label>
+                <div className="border rounded-md overflow-auto max-h-[120px]">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b">
+                      <tr className="border-b text-xs">
                         {Object.keys(fieldMappings).map((header, index) => (
-                          <th key={index} className="text-left p-2 text-sm">
-                            {header} 
+                          <th key={index} className="text-left p-1">
+                            {header}
                             {fieldMappings[header] && fieldMappings[header] !== 'ignore' && (
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-xs text-muted-foreground block">
                                 → {formDef.fields.find((f: any) => f.nama_field === fieldMappings[header])?.label_field}
                               </span>
                             )}
@@ -255,9 +257,9 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
                     </thead>
                     <tbody>
                       {parsedData.slice(0, 3).map((row, index) => (
-                        <tr key={index} className="border-b hover:bg-muted/50">
+                        <tr key={index} className="border-b hover:bg-muted/50 text-xs">
                           {Object.keys(fieldMappings).map((header, cellIndex) => (
-                            <td key={cellIndex} className="p-2 text-sm max-w-xs truncate">
+                            <td key={cellIndex} className="p-1 max-w-[100px] truncate">
                               {row[header] || '-'}
                             </td>
                           ))}
@@ -265,7 +267,7 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
                       ))}
                       {parsedData.length > 3 && (
                         <tr>
-                          <td colSpan={Object.keys(fieldMappings).length} className="p-2 text-center text-sm text-muted-foreground">
+                          <td colSpan={Object.keys(fieldMappings).length} className="p-1 text-center text-xs text-muted-foreground">
                             ... dan {parsedData.length - 3} baris lainnya
                           </td>
                         </tr>
@@ -278,9 +280,15 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
           )}
         </div>
         
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={handleImport} disabled={!parsedData.length}>
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto text-sm">
+            Batal
+          </Button>
+          <Button 
+            onClick={handleImport} 
+            disabled={!parsedData.length}
+            className="w-full sm:w-auto text-sm"
+          >
             Impor Data ({parsedData.length})
           </Button>
         </DialogFooter>
