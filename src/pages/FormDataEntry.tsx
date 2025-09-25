@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Loader2, Download, Upload, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown, Grid3X3, List, Search } from 'lucide-react';
+import { Loader2, Download, Upload, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown, Grid3X3, List, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import DataEntryForm from '@/components/DataEntryForm';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -110,6 +110,8 @@ const FormDataEntry = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [groupByField, setGroupByField] = useState<string | null>('none');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['form_data_and_def', formId],
@@ -221,12 +223,23 @@ const FormDataEntry = () => {
     return sortableEntries;
   }, [filteredEntries, sortConfig, data?.formDef.fields]);
 
+  // Pagination logic
+  const paginatedEntries = useMemo(() => {
+    if (!sortedEntries) return [];
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sortedEntries.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedEntries, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(sortedEntries.length / itemsPerPage);
+
   const requestSort = (key) => {
     let direction = 'ascending';
     if (sortConfig.key === key && sortConfig.direction === 'ascending') {
       direction = 'descending';
     }
     setSortConfig({ key, direction });
+    // Reset to first page when sorting changes
+    setCurrentPage(1);
   };
 
   const handleAddNew = () => {
@@ -336,6 +349,31 @@ const FormDataEntry = () => {
     });
   };
 
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const nextPage = () => {
+    if (currentPage < totalPages) {
+      goToPage(currentPage + 1);
+    }
+  };
+
+  const prevPage = () => {
+    if (currentPage > 1) {
+      goToPage(currentPage - 1);
+    }
+  };
+
+  const firstPage = () => {
+    goToPage(1);
+  };
+
+  const lastPage = () => {
+    goToPage(totalPages);
+  };
+
   if (isLoading) return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (error) return <div className="p-6 text-destructive">Error: {error.message}</div>;
   if (!data || !data.formDef) return <div className="p-6"><p>Form tidak ditemukan.</p></div>;
@@ -403,45 +441,140 @@ const FormDataEntry = () => {
         </div>
       ));
     } else {
-      // Non-grouped table view
+      // Non-grouped table view with pagination
       return (
-        <div className="overflow-x-auto relative">
-          <Table className="min-w-full">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">No</TableHead>
-                {formDef.fields.map(field => (
-                  <TableHead key={field.id} onClick={() => requestSort(field.nama_field)} className="cursor-pointer hover:bg-muted">
-                    <div className="flex items-center gap-2">
-                      {field.label_field}
-                      {sortConfig.key === field.nama_field && (
-                        <ArrowUpDown className="h-4 w-4" />
-                      )}
-                    </div>
-                  </TableHead>
-                ))}
-                <TableHead className="text-right sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedEntries.map((entry, index) => (
-                <TableRow key={entry.id}>
-                  <TableCell>{index + 1}</TableCell>
+        <div>
+          <div className="overflow-x-auto relative">
+            <Table className="min-w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">No</TableHead>
                   {formDef.fields.map(field => (
-                    <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
+                    <TableHead key={field.id} onClick={() => requestSort(field.nama_field)} className="cursor-pointer hover:bg-muted">
+                      <div className="flex items-center gap-2">
+                        {field.label_field}
+                        {sortConfig.key === field.nama_field && (
+                          <ArrowUpDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
                   ))}
-                  <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
-                    <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+                  <TableHead className="text-right sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">Aksi</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {paginatedEntries.map((entry, index) => (
+                  <TableRow key={entry.id}>
+                    <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                    {formDef.fields.map(field => (
+                      <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
+                    ))}
+                    <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
+                      <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          
+          {/* Pagination Controls - Always show when there are entries */}
+          {sortedEntries.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 p-4 bg-muted rounded-lg">
+              <div className="text-sm text-muted-foreground">
+                Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedEntries.length)} dari {sortedEntries.length} data
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={firstPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={prevPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                <div className="flex items-center space-x-1">
+                  {[...Array(Math.min(5, Math.max(1, totalPages)))].map((_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={pageNum === currentPage ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => goToPage(pageNum)}
+                        className="w-10 h-10"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={nextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={lastPage}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Baris per halaman:</span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1); // Reset to first page when changing items per page
+                  }}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -528,47 +661,142 @@ const FormDataEntry = () => {
         .sort((a, b) => (a.deck_display_order || 0) - (b.deck_display_order || 0));
       
       return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sortedEntries.map((entry, index) => {
-            // Find the header field if any
-            const headerField = visibleDeckFields.find(f => f.deck_is_header);
-            const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
-            
-            // Get non-header fields to display in body
-            const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
-            
-            return (
-              <Card key={entry.id} className="overflow-hidden flex flex-col">
-                {headerFieldValue && (
-                  <CardHeader className={headerField.deck_display_format === 'header' ? 'bg-primary text-primary-foreground' : 'bg-muted'}>
-                    <CardTitle className="text-lg break-words">{headerFieldValue}</CardTitle>
-                  </CardHeader>
-                )}
-                <CardContent className="p-4 flex-grow">
-                  <div className="space-y-2">
-                    {bodyFields.map(field => {
-                      const value = getFieldValue(entry, field);
-                      return (
-                        <div key={field.id} className="flex flex-col">
-                          <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
-                          <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>{value}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  
-                  <div className="flex gap-2 mt-4 justify-end">
-                    <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+        <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {paginatedEntries.map((entry, index) => {
+              // Find the header field if any
+              const headerField = visibleDeckFields.find(f => f.deck_is_header);
+              const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
+              
+              // Get non-header fields to display in body
+              const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
+              
+              return (
+                <Card key={entry.id} className="overflow-hidden flex flex-col">
+                  {headerFieldValue && (
+                    <CardHeader className={headerField.deck_display_format === 'header' ? 'bg-primary text-primary-foreground' : 'bg-muted'}>
+                      <CardTitle className="text-lg break-words">{headerFieldValue}</CardTitle>
+                    </CardHeader>
+                  )}
+                  <CardContent className="p-4 flex-grow">
+                    <div className="space-y-2">
+                      {bodyFields.map(field => {
+                        const value = getFieldValue(entry, field);
+                        return (
+                          <div key={field.id} className="flex flex-col">
+                            <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
+                            <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>{value}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    <div className="flex gap-2 mt-4 justify-end">
+                      <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+          
+          {/* Pagination Controls for Deck View */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 p-4 bg-muted rounded-lg">
+              <div className="text-sm text-muted-foreground">
+                Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedEntries.length)} dari {sortedEntries.length} data
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={firstPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={prevPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                <div className="flex items-center space-x-1">
+                  {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={pageNum === currentPage ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => goToPage(pageNum)}
+                        className="w-10 h-10"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={nextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={lastPage}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Baris per halaman:</span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1); // Reset to first page when changing items per page
+                  }}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
