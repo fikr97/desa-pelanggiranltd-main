@@ -594,22 +594,24 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
                   const sectionIndex = placeholders.findIndex(p => p.id === section.id);
                   return (
                     <div key={section.id}>
-                      <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-100 dark:bg-gray-800">
+                      <div className="flex items-start justify-between p-3 border rounded-lg bg-gray-100 dark:bg-gray-800">
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-800 dark:text-gray-200">{section.section_name}</h3>
                           {section.section_description && (
                             <p className="text-sm text-gray-600 dark:text-gray-400">{section.section_description}</p>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => moveUp(sectionIndex)} disabled={sectionIndex === 0}>
-                            <ArrowUp className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => moveDown(sectionIndex)} disabled={sectionIndex === placeholders.length - 1}>
-                            <ArrowDown className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => removePlaceholder(section.id)}>
-                            <Trash2 className="h-4 w-4 mr-1" /> Hapus Section
+                        <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveUp(sectionIndex)} disabled={sectionIndex === 0}>
+                              <ArrowUp className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveDown(sectionIndex)} disabled={sectionIndex === placeholders.length - 1}>
+                              <ArrowDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => removePlaceholder(section.id)} className="text-xs px-2 py-1 sm:px-3 sm:py-2">
+                            <Trash2 className="h-4 w-4 mr-1" /> Hapus
                           </Button>
                         </div>
                       </div>
@@ -617,63 +619,67 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
                         {grouped[section.section_name]?.map((placeholder) => {
                           const placeholderIndex = placeholders.findIndex(p => p.id === placeholder.id);
                           return (
-                            <div key={placeholder.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
-                              <div className="flex-1">
-                                <p className="font-medium">
-                                  {placeholder.field_name}
-                                  {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1 mb-1 flex-wrap">
-                                  <code className="bg-muted px-2 py-1 rounded text-sm font-mono">
-                                    {'{' + placeholder.field_name.toLowerCase().replace(/\s+/g, '_') + '}'}
-                                  </code>
-                                  <Badge variant="outline">{placeholder.field_type}</Badge>
-                                  <Badge variant="secondary">{placeholder.field_format}</Badge>
-                                </div>
-                                <p className="text-sm text-muted-foreground">
-                                  Sumber: {placeholder.field_source || 'Custom field'}
-                                </p>
-                                {placeholder.field_source === 'tanggal_lahir' && (
-                                  <div className="flex items-center space-x-2 mt-2">
-                                    <Switch
-                                      id={`show-age-${placeholder.id}`}
-                                      checked={!!placeholder.custom_field_options?.show_age}
-                                      onCheckedChange={(checked) => handlePlaceholderOptionChange(placeholder.id, 'show_age', checked)}
-                                    />
-                                    <Label htmlFor={`show-age-${placeholder.id}`}>Tampilkan Usia</Label>
-                                  </div>
-                                )}
-                                {placeholder.field_source === 'nomor_surat_kustom' && placeholder.custom_field_options && (
-                                  <div className="text-xs text-muted-foreground mt-1 space-x-2">
-                                    <span>Indeks: {placeholder.custom_field_options.indeks_nomor}</span>
-                                    <span>Kode: {placeholder.custom_field_options.kode_surat}</span>
-                                    <span>Desa: {placeholder.custom_field_options.kode_desa}</span>
-                                  </div>
-                                )}
-                                {(placeholder.field_type === 'custom_input' || placeholder.field_type === 'custom_textarea') && placeholder.default_value && (
-                                  <p className="text-xs text-blue-600 mt-1">
-                                    Default: "{placeholder.default_value}"
+                            <div key={placeholder.id} className="flex flex-col p-3 border rounded-lg bg-card">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0 pr-4">
+                                  <p className="font-medium truncate">
+                                    {placeholder.field_name}
+                                    {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
                                   </p>
-                                )}
+                                  <div className="flex items-center gap-2 mt-1 mb-1 flex-wrap">
+                                    <code className="bg-muted px-2 py-1 rounded text-sm font-mono truncate max-w-[120px]">
+                                      {'{' + placeholder.field_name.toLowerCase().replace(/\s+/g, '_') + '}'}
+                                    </code>
+                                    <Badge variant="outline" className="truncate max-w-[80px]">{placeholder.field_type}</Badge>
+                                    <Badge variant="secondary" className="truncate max-w-[80px]">{placeholder.field_format}</Badge>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground truncate">
+                                    Sumber: {placeholder.field_source || 'Custom field'}
+                                  </p>
+                                  {placeholder.field_source === 'tanggal_lahir' && (
+                                    <div className="flex items-center space-x-2 mt-2">
+                                      <Switch
+                                        id={`show-age-${placeholder.id}`}
+                                        checked={!!placeholder.custom_field_options?.show_age}
+                                        onCheckedChange={(checked) => handlePlaceholderOptionChange(placeholder.id, 'show_age', checked)}
+                                      />
+                                      <Label htmlFor={`show-age-${placeholder.id}`}>Tampilkan Usia</Label>
+                                    </div>
+                                  )}
+                                  {placeholder.field_source === 'nomor_surat_kustom' && placeholder.custom_field_options && (
+                                    <div className="text-xs text-muted-foreground mt-1 space-x-2">
+                                      <span>Indeks: {placeholder.custom_field_options.indeks_nomor}</span>
+                                      <span>Kode: {placeholder.custom_field_options.kode_surat}</span>
+                                      <span>Desa: {placeholder.custom_field_options.kode_desa}</span>
+                                    </div>
+                                  )}
+                                  {(placeholder.field_type === 'custom_input' || placeholder.field_type === 'custom_textarea') && placeholder.default_value && (
+                                    <p className="text-xs text-blue-600 mt-1 truncate">
+                                      Default: "{placeholder.default_value}"
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex-shrink-0 flex items-center gap-1">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveUp(placeholderIndex)} disabled={placeholderIndex === 0}>
+                                    <ArrowUp className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveDown(placeholderIndex)} disabled={placeholderIndex === placeholders.length - 1}>
+                                    <ArrowDown className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removePlaceholder(placeholder.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <div className="flex items-center space-x-2">
+                              <div className="flex items-center justify-end mt-2 pt-2 border-t">
+                                <div className="flex items-center space-x-1">
                                   <Switch
                                     id={`is_required-${placeholder.id}`}
                                     checked={placeholder.is_required || false}
                                     onCheckedChange={(checked) => updatePlaceholder(placeholder.id, { is_required: checked })}
                                   />
-                                  <Label htmlFor={`is_required-${placeholder.id}`}>Wajib</Label>
+                                  <Label htmlFor={`is_required-${placeholder.id}`} className="text-xs">Wajib</Label>
                                 </div>
-                                <Button variant="ghost" size="icon" onClick={() => moveUp(placeholderIndex)} disabled={placeholderIndex === 0}>
-                                  <ArrowUp className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={() => moveDown(placeholderIndex)} disabled={placeholderIndex === placeholders.length - 1}>
-                                  <ArrowDown className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={() => removePlaceholder(placeholder.id)}>
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
                               </div>
                             </div>
                           );
@@ -694,43 +700,43 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
                         const placeholderIndex = placeholders.findIndex(p => p.id === placeholder.id);
                         return (
                           <div key={placeholder.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
-                            <div className="flex-1">
-                              <p className="font-medium">
+                            <div className="flex-1 min-w-0 pr-4">
+                              <p className="font-medium truncate">
                                 {placeholder.field_name}
                                 {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
                               </p>
                               <div className="flex items-center gap-2 mt-1 mb-1 flex-wrap">
-                                <code className="bg-muted px-2 py-1 rounded text-sm font-mono">
+                                <code className="bg-muted px-2 py-1 rounded text-sm font-mono truncate max-w-[120px]">
                                   {'{' + placeholder.field_name.toLowerCase().replace(/\s+/g, '_') + '}'}
                                 </code>
-                                <Badge variant="outline">{placeholder.field_type}</Badge>
-                                <Badge variant="secondary">{placeholder.field_format}</Badge>
+                                <Badge variant="outline" className="truncate max-w-[80px]">{placeholder.field_type}</Badge>
+                                <Badge variant="secondary" className="truncate max-w-[80px]">{placeholder.field_format}</Badge>
                               </div>
-                              <p className="text-sm text-muted-foreground">
+                              <p className="text-sm text-muted-foreground truncate">
                                 Sumber: {placeholder.field_source || 'Custom field'}
                               </p>
                               {(placeholder.field_type === 'custom_input' || placeholder.field_type === 'custom_textarea') && placeholder.default_value && (
-                                <p className="text-xs text-blue-600 mt-1">
+                                <p className="text-xs text-blue-600 mt-1 truncate">
                                   Default: "{placeholder.default_value}"
                                 </p>
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center space-x-2">
+                            <div className="flex-shrink-0 flex items-center gap-1">
+                              <div className="flex items-center space-x-1">
                                 <Switch
                                   id={`is_required-no-section-${placeholder.id}`}
                                   checked={placeholder.is_required || false}
                                   onCheckedChange={(checked) => updatePlaceholder(placeholder.id, { is_required: checked })}
                                 />
-                                <Label htmlFor={`is_required-no-section-${placeholder.id}`}>Wajib</Label>
+                                <Label htmlFor={`is_required-no-section-${placeholder.id}`} className="text-xs">Wajib</Label>
                               </div>
-                              <Button variant="ghost" size="icon" onClick={() => moveUp(placeholderIndex)} disabled={placeholderIndex === 0}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveUp(placeholderIndex)} disabled={placeholderIndex === 0}>
                                 <ArrowUp className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => moveDown(placeholderIndex)} disabled={placeholderIndex === placeholders.length - 1}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => moveDown(placeholderIndex)} disabled={placeholderIndex === placeholders.length - 1}>
                                 <ArrowDown className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => removePlaceholder(placeholder.id)}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removePlaceholder(placeholder.id)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
