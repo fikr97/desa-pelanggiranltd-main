@@ -109,6 +109,7 @@ const FormDataEntry = () => {
   const [viewMode, setViewMode] = useState<'table' | 'deck'>('table'); // Default to table view
   const [searchTerm, setSearchTerm] = useState('');
   const [groupByField, setGroupByField] = useState<string | null>('none');
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['form_data_and_def', formId],
@@ -323,6 +324,18 @@ const FormDataEntry = () => {
     XLSX.writeFile(workbook, `${data.formDef.nama_tugas.replace(/\s+/g, '_')}.xlsx`);
   };
 
+  const toggleGroup = (groupName: string) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupName)) {
+        newSet.delete(groupName);
+      } else {
+        newSet.add(groupName);
+      }
+      return newSet;
+    });
+  };
+
   if (isLoading) return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (error) return <div className="p-6 text-destructive">Error: {error.message}</div>;
   if (!data || !data.formDef) return <div className="p-6"><p>Form tidak ditemukan.</p></div>;
@@ -335,48 +348,58 @@ const FormDataEntry = () => {
   // Render table view
   const renderTableView = () => {
     if (groupByField && groupByField !== 'none' && groupedEntries) {
-      // Grouped table view
+      // Grouped table view - only show group headers first
       return Object.entries(groupedEntries).map(([groupKey, groupEntries]) => (
-        <div key={groupKey} className="mb-6">
-          <h3 className="text-lg font-semibold mb-2 p-2 bg-muted rounded">Grup: {groupKey} ({groupEntries.length})</h3>
-          <div className="overflow-x-auto relative">
-            <Table className="min-w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">No</TableHead>
-                  {formDef.fields.map(field => (
-                    <TableHead key={field.id} onClick={() => requestSort(field.nama_field)} className="cursor-pointer hover:bg-muted">
-                      <div className="flex items-center gap-2">
-                        {field.label_field}
-                        {sortConfig.key === field.nama_field && (
-                          <ArrowUpDown className="h-4 w-4" />
-                        )}
-                      </div>
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-right sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {groupEntries.map((entry, index) => (
-                  <TableRow key={entry.id}>
-                    <TableCell>{index + 1}</TableCell>
-                    {formDef.fields.map(field => (
-                      <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
-                    ))}
-                    <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
-                      <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <div key={groupKey} className="mb-4">
+          <div 
+            className="flex justify-between items-center p-3 bg-muted rounded cursor-pointer hover:bg-muted/80"
+            onClick={() => toggleGroup(groupKey)}
+          >
+            <h3 className="text-lg font-semibold">Grup: {groupKey} ({groupEntries.length})</h3>
+            <Button variant="ghost" size="sm">
+              {expandedGroups.has(groupKey) ? 'Tutup' : 'Buka'}
+            </Button>
           </div>
+          {expandedGroups.has(groupKey) && (
+            <div className="overflow-x-auto relative mt-2">
+              <Table className="min-w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">No</TableHead>
+                    {formDef.fields.map(field => (
+                      <TableHead key={field.id} onClick={() => requestSort(field.nama_field)} className="cursor-pointer hover:bg-muted">
+                        <div className="flex items-center gap-2">
+                          {field.label_field}
+                          {sortConfig.key === field.nama_field && (
+                            <ArrowUpDown className="h-4 w-4" />
+                          )}
+                        </div>
+                      </TableHead>
+                    ))}
+                    <TableHead className="text-right sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {groupEntries.map((entry, index) => (
+                    <TableRow key={entry.id}>
+                      <TableCell>{index + 1}</TableCell>
+                      {formDef.fields.map(field => (
+                        <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
+                      ))}
+                      <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
+                        <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
       ));
     } else {
@@ -427,59 +450,72 @@ const FormDataEntry = () => {
   // Render deck view
   const renderDeckView = () => {
     if (groupByField && groupByField !== 'none' && groupedEntries) {
-      // Grouped deck view
+      // Grouped deck view - only show group headers first
       return Object.entries(groupedEntries).map(([groupKey, groupEntries]) => {
-        // Use deck display fields from the form fields if they exist and are visible
-        // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
-        const visibleDeckFields = formDef.fields
-          .filter(field => field.deck_visible)
-          .sort((a, b) => (a.deck_display_order || 0) - (b.deck_display_order || 0));
+        const isExpanded = expandedGroups.has(groupKey);
         
         return (
-          <div key={groupKey} className="mb-8">
-            <h3 className="text-lg font-semibold mb-4 p-2 bg-muted rounded">Grup: {groupKey} ({groupEntries.length})</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {groupEntries.map((entry, index) => {
-                // Find the header field if any
-                const headerField = visibleDeckFields.find(f => f.deck_is_header);
-                const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
-                
-                // Get non-header fields to display in body
-                const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
-                
-                return (
-                  <Card key={entry.id} className="overflow-hidden flex flex-col">
-                    {headerFieldValue && (
-                      <CardHeader className={headerField.deck_display_format === 'header' ? 'bg-primary text-primary-foreground' : 'bg-muted'}>
-                        <CardTitle className="text-lg break-words">{headerFieldValue}</CardTitle>
-                      </CardHeader>
-                    )}
-                    <CardContent className="p-4 flex-grow">
-                      <div className="space-y-2">
-                        {bodyFields.map(field => {
-                          const value = getFieldValue(entry, field);
-                          return (
-                            <div key={field.id} className="flex flex-col">
-                              <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
-                              <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>{value}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      
-                      <div className="flex gap-2 mt-4 justify-end">
-                        <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+          <div key={groupKey} className="mb-4">
+            <div 
+              className="flex justify-between items-center p-3 bg-muted rounded cursor-pointer hover:bg-muted/80"
+              onClick={() => toggleGroup(groupKey)}
+            >
+              <h3 className="text-lg font-semibold">Grup: {groupKey} ({groupEntries.length})</h3>
+              <Button variant="ghost" size="sm">
+                {isExpanded ? 'Tutup' : 'Buka'}
+              </Button>
             </div>
+            
+            {isExpanded && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
+                {groupEntries.map((entry, index) => {
+                  // Use deck display fields from the form fields if they exist and are visible
+                  // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
+                  const visibleDeckFields = formDef.fields
+                    .filter(field => field.deck_visible)
+                    .sort((a, b) => (a.deck_display_order || 0) - (b.deck_display_order || 0));
+                  
+                  // Find the header field if any
+                  const headerField = visibleDeckFields.find(f => f.deck_is_header);
+                  const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
+                  
+                  // Get non-header fields to display in body
+                  const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
+                  
+                  return (
+                    <Card key={entry.id} className="overflow-hidden flex flex-col">
+                      {headerFieldValue && (
+                        <CardHeader className={headerField.deck_display_format === 'header' ? 'bg-primary text-primary-foreground' : 'bg-muted'}>
+                          <CardTitle className="text-lg break-words">{headerFieldValue}</CardTitle>
+                        </CardHeader>
+                      )}
+                      <CardContent className="p-4 flex-grow">
+                        <div className="space-y-2">
+                          {bodyFields.map(field => {
+                            const value = getFieldValue(entry, field);
+                            return (
+                              <div key={field.id} className="flex flex-col">
+                                <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
+                                <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>{value}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        <div className="flex gap-2 mt-4 justify-end">
+                          <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       });
