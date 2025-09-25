@@ -477,6 +477,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id}>
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name} ({getFieldLabel(placeholder.field_source)})
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Select
               value={fieldValue}
@@ -682,6 +683,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
         <div key={placeholder.id}>
           <Label htmlFor={placeholderKey}>
             {placeholder.field_name}
+            {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
           </Label>
           <Input
             id={placeholderKey}
@@ -803,6 +805,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id}>
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name}
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Input
               id={placeholderKey}
@@ -855,6 +858,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id}>
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name}
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Input
               id={placeholderKey}
@@ -925,6 +929,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id}>
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name}
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Input
               id={placeholderKey}
@@ -962,6 +967,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id}>
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name}
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Select
               value={currentValue}
@@ -987,6 +993,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id}>
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name}
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Select
               value={currentValue}
@@ -1012,6 +1019,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id}>
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name}
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Select
               value={currentValue}
@@ -1037,6 +1045,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id}>
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name}
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Select
               value={currentValue}
@@ -1082,7 +1091,9 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
 
         return (
           <div key={placeholder.id} className="p-4 border rounded-lg space-y-3 bg-muted/50 col-span-2">
-              <Label className="font-semibold">{placeholder.field_name}</Label>
+              <Label className="font-semibold">{placeholder.field_name}
+                {placeholder.is_required && <span className="text-red-500 ml-2">*</span>}
+              </Label>
               <div>
                   <Input
                       id={placeholderKey}
@@ -1131,6 +1142,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id}>
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name}
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Select
               value={currentValue}
@@ -1154,6 +1166,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id}>
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name}
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Input
               id={placeholderKey}
@@ -1174,6 +1187,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
         <div key={placeholder.id} className="space-y-2">
           <Label htmlFor={placeholderKey}>
             {placeholder.field_name}
+            {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
           </Label>
 
           {placeholder.field_type === 'custom_textarea' ? (
@@ -1204,6 +1218,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
       <div key={placeholder.id}>
         <Label htmlFor={placeholderKey}>
           {placeholder.field_name}
+          {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
         </Label>
         <Input
           id={placeholderKey}

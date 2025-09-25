@@ -198,9 +198,15 @@ const TemplateDesigner = ({ template, onSave, onCancel }: TemplateDesignerProps)
 
       // Save placeholders using the new atomic RPC function
       if (templateId) {
+        // Make sure all placeholders have is_required field, defaulting to false if not present
+        const placeholdersWithRequired = placeholders.map(p => ({
+          ...p,
+          is_required: p.is_required || false
+        }));
+        
         const { error: rpcError } = await supabase.rpc('upsert_surat_field_mappings', {
           template_id_param: templateId,
-          placeholders: placeholders
+          placeholders: placeholdersWithRequired
         });
 
         if (rpcError) throw rpcError;

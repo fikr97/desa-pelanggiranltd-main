@@ -34,6 +34,7 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
     section_name: '',
     urutan: 1,
     default_value: '',
+    is_required: false,
     custom_field_options: {
       indeks_nomor: '470',
       kode_surat: 'UMUM',
@@ -172,6 +173,7 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
       multiple_count: null,
       urutan: placeholders.length + 1,
       default_value: newPlaceholder.default_value,
+      is_required: newPlaceholder.is_required,
       custom_field_options: newPlaceholder.field_source === 'nomor_surat_kustom' ? newPlaceholder.custom_field_options : null,
     };
 
@@ -184,6 +186,7 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
       section_name: newPlaceholder.section_name, // Keep same section
       urutan: 1,
       default_value: '',
+      is_required: false,
       custom_field_options: {
         indeks_nomor: '470',
         kode_surat: 'UMUM',
@@ -553,6 +556,15 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
             </Select>
           </div>
 
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="is_required"
+              checked={newPlaceholder.is_required}
+              onCheckedChange={(checked) => setNewPlaceholder(prev => ({ ...prev, is_required: checked }))}
+            />
+            <Label htmlFor="is_required">Wajib Diisi (Required)</Label>
+          </div>
+
           <div className="bg-blue-50 p-3 rounded-lg">
             <p className="text-sm text-blue-700">
               <strong>Preview Placeholder:</strong> {'{' + newPlaceholder.field_name.toLowerCase().replace(/\s+/g, '_') + '}'}
@@ -613,6 +625,9 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
                                   </code>
                                   <Badge variant="outline">{placeholder.field_type}</Badge>
                                   <Badge variant="secondary">{placeholder.field_format}</Badge>
+                                  {placeholder.is_required && (
+                                    <Badge variant="default" className="bg-red-500">Wajib</Badge>
+                                  )}
                                 </div>
                                 <p className="text-sm text-muted-foreground">
                                   Sumber: {placeholder.field_source || 'Custom field'}
