@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Loader2, Download, Upload, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown, Grid3X3, List } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Loader2, Download, Upload, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown, Grid3X3, List, Search } from 'lucide-react';
 import DataEntryForm from '@/components/DataEntryForm';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,6 +41,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import ImportDataButton from '@/components/ImportDataButton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const getFieldValue = (entry, field) => {
   let value;
@@ -99,6 +107,8 @@ const FormDataEntry = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
   const [viewMode, setViewMode] = useState<'table' | 'deck'>('table'); // Default to table view
+  const [searchTerm, setSearchTerm] = useState('');
+  const [groupByField, setGroupByField] = useState<string | null>('none');
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['form_data_and_def', formId],
@@ -153,9 +163,39 @@ const FormDataEntry = () => {
     enabled: !!formId,
   });
 
+  // Filter entries based on search term
+  const filteredEntries = useMemo(() => {
+    if (!data?.entries || !searchTerm) return data?.entries || [];
+    
+    return data.entries.filter(entry => {
+      return data.formDef.fields.some(field => {
+        const fieldValue = getFieldValue(entry, field);
+        return fieldValue && String(fieldValue).toLowerCase().includes(searchTerm.toLowerCase());
+      });
+    });
+  }, [data?.entries, data?.formDef.fields, searchTerm]);
+
+  // Group entries by selected field
+  const groupedEntries = useMemo(() => {
+    if (!groupByField || groupByField === 'none' || !filteredEntries) return null;
+    
+    const groupMap: Record<string, any[]> = {};
+    filteredEntries.forEach(entry => {
+      const fieldValue = getFieldValue(entry, data?.formDef.fields.find(f => f.nama_field === groupByField));
+      const groupKey = fieldValue ? String(fieldValue) : 'Belum Diisi';
+      
+      if (!groupMap[groupKey]) {
+        groupMap[groupKey] = [];
+      }
+      groupMap[groupKey].push(entry);
+    });
+    
+    return groupMap;
+  }, [filteredEntries, groupByField, data?.formDef.fields]);
+
   const sortedEntries = useMemo(() => {
-    if (!data?.entries) return [];
-    const sortableEntries = [...data.entries];
+    if (!filteredEntries) return [];
+    const sortableEntries = [...filteredEntries];
     sortableEntries.sort((a, b) => {
       let aValue, bValue;
 
@@ -163,7 +203,7 @@ const FormDataEntry = () => {
         aValue = new Date(a.created_at);
         bValue = new Date(b.created_at);
       } else {
-        const field = data.formDef.fields.find(f => f.nama_field === sortConfig.key);
+        const field = data?.formDef.fields.find(f => f.nama_field === sortConfig.key);
         if (!field) return 0;
         aValue = getFieldValue(a, field);
         bValue = getFieldValue(b, field);
@@ -178,7 +218,7 @@ const FormDataEntry = () => {
       return 0;
     });
     return sortableEntries;
-  }, [data?.entries, sortConfig, data?.formDef.fields]);
+  }, [filteredEntries, sortConfig, data?.formDef.fields]);
 
   const requestSort = (key) => {
     let direction = 'ascending';
@@ -293,101 +333,209 @@ const FormDataEntry = () => {
   const actualViewMode = formDef.display_type === 'deck' ? viewMode : 'table';
   
   // Render table view
-  const renderTableView = () => (
-    <div className="overflow-x-auto relative">
-      <Table className="min-w-full">
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">No</TableHead>
-            {formDef.fields.map(field => (
-              <TableHead key={field.id} onClick={() => requestSort(field.nama_field)} className="cursor-pointer hover:bg-muted">
-                <div className="flex items-center gap-2">
-                  {field.label_field}
-                  {sortConfig.key === field.nama_field && (
-                    <ArrowUpDown className="h-4 w-4" />
-                  )}
-                </div>
-              </TableHead>
-            ))}
-            <TableHead className="text-right sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">Aksi</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedEntries.map((entry, index) => (
-            <TableRow key={entry.id}>
-              <TableCell>{index + 1}</TableCell>
-              {formDef.fields.map(field => (
-                <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
+  const renderTableView = () => {
+    if (groupByField && groupByField !== 'none' && groupedEntries) {
+      // Grouped table view
+      return Object.entries(groupedEntries).map(([groupKey, groupEntries]) => (
+        <div key={groupKey} className="mb-6">
+          <h3 className="text-lg font-semibold mb-2 p-2 bg-muted rounded">Grup: {groupKey} ({groupEntries.length})</h3>
+          <div className="overflow-x-auto relative">
+            <Table className="min-w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">No</TableHead>
+                  {formDef.fields.map(field => (
+                    <TableHead key={field.id} onClick={() => requestSort(field.nama_field)} className="cursor-pointer hover:bg-muted">
+                      <div className="flex items-center gap-2">
+                        {field.label_field}
+                        {sortConfig.key === field.nama_field && (
+                          <ArrowUpDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-right sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {groupEntries.map((entry, index) => (
+                  <TableRow key={entry.id}>
+                    <TableCell>{index + 1}</TableCell>
+                    {formDef.fields.map(field => (
+                      <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
+                    ))}
+                    <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
+                      <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      ));
+    } else {
+      // Non-grouped table view
+      return (
+        <div className="overflow-x-auto relative">
+          <Table className="min-w-full">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">No</TableHead>
+                {formDef.fields.map(field => (
+                  <TableHead key={field.id} onClick={() => requestSort(field.nama_field)} className="cursor-pointer hover:bg-muted">
+                    <div className="flex items-center gap-2">
+                      {field.label_field}
+                      {sortConfig.key === field.nama_field && (
+                        <ArrowUpDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </TableHead>
+                ))}
+                <TableHead className="text-right sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedEntries.map((entry, index) => (
+                <TableRow key={entry.id}>
+                  <TableCell>{index + 1}</TableCell>
+                  {formDef.fields.map(field => (
+                    <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
+                  ))}
+                  <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
+                    <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))}
-              <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
-                <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
+            </TableBody>
+          </Table>
+        </div>
+      );
+    }
+  };
   
   // Render deck view
   const renderDeckView = () => {
-    // Use deck display fields from the form fields if they exist and are visible
-    // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
-    const visibleDeckFields = formDef.fields
-      .filter(field => field.deck_visible)
-      .sort((a, b) => (a.deck_display_order || 0) - (b.deck_display_order || 0));
-    
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sortedEntries.map((entry, index) => {
-          // Find the header field if any
-          const headerField = visibleDeckFields.find(f => f.deck_is_header);
-          const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
-          
-          // Get non-header fields to display in body
-          const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
-          
-          return (
-            <Card key={entry.id} className="overflow-hidden">
-              {headerFieldValue && (
-                <CardHeader className={headerField.deck_display_format === 'header' ? 'bg-primary text-primary-foreground' : 'bg-muted'}>
-                  <CardTitle className="text-lg break-words">{headerFieldValue}</CardTitle>
-                </CardHeader>
-              )}
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  {bodyFields.map(field => {
-                    const value = getFieldValue(entry, field);
-                    return (
-                      <div key={field.id} className="flex flex-col">
-                        <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
-                        <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>{value}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+    if (groupByField && groupByField !== 'none' && groupedEntries) {
+      // Grouped deck view
+      return Object.entries(groupedEntries).map(([groupKey, groupEntries]) => {
+        // Use deck display fields from the form fields if they exist and are visible
+        // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
+        const visibleDeckFields = formDef.fields
+          .filter(field => field.deck_visible)
+          .sort((a, b) => (a.deck_display_order || 0) - (b.deck_display_order || 0));
+        
+        return (
+          <div key={groupKey} className="mb-8">
+            <h3 className="text-lg font-semibold mb-4 p-2 bg-muted rounded">Grup: {groupKey} ({groupEntries.length})</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {groupEntries.map((entry, index) => {
+                // Find the header field if any
+                const headerField = visibleDeckFields.find(f => f.deck_is_header);
+                const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
                 
-                <div className="flex gap-2 mt-4">
-                  <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)} className="flex-1">
-                    <Pencil className="h-4 w-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)} className="flex-1">
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Hapus
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-    );
+                // Get non-header fields to display in body
+                const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
+                
+                return (
+                  <Card key={entry.id} className="overflow-hidden flex flex-col">
+                    {headerFieldValue && (
+                      <CardHeader className={headerField.deck_display_format === 'header' ? 'bg-primary text-primary-foreground' : 'bg-muted'}>
+                        <CardTitle className="text-lg break-words">{headerFieldValue}</CardTitle>
+                      </CardHeader>
+                    )}
+                    <CardContent className="p-4 flex-grow">
+                      <div className="space-y-2">
+                        {bodyFields.map(field => {
+                          const value = getFieldValue(entry, field);
+                          return (
+                            <div key={field.id} className="flex flex-col">
+                              <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
+                              <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>{value}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      <div className="flex gap-2 mt-4 justify-end">
+                        <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        );
+      });
+    } else {
+      // Non-grouped deck view
+      // Use deck display fields from the form fields if they exist and are visible
+      // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
+      const visibleDeckFields = formDef.fields
+        .filter(field => field.deck_visible)
+        .sort((a, b) => (a.deck_display_order || 0) - (b.deck_display_order || 0));
+      
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {sortedEntries.map((entry, index) => {
+            // Find the header field if any
+            const headerField = visibleDeckFields.find(f => f.deck_is_header);
+            const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
+            
+            // Get non-header fields to display in body
+            const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
+            
+            return (
+              <Card key={entry.id} className="overflow-hidden flex flex-col">
+                {headerFieldValue && (
+                  <CardHeader className={headerField.deck_display_format === 'header' ? 'bg-primary text-primary-foreground' : 'bg-muted'}>
+                    <CardTitle className="text-lg break-words">{headerFieldValue}</CardTitle>
+                  </CardHeader>
+                )}
+                <CardContent className="p-4 flex-grow">
+                  <div className="space-y-2">
+                    {bodyFields.map(field => {
+                      const value = getFieldValue(entry, field);
+                      return (
+                        <div key={field.id} className="flex flex-col">
+                          <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
+                          <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>{value}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="flex gap-2 mt-4 justify-end">
+                    <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      );
+    }
   };
 
   return (
@@ -432,8 +580,35 @@ const FormDataEntry = () => {
         </div>
 
         {/* View mode toggle - only show if form is configured for deck view */}
-        {(formDef.display_type === 'deck') && (
-          <div className="flex items-center justify-end mb-4">
+        {/* Search box, group by selector and view toggles */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <div className="flex flex-col md:flex-row gap-2 w-full">
+            <div className="relative w-full md:w-1/2 mb-2 md:mb-0">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Cari data..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 w-full"
+              />
+            </div>
+            <div className="w-full md:w-1/2">
+              <Select value={groupByField || 'none'} onValueChange={(value) => setGroupByField(value === 'none' ? null : value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Grup berdasarkan..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Tidak Ada Grup</SelectItem>
+                  {formDef.fields.map(field => (
+                    <SelectItem key={field.nama_field} value={field.nama_field}>
+                      {field.label_field}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {(formDef.display_type === 'deck') && (
             <div className="flex items-center space-x-2">
               <List className={`h-4 w-4 ${actualViewMode === 'table' ? 'text-primary' : 'text-muted-foreground'}`} />
               <Switch
@@ -442,11 +617,15 @@ const FormDataEntry = () => {
               />
               <Grid3X3 className={`h-4 w-4 ${actualViewMode === 'deck' ? 'text-primary' : 'text-muted-foreground'}`} />
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="bg-card p-4 sm:p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4">Daftar Data Terisi</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Menampilkan {sortedEntries.length} dari {entries.length} data
+            {groupByField && groupByField !== 'none' && groupedEntries ? ` dalam ${Object.keys(groupedEntries).length} grup` : ''}
+          </p>
           {entries.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">Belum ada data yang diisi.</p>
           ) : (
@@ -454,6 +633,15 @@ const FormDataEntry = () => {
           )}
         </div>
       </div>
+
+      {/* Fixed Add button for mobile */}
+      <Button 
+        onClick={handleAddNew} 
+        className="fixed bottom-6 right-6 rounded-full w-14 h-14 p-0 shadow-lg md:hidden z-50"
+        aria-label="Tambah Data Baru"
+      >
+        <PlusCircle className="h-6 w-6" />
+      </Button>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="w-full max-w-2xl p-4 sm:p-6">

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Pencil, Trash2, FileText, Loader2 } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, FileText, Loader2, Search } from 'lucide-react';
 import FormTugasDesigner from '@/components/FormTugasDesigner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -23,6 +24,7 @@ const FormTugas = () => {
   const [selectedForm, setSelectedForm] = useState(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [formToDelete, setFormToDelete] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { profile } = useAuth();
@@ -35,6 +37,18 @@ const FormTugas = () => {
       return data;
     },
   });
+
+  // Filter forms based on search term
+  const filteredForms = useMemo(() => {
+    if (!formTugasList || !searchTerm) return formTugasList || [];
+    
+    return formTugasList.filter(form => {
+      return (
+        form.nama_tugas.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        form.deskripsi.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    });
+  }, [formTugasList, searchTerm]);
 
   const handleCreateNew = () => {
     setSelectedForm(null);
@@ -69,7 +83,7 @@ const FormTugas = () => {
 
       toast({
         title: 'Berhasil',
-        description: `Form \"${formToDelete.nama_tugas}\" telah dihapus.`,
+        description: `Form "${formToDelete.nama_tugas}" telah dihapus.`,
       });
       queryClient.invalidateQueries({ queryKey: ['form_tugas'] });
     } catch (error) {
@@ -91,27 +105,45 @@ const FormTugas = () => {
   return (
     <>
       <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <h1 className="text-3xl font-bold">Manajemen Form Tugas</h1>
           {profile?.role === 'admin' && (
-            <Button onClick={handleCreateNew}>
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Buat Form Baru
-            </Button>
+            <div className="w-full md:w-auto mt-2 md:mt-0">
+              <Button onClick={handleCreateNew} className="w-full">
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Buat Form Baru
+              </Button>
+            </div>
           )}
+        </div>
+
+        {/* Search box for forms */}
+        <div className="mb-6">
+          <div className="relative w-full md:w-1/2">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Cari form tugas..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8"
+            />
+          </div>
         </div>
 
         <div className="bg-card p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4">Daftar Form</h2>
+          <p className="text-sm text-muted-foreground mb-4">Menampilkan {filteredForms.length} dari {formTugasList?.length || 0} form</p>
           {isLoading ? (
             <div className="flex justify-center items-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : formTugasList && formTugasList.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">Belum ada form tugas yang dibuat.</p>
+          ) : filteredForms && filteredForms.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              {formTugasList && formTugasList.length > 0 ? 'Tidak ada form yang cocok dengan pencarian.' : 'Belum ada form tugas yang dibuat.'}
+            </p>
           ) : (
             <div className="space-y-4">
-              {formTugasList?.map((form) => (
+              {filteredForms?.map((form) => (
                 <div key={form.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border rounded-lg">
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg">{form.nama_tugas}</h3>
@@ -143,6 +175,17 @@ const FormTugas = () => {
           )}
         </div>
       </div>
+
+      {/* Fixed Add button for mobile */}
+      {profile?.role === 'admin' && (
+        <Button 
+          onClick={handleCreateNew} 
+          className="fixed bottom-6 right-6 rounded-full w-14 h-14 p-0 shadow-lg md:hidden z-50"
+          aria-label="Buat Form Baru"
+        >
+          <PlusCircle className="h-6 w-6" />
+        </Button>
+      )}
 
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
