@@ -196,20 +196,45 @@ const TemplateDesigner = ({ template, onSave, onCancel }: TemplateDesignerProps)
         templateId = data.id;
       }
 
-      // Save placeholders using the new atomic RPC function
+      // Save placeholders one by one to ensure data integrity
       if (templateId) {
-        // Make sure all placeholders have is_required field, defaulting to false if not present
-        const placeholdersWithRequired = placeholders.map(p => ({
-          ...p,
-          is_required: p.is_required || false
+        const placeholdersToSave = placeholders.map(p => ({
+          // if id is a temporary one (number string), it will be null, causing an INSERT.
+          // if id is a real UUID, it will be kept, causing an UPDATE.
+          id: p.id?.includes('-') ? p.id : undefined,
+          template_id: templateId,
+          field_name: p.field_name,
+          field_type: p.field_type,
+          field_source: p.field_source,
+          field_format: p.field_format,
+          section_name: p.section_name,
+          section_description: p.section_description,
+          urutan: p.urutan,
+          default_value: p.default_value,
+          is_required: p.is_required || false,
+          custom_field_options: p.custom_field_options,
+          is_multiple: p.is_multiple,
+          multiple_count: p.multiple_count,
+          multiple_roles: p.multiple_roles,
+          custom_type: p.custom_type,
+          is_dynamic: p.is_dynamic,
+          static_value: p.static_value,
+          use_default_value: p.use_default_value,
+          custom_field_type: p.custom_field_type,
+          custom_indeks_nomor: p.custom_indeks_nomor,
+          custom_kode_surat: p.custom_kode_surat,
+          custom_kode_desa: p.custom_kode_desa
         }));
-        
-        const { error: rpcError } = await supabase.rpc('upsert_surat_field_mappings', {
-          template_id_param: templateId,
-          placeholders: placeholdersWithRequired
-        });
 
-        if (rpcError) throw rpcError;
+        // Perform upsert operation
+        const { error: upsertError } = await supabase
+          .from('surat_field_mapping')
+          .upsert(placeholdersToSave, { onConflict: 'id' });
+
+        if (upsertError) throw upsertError;
+
+        // Reload placeholders to get the latest state from the DB
+        await loadPlaceholders(templateId);
       }
 
       toast({

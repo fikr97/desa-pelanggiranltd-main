@@ -200,8 +200,8 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
   };
 
   const updatePlaceholder = (id: string, updates: any) => {
-    onPlaceholdersChange(
-      placeholders.map(p => p.id === id ? { ...p, ...updates } : p)
+    onPlaceholdersChange(prevPlaceholders => 
+      prevPlaceholders.map(p => p.id === id ? { ...p, ...updates } : p)
     );
     setEditingId(null);
   };
@@ -619,15 +619,16 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
                           return (
                             <div key={placeholder.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
                               <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <p className="font-medium">
+                                  {placeholder.field_name}
+                                  {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1 mb-1 flex-wrap">
                                   <code className="bg-muted px-2 py-1 rounded text-sm font-mono">
                                     {'{' + placeholder.field_name.toLowerCase().replace(/\s+/g, '_') + '}'}
                                   </code>
                                   <Badge variant="outline">{placeholder.field_type}</Badge>
                                   <Badge variant="secondary">{placeholder.field_format}</Badge>
-                                  {placeholder.is_required && (
-                                    <Badge variant="default" className="bg-red-500">Wajib</Badge>
-                                  )}
                                 </div>
                                 <p className="text-sm text-muted-foreground">
                                   Sumber: {placeholder.field_source || 'Custom field'}
@@ -656,6 +657,14 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
                                 )}
                               </div>
                               <div className="flex items-center gap-2">
+                                <div className="flex items-center space-x-2">
+                                  <Switch
+                                    id={`is_required-${placeholder.id}`}
+                                    checked={placeholder.is_required || false}
+                                    onCheckedChange={(checked) => updatePlaceholder(placeholder.id, { is_required: checked })}
+                                  />
+                                  <Label htmlFor={`is_required-${placeholder.id}`}>Wajib</Label>
+                                </div>
                                 <Button variant="ghost" size="icon" onClick={() => moveUp(placeholderIndex)} disabled={placeholderIndex === 0}>
                                   <ArrowUp className="h-4 w-4" />
                                 </Button>
@@ -686,7 +695,11 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
                         return (
                           <div key={placeholder.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <p className="font-medium">
+                                {placeholder.field_name}
+                                {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1 mb-1 flex-wrap">
                                 <code className="bg-muted px-2 py-1 rounded text-sm font-mono">
                                   {'{' + placeholder.field_name.toLowerCase().replace(/\s+/g, '_') + '}'}
                                 </code>
@@ -703,6 +716,14 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }: PlaceholderM
                               )}
                             </div>
                             <div className="flex items-center gap-2">
+                              <div className="flex items-center space-x-2">
+                                <Switch
+                                  id={`is_required-no-section-${placeholder.id}`}
+                                  checked={placeholder.is_required || false}
+                                  onCheckedChange={(checked) => updatePlaceholder(placeholder.id, { is_required: checked })}
+                                />
+                                <Label htmlFor={`is_required-no-section-${placeholder.id}`}>Wajib</Label>
+                              </div>
                               <Button variant="ghost" size="icon" onClick={() => moveUp(placeholderIndex)} disabled={placeholderIndex === 0}>
                                 <ArrowUp className="h-4 w-4" />
                               </Button>

@@ -509,6 +509,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id} className="space-y-3">
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name} ({getFieldLabel(placeholder.field_source)})
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
 
             {/* Type selection: Dusun or Custom */}
@@ -587,6 +588,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
             <div key={placeholder.id} className="space-y-2">
               <Label htmlFor={placeholderKey}>
                 {placeholder.field_name} ({getFieldLabel(placeholder.field_source)})
+                {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
               </Label>
               <div className="flex items-center gap-2">
                 <Input
@@ -634,6 +636,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id}>
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name} ({getFieldLabel(placeholder.field_source)})
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Input
               id={placeholderKey}
@@ -651,6 +654,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id}>
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name} ({getFieldLabel(placeholder.field_source)})
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Select
               value={fieldValue}
@@ -726,6 +730,7 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           <div key={placeholder.id} className="space-y-3">
             <Label htmlFor={placeholderKey}>
               {placeholder.field_name}
+              {placeholder.is_required && <span className="text-red-500 ml-1">*</span>}
             </Label>
 
             {/* Type selection: Dusun or Custom */}
@@ -1233,7 +1238,37 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
     );
   };
 
+  const validateRequiredFields = () => {
+    const errors = [];
+    
+    placeholders.forEach(placeholder => {
+      if (placeholder.is_required) {
+        const placeholderKey = placeholder.field_name.toLowerCase().replace(/\s+/g, '_');
+        const fieldValue = formData.placeholderValues[placeholderKey];
+        
+        // Check if field value is empty
+        if (!fieldValue || fieldValue.toString().trim() === '') {
+          errors.push(`${placeholder.field_name} wajib diisi`);
+        }
+      }
+    });
+    
+    return errors;
+  };
+
   const handleSubmit = async () => {
+    // Validate required fields first
+    const requiredFieldErrors = validateRequiredFields();
+    
+    if (requiredFieldErrors.length > 0) {
+      toast({
+        title: 'Form Tidak Lengkap',
+        description: `Mohon lengkapi field berikut: ${requiredFieldErrors.join(', ')}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setIsLoading(true);
     try {
       // Generate nomor surat
