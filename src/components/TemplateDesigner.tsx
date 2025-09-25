@@ -196,12 +196,12 @@ const TemplateDesigner = ({ template, onSave, onCancel }: TemplateDesignerProps)
         templateId = data.id;
       }
 
-      // Save placeholders one by one to ensure data integrity
       if (templateId) {
-        const placeholdersToSave = placeholders.map(p => ({
-          // if id is a temporary one (number string), it will be null, causing an INSERT.
-          // if id is a real UUID, it will be kept, causing an UPDATE.
-          id: p.id?.includes('-') ? p.id : undefined,
+        const toUpdate = placeholders.filter(p => p.id?.includes('-'));
+        const toInsert = placeholders.filter(p => !p.id?.includes('-'));
+
+        const mapToSaveData = (p: any) => ({
+          id: p.id,
           template_id: templateId,
           field_name: p.field_name,
           field_type: p.field_type,
@@ -224,14 +224,24 @@ const TemplateDesigner = ({ template, onSave, onCancel }: TemplateDesignerProps)
           custom_indeks_nomor: p.custom_indeks_nomor,
           custom_kode_surat: p.custom_kode_surat,
           custom_kode_desa: p.custom_kode_desa
-        }));
+        });
 
-        // Perform upsert operation
-        const { error: upsertError } = await supabase
-          .from('surat_field_mapping')
-          .upsert(placeholdersToSave, { onConflict: 'id' });
+        if (toUpdate.length > 0) {
+          const { error: updateError } = await supabase
+            .from('surat_field_mapping')
+            .upsert(toUpdate.map(mapToSaveData));
+          if (updateError) throw updateError;
+        }
 
-        if (upsertError) throw upsertError;
+        if (toInsert.length > 0) {
+          const { error: insertError } = await supabase
+            .from('surat_field_mapping')
+            .insert(toInsert.map(p => { 
+              const { id, ...rest } = mapToSaveData(p);
+              return rest; 
+            }));
+          if (insertError) throw insertError;
+        }
 
         // Reload placeholders to get the latest state from the DB
         await loadPlaceholders(templateId);
