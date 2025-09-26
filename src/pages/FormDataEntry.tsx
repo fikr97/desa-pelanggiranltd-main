@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Loader2, Download, Upload, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown, Grid3X3, List, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Loader2, Download, Upload, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown, Grid3X3, List, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Check } from 'lucide-react';
 import DataEntryForm from '@/components/DataEntryForm';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -48,6 +48,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const getFieldValue = (entry, field) => {
   let value;
@@ -108,6 +114,7 @@ const FormDataEntry = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
   const [viewMode, setViewMode] = useState<'table' | 'deck'>('table');
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchFields, setSearchFields] = useState<string[]>([]); // Array to store selected field names to search in
   const [groupByField, setGroupByField] = useState<string | null>('none');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
@@ -166,17 +173,32 @@ const FormDataEntry = () => {
     enabled: !!formId,
   });
 
-  // Filter entries based on search term
+  // Filter entries based on search term and selected fields
   const filteredEntries = useMemo(() => {
     if (!data?.entries || !searchTerm) return data?.entries || [];
     
-    return data.entries.filter(entry => {
-      return data.formDef.fields.some(field => {
-        const fieldValue = getFieldValue(entry, field);
-        return fieldValue && String(fieldValue).toLowerCase().includes(searchTerm.toLowerCase());
+    if (searchFields.length === 0) {
+      // If no specific fields are selected, search in all fields
+      return data.entries.filter(entry => {
+        return data.formDef.fields.some(field => {
+          const fieldValue = getFieldValue(entry, field);
+          return fieldValue && String(fieldValue).toLowerCase().includes(searchTerm.toLowerCase());
+        });
       });
-    });
-  }, [data?.entries, data?.formDef.fields, searchTerm]);
+    } else {
+      // If specific fields are selected, only search in those fields
+      return data.entries.filter(entry => {
+        return data.formDef.fields.some(field => {
+          // Only consider fields that are in the selected searchFields array
+          if (!searchFields.includes(field.nama_field)) {
+            return false;
+          }
+          const fieldValue = getFieldValue(entry, field);
+          return fieldValue && String(fieldValue).toLowerCase().includes(searchTerm.toLowerCase());
+        });
+      });
+    }
+  }, [data?.entries, data?.formDef.fields, searchTerm, searchFields]);
 
   // Group entries by selected field
   const groupedEntries = useMemo(() => {
@@ -843,7 +865,7 @@ const FormDataEntry = () => {
         </div>
 
         {/* View mode toggle - only show if form is configured for deck view */}
-        {/* Search box, group by selector and view toggles */}
+        {/* Search box, field selector, group by selector and view toggles */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <div className="flex flex-col md:flex-row gap-2 w-full">
             <div className="relative w-full md:w-1/2 mb-2 md:mb-0">
@@ -855,20 +877,85 @@ const FormDataEntry = () => {
                 className="pl-8 w-full"
               />
             </div>
-            <div className="w-full md:w-1/2">
-              <Select value={groupByField || 'none'} onValueChange={(value) => setGroupByField(value === 'none' ? null : value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Grup berdasarkan..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Tidak Ada Grup</SelectItem>
-                  {formDef.fields.map(field => (
-                    <SelectItem key={field.nama_field} value={field.nama_field}>
-                      {field.label_field}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col md:flex-row gap-2 w-full md:w-1/2">
+              {/* Field Selection Dropdown */}
+              <div className="w-full md:w-auto mb-2 md:mb-0">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between text-sm bg-background hover:bg-background"
+                    >
+                      <span className="flex items-center">
+                        <Filter className="mr-2 h-4 w-4" />
+                        {searchFields.length === 0
+                          ? "Pilih field untuk pencarian"
+                          : searchFields.length === 1
+                          ? `1 field dipilih`
+                          : `${searchFields.length} field dipilih`}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-4" align="start">
+                    <div className="mb-2">
+                      <h4 className="font-medium">Pilih Field Pencarian</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Pilih field yang akan dicari
+                      </p>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {formDef.fields.map((field) => (
+                        <div key={field.nama_field} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`field-${field.nama_field}`}
+                            checked={searchFields.includes(field.nama_field)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSearchFields(prev => [...prev, field.nama_field]);
+                              } else {
+                                setSearchFields(prev => prev.filter(f => f !== field.nama_field));
+                              }
+                            }}
+                          />
+                          <Label 
+                            htmlFor={`field-${field.nama_field}`} 
+                            className="text-sm font-normal cursor-pointer"
+                          >
+                            {field.label_field}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                    {searchFields.length > 0 && (
+                      <div className="mt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSearchFields([])}
+                          className="text-sm"
+                        >
+                          Hapus Semua Pilihan
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="w-full md:w-auto">
+                <Select value={groupByField || 'none'} onValueChange={(value) => setGroupByField(value === 'none' ? null : value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Grup berdasarkan..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Tidak Ada Grup</SelectItem>
+                    {formDef.fields.map(field => (
+                      <SelectItem key={field.nama_field} value={field.nama_field}>
+                        {field.label_field}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           {(formDef.display_type === 'deck') && (
