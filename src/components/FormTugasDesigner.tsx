@@ -11,6 +11,7 @@ import { Settings, ListPlus, LayoutGrid } from 'lucide-react';
 import FormFieldManager from './FormFieldManager';
 import { useAuth } from '@/contexts/AuthContext';
 import DeckFieldSelector from './DeckFieldSelector';
+import { Switch } from '@/components/ui/switch';
 
 interface FormTugasDesignerProps {
   formTugas?: any; // Optional: for editing existing forms
@@ -23,6 +24,9 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
     nama_tugas: '',
     deskripsi: '',
     display_type: 'table',
+    show_add_button: true,
+    show_edit_button: true,
+    show_delete_button: true,
   });
   const [fields, setFields] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'settings' | 'fields' | 'deck'>('settings');
@@ -58,6 +62,9 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         nama_tugas: formTugas.nama_tugas || '',
         deskripsi: formTugas.deskripsi || '',
         display_type: formTugas.display_type || 'table',
+        show_add_button: formTugas.show_add_button !== undefined ? formTugas.show_add_button : true,
+        show_edit_button: formTugas.show_edit_button !== undefined ? formTugas.show_edit_button : true,
+        show_delete_button: formTugas.show_delete_button !== undefined ? formTugas.show_delete_button : true,
       });
       loadFields(formTugas.id);
     } else {
@@ -246,6 +253,45 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
                 <p className="text-xs text-muted-foreground mt-1">
                   Pilih bagaimana data nantinya akan ditampilkan saat diisi
                 </p>
+              </div>
+              
+              <div className="pt-4 border-t">
+                <h3 className="text-lg font-semibold mb-4">Pengaturan Tombol</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="show_add_button">Tampilkan Tombol Tambah</Label>
+                      <p className="text-xs text-muted-foreground">Perlihatkan tombol untuk menambah data</p>
+                    </div>
+                    <Switch
+                      id="show_add_button"
+                      checked={formData.show_add_button}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, show_add_button: checked }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="show_edit_button">Tampilkan Tombol Edit</Label>
+                      <p className="text-xs text-muted-foreground">Perlihatkan tombol untuk mengedit data</p>
+                    </div>
+                    <Switch
+                      id="show_edit_button"
+                      checked={formData.show_edit_button}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, show_edit_button: checked }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="show_delete_button">Tampilkan Tombol Hapus</Label>
+                      <p className="text-xs text-muted-foreground">Perlihatkan tombol untuk menghapus data</p>
+                    </div>
+                    <Switch
+                      id="show_delete_button"
+                      checked={formData.show_delete_button}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, show_delete_button: checked }))}
+                    />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

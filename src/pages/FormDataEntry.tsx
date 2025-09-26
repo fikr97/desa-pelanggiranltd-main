@@ -126,7 +126,38 @@ const FormDataEntry = () => {
       const formQuery = supabase.from('form_tugas').select('*').eq('id', formId).single();
       const fieldsQuery = supabase.from('form_tugas_fields').select('*').eq('form_tugas_id', formId).order('urutan');
       const entriesQuery = supabase.from('form_tugas_data').select('*, penduduk(*)').eq('form_tugas_id', formId).order('created_at');
-      const residentsQuery = (async () => {
+      
+      // Execute all queries except residentsQuery first
+      const [formResult, fieldsResult, entriesResult] = await Promise.all([
+        formQuery, 
+        fieldsQuery, 
+        entriesQuery
+      ]);
+
+      if (formResult.error && formResult.error.code !== 'PGRST116') throw formResult.error;
+      if (fieldsResult.error) throw fieldsResult.error;
+      if (entriesResult.error) throw entriesResult.error;
+
+      // Initialize deck visibility for fields if they don't exist (handles missing columns in DB)
+      const initializedFields = fieldsResult.data?.map(field => ({
+        ...field,
+        deck_visible: field.deck_visible !== undefined ? field.deck_visible : false,
+        deck_display_order: field.deck_display_order !== undefined ? field.deck_display_order : 0,
+        deck_display_format: field.deck_display_format !== undefined ? field.deck_display_format : 'default',
+        deck_is_header: field.deck_is_header !== undefined ? field.deck_is_header : false,
+      })) || [];
+
+      // Initialize button visibility settings if they don't exist (handles missing columns in DB)
+      const formDef = {
+        ...formResult.data,
+        show_add_button: formResult.data?.show_add_button !== undefined ? formResult.data.show_add_button : true,
+        show_edit_button: formResult.data?.show_edit_button !== undefined ? formResult.data.show_edit_button : true,
+        show_delete_button: formResult.data?.show_delete_button !== undefined ? formResult.data.show_delete_button : true,
+        fields: initializedFields,
+      };
+
+      // Now fetch residents separately to avoid timeout issues with large datasets
+      const residentsResult = await (async () => {
         let allData = [];
         let from = 0;
         const limit = 1000;
@@ -148,24 +179,10 @@ const FormDataEntry = () => {
         return { data: allData, error: null };
       })();
 
-      const [formResult, fieldsResult, entriesResult, residentsResult] = await Promise.all([formQuery, fieldsQuery, entriesQuery, residentsQuery]);
-
-      if (formResult.error && formResult.error.code !== 'PGRST116') throw formResult.error;
-      if (fieldsResult.error) throw fieldsResult.error;
-      if (entriesResult.error) throw entriesResult.error;
       if (residentsResult.error) throw residentsResult.error;
 
-      // Initialize deck visibility for fields if they don't exist (handles missing columns in DB)
-      const initializedFields = fieldsResult.data?.map(field => ({
-        ...field,
-        deck_visible: field.deck_visible !== undefined ? field.deck_visible : false,
-        deck_display_order: field.deck_display_order !== undefined ? field.deck_display_order : 0,
-        deck_display_format: field.deck_display_format !== undefined ? field.deck_display_format : 'default',
-        deck_is_header: field.deck_is_header !== undefined ? field.deck_is_header : false,
-      })) || [];
-
       return {
-        formDef: { ...formResult.data, fields: initializedFields },
+        formDef: formDef,
         entries: entriesResult.data || [],
         residents: residentsResult.data || [],
       };
@@ -446,12 +463,16 @@ const FormDataEntry = () => {
                         <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
                       ))}
                       <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
-                        <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {formDef.show_edit_button && (
+                          <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {formDef.show_delete_button && (
+                          <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -491,12 +512,16 @@ const FormDataEntry = () => {
                       <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
                     ))}
                     <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
-                      <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {formDef.show_edit_button && (
+                        <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {formDef.show_delete_button && (
+                        <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -657,12 +682,16 @@ const FormDataEntry = () => {
                         </div>
                         
                         <div className="flex gap-2 mt-4 justify-end">
-                          <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {formDef.show_edit_button && (
+                            <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {formDef.show_delete_button && (
+                            <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -713,12 +742,16 @@ const FormDataEntry = () => {
                     </div>
                     
                     <div className="flex gap-2 mt-4 justify-end">
-                      <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {formDef.show_edit_button && (
+                        <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {formDef.show_delete_button && (
+                        <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -840,13 +873,15 @@ const FormDataEntry = () => {
             <p className="text-muted-foreground">{formDef.deskripsi}</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full">
-            <Button 
-              onClick={handleAddNew} 
-              className="flex-1 py-2 px-3 sm:py-3 sm:px-4 text-sm min-w-[100px]"
-            >
-              <PlusCircle className="h-4 w-4 mr-1 sm:mr-2" />
-              <span>Tambah</span>
-            </Button>
+            {formDef.show_add_button && (
+              <Button 
+                onClick={handleAddNew} 
+                className="flex-1 py-2 px-3 sm:py-3 sm:px-4 text-sm min-w-[100px]"
+              >
+                <PlusCircle className="h-4 w-4 mr-1 sm:mr-2" />
+                <span>Tambah</span>
+              </Button>
+            )}
             <ImportDataButton 
               formDef={formDef} 
               residents={residents} 
@@ -985,13 +1020,15 @@ const FormDataEntry = () => {
       </div>
 
       {/* Fixed Add button for mobile */}
-      <Button 
-        onClick={handleAddNew} 
-        className="fixed bottom-6 right-6 rounded-full w-14 h-14 p-0 shadow-lg md:hidden z-50"
-        aria-label="Tambah Data Baru"
-      >
-        <PlusCircle className="h-6 w-6" />
-      </Button>
+      {formDef.show_add_button && (
+        <Button 
+          onClick={handleAddNew} 
+          className="fixed bottom-6 right-6 rounded-full w-14 h-14 p-0 shadow-lg md:hidden z-50"
+          aria-label="Tambah Data Baru"
+        >
+          <PlusCircle className="h-6 w-6" />
+        </Button>
+      )}
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="w-full max-w-2xl p-4 sm:p-6">
