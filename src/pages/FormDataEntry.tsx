@@ -106,7 +106,7 @@ const FormDataEntry = () => {
   const [editingEntry, setEditingEntry] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
-  const [viewMode, setViewMode] = useState<'table' | 'deck'>('table'); // Default to table view
+  const [viewMode, setViewMode] = useState<'table' | 'deck'>('table');
   const [searchTerm, setSearchTerm] = useState('');
   const [groupByField, setGroupByField] = useState<string | null>('none');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -238,8 +238,6 @@ const FormDataEntry = () => {
       direction = 'descending';
     }
     setSortConfig({ key, direction });
-    // Reset to first page when sorting changes
-    setCurrentPage(1);
   };
 
   const handleAddNew = () => {
@@ -349,6 +347,7 @@ const FormDataEntry = () => {
     });
   };
 
+  // Pagination functions
   const goToPage = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -383,7 +382,7 @@ const FormDataEntry = () => {
   // Determine view mode based on form settings and user preference
   const actualViewMode = formDef.display_type === 'deck' ? viewMode : 'table';
   
-  // Render table view
+  // Render table view with pagination
   const renderTableView = () => {
     if (groupByField && groupByField !== 'none' && groupedEntries) {
       // Grouped table view - only show group headers first
@@ -483,8 +482,8 @@ const FormDataEntry = () => {
             </Table>
           </div>
           
-          {/* Pagination Controls - Always show when there are entries */}
-          {sortedEntries.length > 0 && (
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 p-4 bg-muted rounded-lg">
               <div className="text-sm text-muted-foreground">
                 Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedEntries.length)} dari {sortedEntries.length} data
@@ -509,7 +508,7 @@ const FormDataEntry = () => {
                 </Button>
                 
                 <div className="flex items-center space-x-1">
-                  {[...Array(Math.min(5, Math.max(1, totalPages)))].map((_, i) => {
+                  {[...Array(Math.min(5, totalPages))].map((_, i) => {
                     let pageNum;
                     if (totalPages <= 5) {
                       pageNum = i + 1;
@@ -653,7 +652,7 @@ const FormDataEntry = () => {
         );
       });
     } else {
-      // Non-grouped deck view
+      // Non-grouped deck view with pagination
       // Use deck display fields from the form fields if they exist and are visible
       // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
       const visibleDeckFields = formDef.fields
