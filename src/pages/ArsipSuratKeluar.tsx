@@ -168,8 +168,8 @@ const ArsipSuratKeluar = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-start">
         <div className="min-w-0 flex-1">
-          <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-foreground truncate">Arsip Surat Keluar</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">Kelola arsip surat yang telah diterbitkan</p>
+          <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gradient truncate">Arsip Surat Keluar</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-2">Kelola arsip surat yang telah diterbitkan</p>
         </div>
         <Button onClick={handleAddNew} size="sm" className="flex items-center gap-2">
           <Plus className="h-4 w-4" />

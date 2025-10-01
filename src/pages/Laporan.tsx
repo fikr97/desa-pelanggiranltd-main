@@ -29,13 +29,13 @@ const reportCards = [
 
 const Laporan = () => {
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Pusat Laporan</h1>
-        <p className="text-muted-foreground">Pilih jenis laporan yang ingin Anda lihat.</p>
+        <h1 className="text-3xl font-bold text-gradient">Pusat Laporan</h1>
+        <p className="text-muted-foreground mt-2">Pilih jenis laporan yang ingin Anda lihat.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
         {reportCards.map((card) => (
           <Link to={card.link} key={card.title} className={!card.enabled ? 'pointer-events-none' : ''}>
             <Card className={`hover:shadow-lg transition-shadow h-full ${!card.enabled ? 'bg-muted/50' : ''}`}>

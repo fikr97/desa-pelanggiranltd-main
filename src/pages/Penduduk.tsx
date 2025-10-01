@@ -315,8 +315,8 @@ const Penduduk = () => {
       <div className="flex flex-col space-y-4 w-full">
         <div className="flex flex-col space-y-4 w-full">
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-foreground truncate">Data Penduduk</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">Kelola data penduduk desa - Total: {pendudukData.length} jiwa</p>
+            <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gradient truncate">Data Penduduk</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-2">Kelola data penduduk desa - Total: {pendudukData.length} jiwa</p>
           </div>
           
           {/* Action Buttons Container - Scrollable on mobile */}

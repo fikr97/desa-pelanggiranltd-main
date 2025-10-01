@@ -103,10 +103,15 @@ const FormTugas = () => {
   }
 
   return (
-    <>
-      <div className="p-6">
+    <div className="space-y-6">
+      <div>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-          <h1 className="text-3xl font-bold">Manajemen Form Tugas</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-gradient">Manajemen Form Tugas</h1>
+            <p className="text-muted-foreground mt-2">
+              Kelola form tugas yang digunakan untuk pengumpulan data
+            </p>
+          </div>
           {profile?.role === 'admin' && (
             <div className="w-full md:w-auto mt-2 md:mt-0">
               <Button onClick={handleCreateNew} className="w-full">
@@ -201,7 +206,7 @@ const FormTugas = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 };
 

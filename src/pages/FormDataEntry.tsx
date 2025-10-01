@@ -869,8 +869,10 @@ const FormDataEntry = () => {
         </div>
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Data: {formDef.nama_tugas}</h1>
-            <p className="text-muted-foreground">{formDef.deskripsi}</p>
+            <h1 className="text-3xl font-bold text-gradient">Data: {formDef.nama_tugas}</h1>
+            <p className="text-muted-foreground mt-2">
+              {formDef.deskripsi}
+            </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full">
             {formDef.show_add_button && (

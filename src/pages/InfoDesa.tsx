@@ -292,8 +292,8 @@ const InfoDesa = () => {
     <div className="space-y-6 max-w-full overflow-hidden">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Informasi Desa</h1>
-          <p className="text-muted-foreground">Data dan informasi desa</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gradient">Informasi Desa</h1>
+          <p className="text-muted-foreground mt-2">Data dan informasi desa</p>
         </div>
         {!isEditing ? (
           <Button onClick={handleEdit} className="flex items-center space-x-2">

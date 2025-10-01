@@ -39,8 +39,8 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">Ringkasan statistik, demografi, dan aktivitas terbaru Desa Pelanggiran.</p>
+        <h1 className="text-3xl font-bold text-gradient">Dashboard</h1>
+        <p className="text-muted-foreground mt-2">Ringkasan statistik, demografi, dan aktivitas terbaru Desa Pelanggiran.</p>
       </div>
 
       {/* Stats Cards */}

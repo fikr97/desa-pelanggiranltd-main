@@ -118,8 +118,8 @@ const TemplateSurat = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Surat Menyurat</h1>
-            <p className="text-muted-foreground text-sm sm:text-base">Kelola template surat desa dengan sistem placeholder dinamis</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gradient">Surat Menyurat</h1>
+            <p className="text-muted-foreground text-sm sm:text-base mt-2">Kelola template surat desa dengan sistem placeholder dinamis</p>
           </div>
           {profile?.role === 'admin' && (
             <Button onClick={handleCreateNew} className="w-full sm:w-auto">
