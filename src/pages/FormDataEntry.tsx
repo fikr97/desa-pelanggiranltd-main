@@ -125,18 +125,51 @@ const FormDataEntry = () => {
     queryFn: async () => {
       const formQuery = supabase.from('form_tugas').select('*').eq('id', formId).single();
       const fieldsQuery = supabase.from('form_tugas_fields').select('*').eq('form_tugas_id', formId).order('urutan');
-      const entriesQuery = supabase.from('form_tugas_data').select('*, penduduk(*)').eq('form_tugas_id', formId).order('created_at');
       
-      // Execute all queries except residentsQuery first
-      const [formResult, fieldsResult, entriesResult] = await Promise.all([
+      // Fetch form entries data using multiple queries to get all data (similar to penduduk approach)
+      let allEntriesData: any[] = [];
+      let from = 0;
+      const limit = 1000; // Supabase default limit per query
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data: entriesData, error: entriesError, count } = await supabase
+          .from('form_tugas_data')
+          .select('*, penduduk(*)', { count: 'exact' })
+          .eq('form_tugas_id', formId)
+          .order('created_at')
+          .range(from, from + limit - 1);
+
+        if (entriesError) {
+          console.error('Error fetching form entries data:', entriesError);
+          throw entriesError;
+        }
+
+        if (entriesData) {
+          allEntriesData = [...allEntriesData, ...entriesData];
+          console.log(`Fetched ${entriesData.length} form entries, total so far: ${allEntriesData.length}`);
+          
+          // If we got less than the limit, we've reached the end
+          if (entriesData.length < limit) {
+            hasMore = false;
+          } else {
+            from += limit;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      console.log(`Total form entries fetched: ${allEntriesData.length} records from database`);
+
+      // Execute form and fields queries
+      const [formResult, fieldsResult] = await Promise.all([
         formQuery, 
-        fieldsQuery, 
-        entriesQuery
+        fieldsQuery
       ]);
 
       if (formResult.error && formResult.error.code !== 'PGRST116') throw formResult.error;
       if (fieldsResult.error) throw fieldsResult.error;
-      if (entriesResult.error) throw entriesResult.error;
 
       // Initialize deck visibility for fields if they don't exist (handles missing columns in DB)
       const initializedFields = fieldsResult.data?.map(field => ({
@@ -183,7 +216,7 @@ const FormDataEntry = () => {
 
       return {
         formDef: formDef,
-        entries: entriesResult.data || [],
+        entries: allEntriesData || [],
         residents: residentsResult.data || [],
       };
     },

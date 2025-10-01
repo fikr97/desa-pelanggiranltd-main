@@ -112,47 +112,73 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
     if (unmappedRequiredFields.length > 0) {
       toast({
         title: 'Field wajib belum dipetakan',
-        description: `Field berikut wajib diisi tetapi belum dipetakan: ${unmappedRequiredFields.map((f: any) => f.label_field).join(', ')}`,
+        description: `Field berikut wajib diisi tetapi belum dipetap: ${unmappedRequiredFields.map((f: any) => f.label_field).join(', ')}`,
         variant: 'destructive',
       });
       return;
     }
 
     try {
-      const importPromises = parsedData.map(async (row) => {
-        // Get resident ID if available
-        const residentId = getResidentId(row);
-        
-        // Create data_custom object based on field mappings
-        const data_custom: Record<string, any> = {};
-        Object.entries(fieldMappings).forEach(([csvHeader, formFieldName]) => {
-          if (formFieldName && formFieldName !== 'ignore') {
-            data_custom[formFieldName] = row[csvHeader];
-          }
-        });
-
-        // Prepare payload for insertion
-        const payload = {
-          form_tugas_id: formDef.id,
-          penduduk_id: residentId, // Will be null if no matching resident found
-          data_custom,
-          user_id: user?.id, // Use the authenticated user's ID
-        };
-
-        return supabase.from('form_tugas_data').insert(payload);
-      });
-
-      // Execute all insertions
-      const results = await Promise.allSettled(importPromises);
+      // Define batch size for processing
+      const batchSize = 50; // Process in smaller batches of 50
+      let successCount = 0;
+      let errorCount = 0;
       
-      // Count successful imports
-      const successCount = results.filter(result => result.status === 'fulfilled').length;
-      const errorCount = results.filter(result => result.status === 'rejected').length;
+      // Process data in batches to avoid overwhelming the database
+      for (let i = 0; i < parsedData.length; i += batchSize) {
+        const batch = parsedData.slice(i, i + batchSize);
+        
+        // Process each item individually to handle errors gracefully
+        for (const row of batch) {
+          try {
+            // Get resident ID if available
+            const residentId = getResidentId(row);
+            
+            // Create data_custom object based on field mappings
+            const data_custom: Record<string, any> = {};
+            Object.entries(fieldMappings).forEach(([csvHeader, formFieldName]) => {
+              if (formFieldName && formFieldName !== 'ignore') {
+                data_custom[formFieldName] = row[csvHeader];
+              }
+            });
 
+            // Prepare payload for insertion
+            const payload = {
+              form_tugas_id: formDef.id,
+              penduduk_id: residentId, // Will be null if no matching resident found
+              data_custom,
+              user_id: user?.id, // Use the authenticated user's ID
+            };
+
+            // Insert individual record
+            const { error: insertError } = await supabase
+              .from('form_tugas_data')
+              .insert([payload]);
+
+            if (insertError) {
+              console.error('Individual import error:', insertError);
+              errorCount++;
+            } else {
+              successCount++;
+            }
+          } catch (individualError) {
+            console.error('Individual import exception:', individualError);
+            errorCount++;
+          }
+        }
+        
+        // Show progress update
+        const processedCount = Math.min(i + batchSize, parsedData.length);
+        const progressPercent = Math.round((processedCount / parsedData.length) * 100);
+        
+        console.log(`Progress: ${progressPercent}% (${processedCount}/${parsedData.length}) - Success: ${successCount}, Errors: ${errorCount}`);
+      }
+
+      // Final result notification
       if (errorCount > 0) {
         toast({
-          title: 'Sebagian data telah diimpor',
-          description: `Berhasil mengimpor ${successCount} data, ${errorCount} gagal.`,
+          title: 'Proses import selesai dengan beberapa kesalahan',
+          description: `Berhasil mengimpor ${successCount} data, ${errorCount} gagal dari total ${parsedData.length} data.`,
           variant: 'destructive',
         });
       } else {
