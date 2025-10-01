@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 interface ImportDataDialogProps {
   formDef: any;
@@ -32,6 +33,8 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
   const [fileName, setFileName] = useState<string>('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ processed: 0, total: 0, success: 0, error: 0 });
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -119,17 +122,23 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
     }
 
     try {
+      setIsImporting(true);
+      setImportProgress({ processed: 0, total: parsedData.length, success: 0, error: 0 });
+      
       // Define batch size for processing
-      const batchSize = 50; // Process in smaller batches of 50
+      const batchSize = 100; // Process in batches of 100
       let successCount = 0;
       let errorCount = 0;
       
       // Process data in batches to avoid overwhelming the database
       for (let i = 0; i < parsedData.length; i += batchSize) {
         const batch = parsedData.slice(i, i + batchSize);
+        let batchSuccessCount = 0;
+        let batchErrorCount = 0;
         
         // Process each item individually to handle errors gracefully
-        for (const row of batch) {
+        for (let j = 0; j < batch.length; j++) {
+          const row = batch[j];
           try {
             // Get resident ID if available
             const residentId = getResidentId(row);
@@ -157,21 +166,29 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
 
             if (insertError) {
               console.error('Individual import error:', insertError);
-              errorCount++;
+              batchErrorCount++;
             } else {
-              successCount++;
+              batchSuccessCount++;
             }
           } catch (individualError) {
             console.error('Individual import exception:', individualError);
-            errorCount++;
+            batchErrorCount++;
           }
+          
+          // Update progress
+          const processedCount = i + j + 1;
+          const totalSuccess = successCount + batchSuccessCount;
+          const totalError = errorCount + batchErrorCount;
+          setImportProgress({
+            processed: processedCount,
+            total: parsedData.length,
+            success: totalSuccess,
+            error: totalError
+          });
         }
         
-        // Show progress update
-        const processedCount = Math.min(i + batchSize, parsedData.length);
-        const progressPercent = Math.round((processedCount / parsedData.length) * 100);
-        
-        console.log(`Progress: ${progressPercent}% (${processedCount}/${parsedData.length}) - Success: ${successCount}, Errors: ${errorCount}`);
+        successCount += batchSuccessCount;
+        errorCount += batchErrorCount;
       }
 
       // Final result notification
@@ -188,8 +205,10 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
         });
       }
 
+      setIsImporting(false);
       onClose();
     } catch (error: any) {
+      setIsImporting(false);
       toast({
         title: 'Gagal mengimpor data',
         description: error.message || 'Terjadi kesalahan saat mengimpor data.',
@@ -214,11 +233,37 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
               accept=".csv,.xlsx,.xls"
               onChange={handleFileChange}
               className="text-sm"
+              disabled={isImporting}
             />
             {fileName && <p className="text-xs text-muted-foreground mt-1">File dipilih: {fileName}</p>}
           </div>
 
-          {parsedData.length > 0 && (
+          {isImporting && (
+            <div className="space-y-4 p-4 bg-muted rounded-lg">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">Mengimpor Data...</h3>
+                <Loader2 className="h-5 w-5 animate-spin" />
+              </div>
+              <div className="space-y-2">
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div 
+                    className="bg-primary h-2 rounded-full transition-all duration-300" 
+                    style={{ width: `${(importProgress.processed / importProgress.total) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>{importProgress.processed} dari {importProgress.total} diproses</span>
+                  <span>{Math.round((importProgress.processed / importProgress.total) * 100)}%</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-green-600">Berhasil: {importProgress.success}</span>
+                  <span className="text-red-600">Gagal: {importProgress.error}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {parsedData.length > 0 && !isImporting && (
             <div className="space-y-4">
               <div className="space-y-1">
                 <Label className="text-sm">Mapping Field</Label>
@@ -243,6 +288,7 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
                           <Select
                             value={fieldMappings[header] || ''}
                             onValueChange={(value) => handleFieldMappingChange(header, value)}
+                            disabled={isImporting}
                           >
                             <SelectTrigger className="h-8 text-xs">
                               <SelectValue placeholder="Pilih..." />
@@ -307,15 +353,27 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
         </div>
         
         <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto text-sm">
+          <Button 
+            variant="outline" 
+            onClick={onClose} 
+            className="w-full sm:w-auto text-sm"
+            disabled={isImporting}
+          >
             Batal
           </Button>
           <Button 
             onClick={handleImport} 
-            disabled={!parsedData.length}
+            disabled={!parsedData.length || isImporting}
             className="w-full sm:w-auto text-sm"
           >
-            Impor Data ({parsedData.length})
+            {isImporting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Mengimpor...
+              </>
+            ) : (
+              `Impor Data (${parsedData.length})`
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
