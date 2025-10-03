@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ArsipSuratKeluarForm from '@/components/ArsipSuratKeluarForm';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Define the type for our data
 type ArsipSurat = {
@@ -21,6 +22,7 @@ type ArsipSurat = {
 };
 
 const ArsipSuratKeluar = () => {
+  const { hasPermission } = useAuth();
   const [data, setData] = useState<ArsipSurat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,16 +90,40 @@ const ArsipSuratKeluar = () => {
   }, [fetchData, fetchDropdownData]);
 
   const handleAddNew = () => {
+    if (!hasPermission('button:create:surat_keluar')) {
+      toast({
+        title: 'Akses Ditolak',
+        description: 'Anda tidak memiliki izin untuk menambah arsip surat keluar.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSelectedArsip(null);
     setIsFormOpen(true);
   };
 
   const handleEdit = (item: any) => {
+    if (!hasPermission('button:edit:surat_keluar')) {
+      toast({
+        title: 'Akses Ditolak',
+        description: 'Anda tidak memiliki izin untuk mengedit arsip surat keluar.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSelectedArsip(item);
     setIsFormOpen(true);
   };
 
   const handleDelete = async (item: any) => {
+    if (!hasPermission('button:delete:surat_keluar')) {
+      toast({
+        title: 'Akses Ditolak',
+        description: 'Anda tidak memiliki izin untuk menghapus arsip surat keluar.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (window.confirm('Apakah Anda yakin ingin menghapus data arsip ini?')) {
       const { error: deleteError } = await supabase
         .from('arsip_surat_keluar')
@@ -151,6 +177,9 @@ const ArsipSuratKeluar = () => {
     },
   ];
 
+  const canEditArsip = hasPermission('button:edit:surat_keluar');
+  const canDeleteArsip = hasPermission('button:delete:surat_keluar');
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -171,16 +200,20 @@ const ArsipSuratKeluar = () => {
           <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gradient truncate">Arsip Surat Keluar</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-2">Kelola arsip surat yang telah diterbitkan</p>
         </div>
-        <Button onClick={handleAddNew} size="sm" className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          <span>Tambah Manual</span>
-        </Button>
+        {hasPermission('button:create:surat_keluar') && (
+          <Button onClick={handleAddNew} size="sm" className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            <span>Tambah Manual</span>
+          </Button>
+        )}
       </div>
       <DataTable
         columns={columns}
         data={data}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        canEdit={canEditArsip}
+        canDelete={canDeleteArsip}
       />
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>

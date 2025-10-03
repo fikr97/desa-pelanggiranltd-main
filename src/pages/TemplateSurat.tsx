@@ -38,7 +38,7 @@ const TemplateSurat = () => {
   const [isDesignerOpen, setIsDesignerOpen] = useState(false);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const { toast } = useToast();
-  const { profile } = useAuth();
+  const { profile, hasPermission } = useAuth();
 
   // Fetch templates
   const { data: templates, refetch } = useQuery({
@@ -59,6 +59,14 @@ const TemplateSurat = () => {
   ) || [];
 
   const handleDeleteTemplate = async (id: string, templateUrl: string) => {
+    if (!hasPermission('button:delete:surat_template')) {
+      toast({
+        title: 'Akses Ditolak',
+        description: 'Anda tidak memiliki izin untuk menghapus template surat.',
+        variant: 'destructive',
+      });
+      return;
+    }
     try {
       // Hapus file DOCX dari storage jika ada
       if (templateUrl && templateUrl.includes('surat-docx')) {
@@ -99,16 +107,40 @@ const TemplateSurat = () => {
   };
 
   const handleCreateNew = () => {
+    if (!hasPermission('button:create:surat_template')) {
+      toast({
+        title: 'Akses Ditolak',
+        description: 'Anda tidak memiliki izin untuk membuat template surat baru.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSelectedTemplate(null);
     setIsDesignerOpen(true);
   };
 
   const handleEditTemplate = (template: any) => {
+    if (!hasPermission('button:edit:surat_template')) {
+      toast({
+        title: 'Akses Ditolak',
+        description: 'Anda tidak memiliki izin untuk mengedit template surat.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSelectedTemplate(template);
     setIsDesignerOpen(true);
   };
 
   const handleGenerateSurat = (template: any) => {
+    if (!hasPermission('button:generate:surat')) {
+      toast({
+        title: 'Akses Ditolak',
+        description: 'Anda tidak memiliki izin untuk membuat surat dari template ini.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSelectedTemplate(template);
     setIsGeneratorOpen(true);
   };
@@ -121,7 +153,7 @@ const TemplateSurat = () => {
             <h1 className="text-2xl sm:text-3xl font-bold text-gradient">Surat Menyurat</h1>
             <p className="text-muted-foreground text-sm sm:text-base mt-2">Kelola template surat desa dengan sistem placeholder dinamis</p>
           </div>
-          {profile?.role === 'admin' && (
+          {hasPermission('button:create:surat_template') && (
             <Button onClick={handleCreateNew} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Buat Template Baru
@@ -145,7 +177,7 @@ const TemplateSurat = () => {
             <p className="text-muted-foreground mb-4">
               Mulai dengan membuat template surat pertama Anda
             </p>
-            {profile?.role === 'admin' && (
+            {hasPermission('button:create:surat_template') && (
               <Button onClick={handleCreateNew}>
                 <Plus className="h-4 w-4 mr-2" />
                 Buat Template Baru
@@ -183,57 +215,59 @@ const TemplateSurat = () => {
                     
                     {/* Actions */}
                     <div className="flex flex-wrap gap-2 lg:flex-nowrap lg:flex-shrink-0">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleGenerateSurat(template)}
-                        className="flex-1 lg:flex-none"
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        <span className="hidden sm:inline">Buat Surat</span>
-                        <span className="sm:hidden">Buat</span>
-                      </Button>
-                      {profile?.role === 'admin' && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditTemplate(template)}
-                            className="flex-1 lg:flex-none"
-                          >
-                            <Edit className="h-4 w-4" />
-                            <span className="ml-2 hidden sm:inline">Edit</span>
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1 lg:flex-none text-destructive hover:text-destructive"
+                      {hasPermission('button:generate:surat') && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleGenerateSurat(template)}
+                          className="flex-1 lg:flex-none"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          <span className="hidden sm:inline">Buat Surat</span>
+                          <span className="sm:hidden">Buat</span>
+                        </Button>
+                      )}
+                      {hasPermission('button:edit:surat_template') && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditTemplate(template)}
+                          className="flex-1 lg:flex-none"
+                        >
+                          <Edit className="h-4 w-4" />
+                          <span className="ml-2 hidden sm:inline">Edit</span>
+                        </Button>
+                      )}
+                      {hasPermission('button:delete:surat_template') && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 lg:flex-none text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="ml-2 hidden sm:inline">Hapus</span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tindakan ini tidak dapat dibatalkan. Ini akan menghapus template surat secara permanen dan file DOCX terkait dari server.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteTemplate(template.id, template.konten_template)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
-                                <Trash2 className="h-4 w-4" />
-                                <span className="ml-2 hidden sm:inline">Hapus</span>
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tindakan ini tidak dapat dibatalkan. Ini akan menghapus template surat secara permanen dan file DOCX terkait dari server.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteTemplate(template.id, template.konten_template)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Hapus
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </>
+                                Hapus
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       )}
                     </div>
                   </div>

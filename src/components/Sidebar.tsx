@@ -15,7 +15,7 @@ interface SidebarProps {
 const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: SidebarProps) => {
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { profile } = useAuth();
+  const { profile, hasPermission } = useAuth();
 
   const { data: logoData } = useQuery({
     queryKey: ['info-desa-logo'],
@@ -36,73 +36,84 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
     {
       icon: Home,
       label: 'Dashboard',
-      path: '/admin'
+      path: '/admin',
+      permission: 'sidebar:view:dashboard'
     },
     {
       icon: Users,
       label: 'Data Penduduk',
-      path: '/penduduk'
+      path: '/penduduk',
+      permission: 'sidebar:view:penduduk'
     },
     {
       icon: UsersRound,
       label: 'Data Keluarga',
-      path: '/data-keluarga'
+      path: '/data-keluarga',
+      permission: 'sidebar:view:keluarga'
     },
     {
       icon: MapPin,
       label: 'Wilayah',
       path: '/wilayah',
-      adminOnly: true
+      permission: 'sidebar:view:wilayah'
     },
     {
       icon: Building2,
       label: 'Info Desa',
-      path: '/info-desa'
+      path: '/info-desa',
+      permission: 'sidebar:view:info_desa'
     },
     {
       icon: FileSignature,
       label: 'Surat Menyurat',
-      path: '/template-surat'
+      path: '/template-surat',
+      permission: 'sidebar:view:surat_menyurat'
     },
     {
       icon: ClipboardList,
       label: 'Form Tugas',
-      path: '/form-tugas'
+      path: '/form-tugas',
+      permission: 'sidebar:view:form_tugas'
     },
     {
       icon: Globe,
       label: 'Kelola Website',
       path: '/admin/content',
-      adminOnly: true
+      permission: 'sidebar:view:kelola_website'
     },
     {
       icon: BarChart3,
       label: 'Statistik',
-      path: '/statistik'
+      path: '/statistik',
+      permission: 'sidebar:view:statistik'
     },
     {
       icon: FileText,
       label: 'Laporan',
-      path: '/laporan'
+      path: '/laporan',
+      permission: 'sidebar:view:laporan'
     },
     {
       icon: UserCog,
       label: 'Manajemen User',
       path: '/admin/users',
-      adminOnly: true
+      permission: 'sidebar:view:manajemen_user'
     },
     {
       icon: Settings,
       label: 'Pengaturan',
-      path: '/pengaturan'
+      path: '/pengaturan',
+      permission: 'sidebar:view:pengaturan'
     }
   ];
 
-  // Filter menu items based on user role
+  // Filter menu items based on user permissions
   const filteredMenuItems = menuItems.filter(item => {
-    if (item.adminOnly && profile?.role !== 'admin') {
-      return false;
+    // If an item has a specific permission defined, check if the user has it
+    if (item.permission) {
+      return hasPermission(item.permission);
     }
+    // If no specific permission is defined, it's visible by default
     return true;
   });
 

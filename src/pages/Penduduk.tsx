@@ -14,6 +14,7 @@ import DownloadTemplateButton from '@/components/DownloadTemplateButton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FilterValues {
   jenis_kelamin?: string;
@@ -31,6 +32,7 @@ interface FilterValues {
 }
 
 const Penduduk = () => {
+  const { hasPermission } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -324,26 +326,32 @@ const Penduduk = () => {
             <CardContent className="p-3">
               <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
                 <div className="flex gap-2 min-w-max">
-                  <Button onClick={handleAddNew} size="sm" className="flex items-center gap-2 text-xs whitespace-nowrap">
-                    <Plus className="h-4 w-4" />
-                    <span>Tambah</span>
-                  </Button>
+                  {hasPermission('button:create:penduduk') && (
+                    <Button onClick={handleAddNew} size="sm" className="flex items-center gap-2 text-xs whitespace-nowrap">
+                      <Plus className="h-4 w-4" />
+                      <span>Tambah</span>
+                    </Button>
+                  )}
                   <Link to="/data-keluarga">
                     <Button variant="outline" size="sm" className="flex items-center gap-2 text-xs whitespace-nowrap">
                       <Users className="h-4 w-4" />
                       <span>Data Keluarga</span>
                     </Button>
                   </Link>
-                  <DownloadTemplateButton />
-                  <Button 
-                    onClick={() => setIsImportOpen(true)} 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex items-center gap-2 text-xs whitespace-nowrap"
-                  >
-                    <Upload className="h-4 w-4" />
-                    <span>Import</span>
-                  </Button>
+                  {hasPermission('button:download:penduduk_template') && (
+                    <DownloadTemplateButton />
+                  )}
+                  {hasPermission('button:import:penduduk') && (
+                    <Button 
+                      onClick={() => setIsImportOpen(true)} 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex items-center gap-2 text-xs whitespace-nowrap"
+                    >
+                      <Upload className="h-4 w-4" />
+                      <span>Import</span>
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Settings, User, Shield, Database, Bell, Building2 } from 'lucide-react';
+import { Settings, User, Shield, Database, Bell, Building2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,10 +8,13 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import PermissionManager from '@/components/PermissionManager';
 
 const Pengaturan = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
     smsNotifications: false,
@@ -47,6 +50,9 @@ const Pengaturan = () => {
     navigate('/info-desa');
   };
 
+  const { hasPermission } = useAuth();
+  const canManagePermissions = hasPermission('button:manage:permissions') || user?.role === 'admin';
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -55,7 +61,7 @@ const Pengaturan = () => {
       </div>
 
       <Tabs defaultValue="keamanan" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className={`grid w-full ${canManagePermissions ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <TabsTrigger value="keamanan" className="flex items-center space-x-2">
             <Shield className="h-4 w-4" />
             <span>Keamanan</span>
@@ -68,6 +74,12 @@ const Pengaturan = () => {
             <Database className="h-4 w-4" />
             <span>Sistem</span>
           </TabsTrigger>
+          {canManagePermissions && (
+            <TabsTrigger value="hak-akses" className="flex items-center space-x-2">
+              <Users className="h-4 w-4" />
+              <span>Hak Akses</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="keamanan">
@@ -288,6 +300,22 @@ const Pengaturan = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        
+        {canManagePermissions && (
+          <TabsContent value="hak-akses">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Users className="h-5 w-5" />
+                  <span>Pengelolaan Hak Akses - Peran Kepala Dusun (Kadus)</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PermissionManager />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

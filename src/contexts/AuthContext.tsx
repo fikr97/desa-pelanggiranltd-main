@@ -19,6 +19,8 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  permissions: string[];
+  hasPermission: (permission: string) => boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -37,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string): Promise<Profile | null> => {
@@ -58,43 +61,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const fetchPermissions = async (role: string): Promise<string[]> => {
+    if (role === 'admin') {
+      return []; // Admins have all permissions, no need to fetch
+    }
+    try {
+      const { data, error } = await supabase
+        .from('role_permissions')
+        .select('permission')
+        .eq('role', role)
+        .eq('is_enabled', true);
+
+      if (error) {
+        console.error('Error fetching permissions:', error);
+        return [];
+      }
+      return data.map(p => p.permission);
+    } catch (error) {
+      console.error('Error fetching permissions:', error);
+      return [];
+    }
+  };
+
+  const loadUserData = async (user: User) => {
+    const profileData = await fetchProfile(user.id);
+    setProfile(profileData);
+    if (profileData) {
+      const permissionData = await fetchPermissions(profileData.role);
+      setPermissions(permissionData);
+    }
+  };
+
   const refreshProfile = async () => {
     if (user) {
-      const profileData = await fetchProfile(user.id);
-      setProfile(profileData);
+      await loadUserData(user);
     }
   };
 
   useEffect(() => {
-    // Get initial session
     const getInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        const profileData = await fetchProfile(session.user.id);
-        setProfile(profileData);
+        await loadUserData(session.user);
       }
       setLoading(false);
     };
 
     getInitialSession();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Defer profile fetching to avoid potential deadlocks
           setTimeout(async () => {
-            const profileData = await fetchProfile(session.user.id);
-            setProfile(profileData);
+            await loadUserData(session.user);
           }, 0);
         } else {
           setProfile(null);
+          setPermissions([]);
         }
         setLoading(false);
       }
@@ -105,26 +134,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      // Clean up auth state
-      const cleanupAuthState = () => {
-        Object.keys(localStorage).forEach((key) => {
-          if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-            localStorage.removeItem(key);
-          }
-        });
-      };
-
-      cleanupAuthState();
-      
       await supabase.auth.signOut({ scope: 'global' });
-      
-      // Redirect to root page instead of auth page
+      setProfile(null);
+      setPermissions([]);
       window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
-      // Force redirect even if sign out fails
       window.location.href = '/';
     }
+  };
+
+  const hasPermission = (permission: string): boolean => {
+    if (profile?.role === 'admin') {
+      return true;
+    }
+    return permissions.includes(permission);
   };
 
   const value = {
@@ -132,6 +156,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     profile,
     loading,
+    permissions,
+    hasPermission,
     signOut,
     refreshProfile,
   };
