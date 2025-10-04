@@ -18,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const FormTugas = () => {
   const [isDesignerOpen, setIsDesignerOpen] = useState(false);
@@ -28,6 +29,7 @@ const FormTugas = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { profile } = useAuth();
+  const { hasPermission } = usePermissions();
 
   const { data: formTugasList, isLoading } = useQuery({
     queryKey: ['form_tugas'],
@@ -102,6 +104,11 @@ const FormTugas = () => {
     return <FormTugasDesigner formTugas={selectedForm} onSave={handleSave} onCancel={handleCancel} />;
   }
 
+  const canCreate = hasPermission('form_tugas:create');
+  const canFill = hasPermission('form_tugas:fill');
+  const canEdit = hasPermission('form_tugas:edit');
+  const canDelete = hasPermission('form_tugas:delete');
+
   return (
     <div className="space-y-6">
       <div>
@@ -112,7 +119,7 @@ const FormTugas = () => {
               Kelola form tugas yang digunakan untuk pengumpulan data
             </p>
           </div>
-          {profile?.role === 'admin' && (
+          {(profile?.role === 'admin' || canCreate) && (
             <div className="w-full md:w-auto mt-2 md:mt-0">
               <Button onClick={handleCreateNew} className="w-full">
                 <PlusCircle className="h-4 w-4 mr-2" />
@@ -155,23 +162,25 @@ const FormTugas = () => {
                     <p className="text-muted-foreground text-sm">{form.deskripsi}</p>
                   </div>
                   <div className="flex items-center flex-wrap gap-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to={`/form-tugas/${form.id}/data`}>
-                        <FileText className="h-4 w-4 mr-2" />
-                        Isi Data
-                      </Link>
-                    </Button>
-                    {profile?.role === 'admin' && (
-                      <>
-                        <Button variant="secondary" size="sm" onClick={() => handleEdit(form)}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Edit
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(form)}>
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Hapus
-                        </Button>
-                      </>
+                    {(profile?.role === 'admin' || canFill) && (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/form-tugas/${form.id}/data`}>
+                          <FileText className="h-4 w-4 mr-2" />
+                          Isi Data
+                        </Link>
+                      </Button>
+                    )}
+                    {(profile?.role === 'admin' || canEdit) && (
+                      <Button variant="secondary" size="sm" onClick={() => handleEdit(form)}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                    )}
+                    {(profile?.role === 'admin' || canDelete) && (
+                      <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(form)}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Hapus
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -182,7 +191,7 @@ const FormTugas = () => {
       </div>
 
       {/* Fixed Add button for mobile */}
-      {profile?.role === 'admin' && (
+      {(profile?.role === 'admin' || canCreate) && (
         <Button 
           onClick={handleCreateNew} 
           className="fixed bottom-6 right-6 rounded-full w-14 h-14 p-0 shadow-lg md:hidden z-50"
@@ -211,3 +220,5 @@ const FormTugas = () => {
 };
 
 export default FormTugas;
+
+// Path: src/pages/FormTugas.tsx

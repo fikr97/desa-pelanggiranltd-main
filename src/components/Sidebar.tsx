@@ -73,7 +73,7 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
       icon: ClipboardList,
       label: 'Form Tugas',
       path: '/form-tugas',
-      permission: 'sidebar:view:form_tugas'
+      permission: 'form_tugas:view'
     },
     {
       icon: Globe,

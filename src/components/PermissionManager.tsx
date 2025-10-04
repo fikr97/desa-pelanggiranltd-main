@@ -17,7 +17,7 @@ interface Permission {
 // Group permissions by a category derived from the permission string
 const groupPermissions = (permissions: Permission[]) => {
   return permissions.reduce((acc, permission) => {
-    const category = permission.permission.split(':')[2] || 'general';
+    const category = permission.permission.split(':')[0] || 'general';
     if (!acc[category]) {
       acc[category] = [];
     }
@@ -48,6 +48,7 @@ const PermissionManager = () => {
         });
       } else {
         setPermissions(data as Permission[]);
+        console.log('Permissions:', data);
       }
       setLoading(false);
     };
