@@ -1307,6 +1307,10 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
           .replace(/\[tahun\]/gi, currentYear);
       }
 
+      // Get current user ID
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+
       // Prepare surat data dengan struktur yang lebih baik
       const suratData = {
         template_id: template.id,
@@ -1318,7 +1322,8 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
         data_tambahan: {
           placeholder_values: formData.placeholderValues
         },
-        status: 'Draft'
+        status: 'Draft',
+        created_by: user.id  // Set the creator to the current user
       };
 
       // Save to database
