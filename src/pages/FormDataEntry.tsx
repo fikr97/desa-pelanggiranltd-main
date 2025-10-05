@@ -123,7 +123,19 @@ const FormDataEntry = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ['form_data_and_def', formId],
     queryFn: async () => {
+      // First, check if user can access the form itself
       const formQuery = supabase.from('form_tugas').select('*').eq('id', formId).single();
+      const [formRes] = await Promise.all([formQuery]);
+      
+      if (formRes.error) {
+        console.error('Error fetching form:', formRes.error);
+        // Jika error karena permission, lempar error spesifik
+        if (formRes.error.code === '42501' || formRes.error.message.includes('permission denied')) {
+          throw new Error('permission_denied_form');
+        }
+        throw formRes.error;
+      }
+
       const fieldsQuery = supabase.from('form_tugas_fields').select('*').eq('form_tugas_id', formId).order('urutan');
       
       // Fetch form entries data using multiple queries to get all data (similar to penduduk approach)
@@ -142,6 +154,10 @@ const FormDataEntry = () => {
 
         if (entriesError) {
           console.error('Error fetching form entries data:', entriesError);
+          // Jika error karena permission, lempar error spesifik
+          if (entriesError.code === '42501' || entriesError.message.includes('permission denied')) {
+            throw new Error('permission_denied_form_data');
+          }
           throw entriesError;
         }
 
@@ -446,6 +462,62 @@ const FormDataEntry = () => {
   };
 
   if (isLoading) return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  
+  // Handle specific permission errors
+  if (error && error.message.includes('permission_denied_form')) {
+    return (
+      <div className="container mx-auto py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Akses Form Ditolak</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Anda tidak memiliki izin untuk mengakses formulir ini. 
+              Formulir ini mungkin hanya tersedia untuk dusun tertentu.
+            </p>
+            <div>
+              <Link to="/form-tugas">
+                <Button variant="outline">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Kembali ke Daftar Form
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  if (error && error.message.includes('permission_denied_form_data')) {
+    return (
+      <div className="container mx-auto py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Akses Data Ditolak</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Anda tidak memiliki izin untuk mengakses data formulir ini. 
+              {data?.formDef?.visibilitas_dusun === 'semua_data' 
+                ? ' Anda mungkin tidak memiliki izin untuk formulir ini meskipun mode "lihat semua data" aktif.' 
+                : ' Formulir ini mungkin hanya menampilkan data dari dusun tertentu.'}
+            </p>
+            <div>
+              <Link to="/form-tugas">
+                <Button variant="outline">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Kembali ke Daftar Form
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
   if (error) return <div className="p-6 text-destructive">Error: {error.message}</div>;
   if (!data || !data.formDef) return <div className="p-6"><p>Form tidak ditemukan.</p></div>;
 
