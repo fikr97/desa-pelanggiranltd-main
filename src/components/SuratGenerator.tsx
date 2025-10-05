@@ -238,19 +238,24 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
 
   const loadResidents = async () => {
     try {
-      console.log('Fetching ALL penduduk...');
+      console.log('Fetching residents accessible to current user...');
       let allResidents: any[] = [];
       let from = 0;
       const batchSize = 1000;
       
       while (true) {
+        // This query will be restricted by RLS policies
+        // Kadus will only see residents from their own dusun
         const { data, error } = await supabase
           .from('penduduk')
           .select('*')
           .order('nama', { ascending: true })
           .range(from, from + batchSize - 1);
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching residents:', error);
+          throw error;
+        }
         
         if (!data || data.length === 0) break;
         
@@ -262,11 +267,29 @@ const SuratGenerator = ({ template, onSave, onCancel }: SuratGeneratorProps) => 
       }
       
       setResidents(allResidents);
-      console.log('Total penduduk fetched:', allResidents.length);
-      console.log('First 10 residents:', allResidents.slice(0, 10).map(r => ({ nama: r.nama, nik: r.nik })));
-      console.log('Sample residents names:', allResidents.map(r => r.nama).slice(0, 20));
+      console.log('Total residents accessible to user:', allResidents.length);
+      
+      // Log user's role and dusun to verify RLS is working
+      const currentUser = await supabase.auth.getUser();
+      if (currentUser.data.user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('role, dusun')
+          .eq('user_id', currentUser.data.user.id)
+          .single();
+          
+        if (profileData) {
+          console.log('Current user role:', profileData.role);
+          console.log('Current user dusun:', profileData.dusun);
+        }
+      }
     } catch (error) {
       console.error('Error loading residents:', error);
+      toast({
+        title: 'Gagal memuat data penduduk',
+        description: 'Terjadi kesalahan saat memuat data penduduk. Pastikan Anda memiliki izin yang sesuai.',
+        variant: 'destructive',
+      });
     }
   };
 

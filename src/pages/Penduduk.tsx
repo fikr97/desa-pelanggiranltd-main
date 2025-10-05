@@ -42,13 +42,14 @@ const Penduduk = () => {
   const [advancedFilters, setAdvancedFilters] = useState<FilterValues>({});
   const { toast } = useToast();
 
-  // Fetch penduduk data from Supabase - remove any limits to get all data
+  // Fetch penduduk data from Supabase respecting RLS policies
   const { data: pendudukData = [], isLoading, error, refetch } = useQuery({
     queryKey: ['penduduk'],
     queryFn: async () => {
-      console.log('Fetching all penduduk data...');
+      console.log('Fetching penduduk data accessible to current user...');
       
-      // Use multiple queries if needed to get all data
+      // This query will be restricted by RLS policies
+      // Kadus will only see residents from their own dusun
       let allData: any[] = [];
       let from = 0;
       const limit = 1000; // Supabase default limit per query
@@ -63,11 +64,20 @@ const Penduduk = () => {
 
         if (error) {
           console.error('Error fetching penduduk data:', error);
-          toast({
-            title: 'Gagal memuat data',
-            description: 'Terjadi kesalahan saat memuat data penduduk',
-            variant: 'destructive',
-          });
+          // Check if it's an RLS violation
+          if (error.message.includes('permission denied') || error.code === '42501') {
+            toast({
+              title: 'Akses Ditolak',
+              description: 'Anda hanya dapat mengakses data penduduk dari dusun Anda sendiri.',
+              variant: 'destructive',
+            });
+          } else {
+            toast({
+              title: 'Gagal memuat data',
+              description: 'Terjadi kesalahan saat memuat data penduduk',
+              variant: 'destructive',
+            });
+          }
           throw error;
         }
 
@@ -86,7 +96,23 @@ const Penduduk = () => {
         }
       }
 
-      console.log(`Total fetched: ${allData.length} records from database`);
+      console.log(`Total fetched: ${allData.length} records accessible to user`);
+      
+      // Log user's role and dusun to verify RLS is working
+      const currentUser = await supabase.auth.getUser();
+      if (currentUser.data.user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('role, dusun')
+          .eq('user_id', currentUser.data.user.id)
+          .single();
+          
+        if (profileData) {
+          console.log('Current user role:', profileData.role);
+          console.log('Current user dusun:', profileData.dusun);
+        }
+      }
+      
       return allData;
     }
   });
