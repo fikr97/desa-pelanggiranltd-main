@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import PerangkatDesaForm from '@/components/PerangkatDesaForm';
 import OrganizationalChart from '@/components/OrganizationalChart';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PerangkatDesa {
   id: string;
@@ -29,6 +30,7 @@ const InfoDesa = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { toast } = useToast();
+  const { hasPermission } = useAuth();
 
   // Fetch info desa data
   const { data: infoDesaData, isLoading: isLoadingData, refetch } = useQuery({
@@ -295,12 +297,13 @@ const InfoDesa = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-gradient">Informasi Desa</h1>
           <p className="text-muted-foreground mt-2">Data dan informasi desa</p>
         </div>
-        {!isEditing ? (
+        {!isEditing && hasPermission('button:edit:info_desa') && (
           <Button onClick={handleEdit} className="flex items-center space-x-2">
             <Edit className="h-4 w-4" />
             <span>Edit Info</span>
           </Button>
-        ) : (
+        )}
+        {isEditing && (
           <div className="flex flex-col sm:flex-row gap-2">
             <Button onClick={handleSave} disabled={isLoading} className="flex items-center space-x-2">
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -565,16 +568,18 @@ const InfoDesa = () => {
               <Users className="h-5 w-5" />
               <span>Struktur Organisasi Perangkat Desa</span>
             </div>
-            <PerangkatDesaForm 
-              perangkatList={perangkatDesa}
-              onSave={(data) => handleSavePerangkat(data)}
-              trigger={
-                <Button size="sm" className="flex items-center space-x-2">
-                  <Plus className="h-4 w-4" />
-                  <span>Tambah</span>
-                </Button>
-              }
-            />
+            {hasPermission('button:create:struktur_perangkat_desa') && (
+              <PerangkatDesaForm 
+                perangkatList={perangkatDesa}
+                onSave={(data) => handleSavePerangkat(data)}
+                trigger={
+                  <Button size="sm" className="flex items-center space-x-2">
+                    <Plus className="h-4 w-4" />
+                    <span>Tambah</span>
+                  </Button>
+                }
+              />
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -587,8 +592,8 @@ const InfoDesa = () => {
             ) : (
               <OrganizationalChart 
                 perangkatDesa={perangkatDesa}
-                onSave={handleSavePerangkat}
-                onDelete={handleDeletePerangkat}
+                onSave={hasPermission('button:edit:struktur_perangkat_desa') ? handleSavePerangkat : undefined}
+                onDelete={hasPermission('button:delete:struktur_perangkat_desa') ? handleDeletePerangkat : undefined}
               />
             )}
           </div>

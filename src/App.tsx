@@ -87,7 +87,7 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/wilayah" element={
-              <ProtectedRoute requiredRole="admin">
+              <ProtectedRoute allowedRoles={['admin', 'kadus']}>
                 <WilayahPage />
               </ProtectedRoute>
             } />
@@ -132,7 +132,7 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/admin/content" element={
-              <ProtectedRoute requiredRole="admin">
+              <ProtectedRoute allowedRoles={['admin', 'kadus']}>
                 <AdminContentPage />
               </ProtectedRoute>
             } />

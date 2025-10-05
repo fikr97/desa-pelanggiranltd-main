@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useAuth } from '@/contexts/AuthContext';
 
 const AdminContentPage = () => {
   const queryClient = useQueryClient();
@@ -31,6 +32,7 @@ const AdminContentPage = () => {
     item: null, 
     type: '' 
   });
+  const { hasPermission } = useAuth();
 
   // Fetch berita
   const { data: berita = [], isLoading: loadingBerita } = useQuery({
@@ -204,18 +206,20 @@ const AdminContentPage = () => {
                       Sejarah, visi misi, kondisi geografis, tupoksi, pengumuman, dan agenda desa
                     </CardDescription>
                   </div>
-                  <Button className="button-elegant" onClick={() => handleAdd('konten')}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Tambah Konten
-                  </Button>
+                  {hasPermission('button:create:konten_website') && (
+                    <Button className="button-elegant" onClick={() => handleAdd('konten')}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Tambah Konten
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
                 <DataTable
                   data={kontenWebsite}
                   columns={kontenColumns}
-                  onEdit={(item) => handleEdit(item, 'konten')}
-                  onDelete={(item) => handleDelete(item, 'konten')}
+                  onEdit={hasPermission('button:edit:konten_website') ? (item) => handleEdit(item, 'konten') : undefined}
+                  onDelete={hasPermission('button:delete:konten_website') ? (item) => handleDelete(item, 'konten') : undefined}
                 />
               </CardContent>
             </Card>
@@ -231,18 +235,20 @@ const AdminContentPage = () => {
                       Berita dan artikel yang ditampilkan di halaman depan
                     </CardDescription>
                   </div>
-                  <Button className="button-elegant" onClick={() => handleAdd('berita')}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Tambah Berita
-                  </Button>
+                  {hasPermission('button:create:konten_website') && (
+                    <Button className="button-elegant" onClick={() => handleAdd('berita')}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Tambah Berita
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
                 <DataTable
                   data={berita}
                   columns={beritaColumns}
-                  onEdit={(item) => handleEdit(item, 'berita')}
-                  onDelete={(item) => handleDelete(item, 'berita')}
+                  onEdit={hasPermission('button:edit:konten_website') ? (item) => handleEdit(item, 'berita') : undefined}
+                  onDelete={hasPermission('button:delete:konten_website') ? (item) => handleDelete(item, 'berita') : undefined}
                 />
               </CardContent>
             </Card>
@@ -258,18 +264,20 @@ const AdminContentPage = () => {
                       Foto dan video yang ditampilkan di galeri website
                     </CardDescription>
                   </div>
-                  <Button className="button-elegant" onClick={() => handleAdd('galeri')}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Tambah Media
-                  </Button>
+                  {hasPermission('button:create:konten_website') && (
+                    <Button className="button-elegant" onClick={() => handleAdd('galeri')}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Tambah Media
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
                 <DataTable
                   data={galeri}
                   columns={galeriColumns}
-                  onEdit={(item) => handleEdit(item, 'galeri')}
-                  onDelete={(item) => handleDelete(item, 'galeri')}
+                  onEdit={hasPermission('button:edit:konten_website') ? (item) => handleEdit(item, 'galeri') : undefined}
+                  onDelete={hasPermission('button:delete:konten_website') ? (item) => handleDelete(item, 'galeri') : undefined}
                 />
               </CardContent>
             </Card>
@@ -285,18 +293,20 @@ const AdminContentPage = () => {
                       Halaman informasi statis yang ditampilkan di website
                     </CardDescription>
                   </div>
-                  <Button className="button-elegant" onClick={() => handleAdd('halaman')}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Tambah Halaman
-                  </Button>
+                  {hasPermission('button:create:konten_website') && (
+                    <Button className="button-elegant" onClick={() => handleAdd('halaman')}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Tambah Halaman
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
                 <DataTable
                   data={halamanInfo}
                   columns={halamanColumns}
-                  onEdit={(item) => handleEdit(item, 'halaman')}
-                  onDelete={(item) => handleDelete(item, 'halaman')}
+                  onEdit={hasPermission('button:edit:konten_website') ? (item) => handleEdit(item, 'halaman') : undefined}
+                  onDelete={hasPermission('button:delete:konten_website') ? (item) => handleDelete(item, 'halaman') : undefined}
                 />
               </CardContent>
             </Card>

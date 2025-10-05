@@ -61,12 +61,21 @@ const groupPermissions = (permissions: Permission[]) => {
     
     // Wilayah permissions
     'sidebar:view:wilayah': 'wilayah',
+    'button:create:wilayah': 'wilayah',
+    'button:edit:wilayah': 'wilayah',
+    'button:delete:wilayah': 'wilayah',
+    'button:view:preview:wilayah': 'wilayah', // Opsional, sesuaikan jika digunakan
     
     // Info Desa permissions
     'sidebar:view:info_desa': 'info_desa',
+    'button:edit:info_desa': 'info_desa',
+    'button:create:struktur_perangkat_desa': 'info_desa',
+    'button:edit:struktur_perangkat_desa': 'info_desa',
+    'button:delete:struktur_perangkat_desa': 'info_desa',
     
     // Kelola Website permissions
     'sidebar:view:kelola_website': 'kelola_website',
+    'button:create:konten_website': 'kelola_website',
     
     // Manajemen User permissions
     'button:edit:manajemen_user': 'manajemen_user',

@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import WilayahForm from '@/components/WilayahForm';
 import WilayahPreviewDialog from '@/components/WilayahPreviewDialog';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Wilayah = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,6 +20,7 @@ const Wilayah = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedWilayah, setSelectedWilayah] = useState(null);
   const { toast } = useToast();
+  const { hasPermission } = useAuth();
 
   // Fetch wilayah data from Supabase
   const { data: wilayahData = [], isLoading, error, refetch } = useQuery({
@@ -159,10 +161,12 @@ const Wilayah = () => {
               Kelola data wilayah administratif desa - Total: {totalDusun} Dusun
             </p>
           </div>
-          <Button onClick={handleAddNew} size="sm" className="flex items-center gap-2 text-xs">
-            <Plus className="h-4 w-4" />
-            <span>Tambah Wilayah</span>
-          </Button>
+          {hasPermission('button:create:wilayah') && (
+            <Button onClick={handleAddNew} size="sm" className="flex items-center gap-2 text-xs">
+              <Plus className="h-4 w-4" />
+              <span>Tambah Wilayah</span>
+            </Button>
+          )}
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -258,9 +262,9 @@ const Wilayah = () => {
               <DataTable
                 columns={columns}
                 data={filteredData}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onView={handleView}
+                onEdit={hasPermission('button:edit:wilayah') ? handleEdit : undefined}
+                onDelete={hasPermission('button:delete:wilayah') ? handleDelete : undefined}
+                onView={hasPermission('button:view:preview:wilayah') ? handleView : undefined}
                 itemsPerPage={20}
               />
             )}
