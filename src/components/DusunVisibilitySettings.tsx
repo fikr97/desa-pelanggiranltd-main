@@ -90,7 +90,7 @@ const DusunVisibilitySettings: React.FC<DusunVisibilitySettingsProps> = ({
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="semua_data" id="semua_data" />
-              <Label htmlFor="semua_data">Kadus Bisa Lihat Semua Data</Label>
+              <Label htmlFor="semua_data">Kadus Bisa Lihat & Isi Semua Data</Label>
             </div>
           </RadioGroup>
         </div>
@@ -142,8 +142,8 @@ const DusunVisibilitySettings: React.FC<DusunVisibilitySettingsProps> = ({
         {visibility === 'semua_data' && (
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-sm text-blue-800">
-              <strong>Catatan:</strong> Dalam mode ini, kadus dapat melihat semua data dari semua dusun, 
-              tetapi hanya dapat mengisi data untuk penduduk dari dusun mereka sendiri.
+              <strong>Catatan:</strong> Dalam mode ini, kadus dapat melihat dan mengisi semua data dari semua dusun, 
+              seperti akses admin khusus untuk form ini.
             </p>
           </div>
         )}

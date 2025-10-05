@@ -138,51 +138,135 @@ const FormDataEntry = () => {
 
       const fieldsQuery = supabase.from('form_tugas_fields').select('*').eq('form_tugas_id', formId).order('urutan');
       
+      // Execute form and fields queries first to determine form mode
+      const [formResult, fieldsResult] = await Promise.all([
+        formQuery, 
+        fieldsQuery
+      ]);
+
+      if (formResult.error && formResult.error.code !== 'PGRST116') throw formResult.error;
+      if (fieldsResult.error) throw fieldsResult.error;
+
+      // Initialize form definition early to check visibility mode
+      const tempFormDef = {
+        ...formResult.data,
+        show_add_button: formResult.data?.show_add_button !== undefined ? formResult.data.show_add_button : true,
+        show_edit_button: formResult.data?.show_edit_button !== undefined ? formResult.data.show_edit_button : true,
+        show_delete_button: formResult.data?.show_delete_button !== undefined ? formResult.data.show_delete_button : true,
+      };
+
+      // Check if the form is in 'semua_data' mode
+      const isAllDataMode = tempFormDef.visibilitas_dusun === 'semua_data';
+
       // Fetch form entries data using multiple queries to get all data (similar to penduduk approach)
       let allEntriesData: any[] = [];
       let from = 0;
       const limit = 1000; // Supabase default limit per query
       let hasMore = true;
 
-      while (hasMore) {
-        const { data: entriesData, error: entriesError, count } = await supabase
-          .from('form_tugas_data')
-          .select('*, penduduk(*)', { count: 'exact' })
-          .eq('form_tugas_id', formId)
-          .order('created_at')
-          .range(from, from + limit - 1);
+      if (isAllDataMode) {
+        // Use RPC function for 'semua_data' mode to get entries with full penduduk data
+        while (hasMore) {
+          const { data: entriesData, error: entriesError } = await supabase
+            .rpc('get_form_data_with_penduduk', { p_form_id: formId })
+            .range(from, from + limit - 1);
 
-        if (entriesError) {
-          console.error('Error fetching form entries data:', entriesError);
-          // Jika error karena permission, lempar error spesifik
-          if (entriesError.code === '42501' || entriesError.message.includes('permission denied')) {
-            throw new Error('permission_denied_form_data');
+          if (entriesError) {
+            console.error('Error fetching form entries data via RPC:', entriesError);
+            // Jika error karena permission, lempar error spesifik
+            if (entriesError.code === '42501' || entriesError.message.includes('permission denied')) {
+              throw new Error('permission_denied_form_data');
+            }
+            throw entriesError;
           }
-          throw entriesError;
-        }
 
-        if (entriesData) {
-          allEntriesData = [...allEntriesData, ...entriesData];
-          console.log(`Fetched ${entriesData.length} form entries, total so far: ${allEntriesData.length}`);
-          
-          // If we got less than the limit, we've reached the end
-          if (entriesData.length < limit) {
-            hasMore = false;
+          if (entriesData && entriesData.length > 0) {
+            // Transform data from RPC to match expected structure
+            const transformedData = entriesData.map(item => ({
+              id: item.form_data_id,
+              form_tugas_id: item.form_tugas_id,
+              penduduk_id: item.penduduk_id,
+              data_custom: item.data_custom,
+              submitted_by: item.submitted_by,
+              created_at: item.created_at,
+              updated_at: item.updated_at,
+              user_id: item.user_id,
+              penduduk: {
+                id: item.penduduk_id,
+                no_kk: item.penduduk_no_kk,
+                nik: item.penduduk_nik,
+                nama: item.penduduk_nama,
+                jenis_kelamin: item.penduduk_jenis_kelamin,
+                tempat_lahir: item.penduduk_tempat_lahir,
+                tanggal_lahir: item.penduduk_tanggal_lahir,
+                golongan_darah: item.penduduk_golongan_darah,
+                agama: item.penduduk_agama,
+                status_kawin: item.penduduk_status_kawin,
+                status_hubungan: item.penduduk_status_hubungan,
+                pendidikan: item.penduduk_pendidikan,
+                pekerjaan: item.penduduk_pekerjaan,
+                nama_ibu: item.penduduk_nama_ibu,
+                nama_ayah: item.penduduk_nama_ayah,
+                rt: item.penduduk_rt,
+                rw: item.penduduk_rw,
+                dusun: item.penduduk_dusun,
+                nama_kep_kel: item.penduduk_nama_kep_kel,
+                alamat_lengkap: item.penduduk_alamat_lengkap,
+                nama_prop: item.penduduk_nama_prop,
+                nama_kab: item.penduduk_nama_kab,
+                nama_kec: item.penduduk_nama_kec,
+                nama_kel: item.penduduk_nama_kel,
+              }
+            }));
+            
+            allEntriesData = [...allEntriesData, ...transformedData];
+            console.log(`Fetched ${transformedData.length} form entries via RPC, total so far: ${allEntriesData.length}`);
+            
+            if (transformedData.length < limit) {
+              hasMore = false;
+            } else {
+              from += limit;
+            }
           } else {
-            from += limit;
+            hasMore = false;
           }
-        } else {
-          hasMore = false;
+        }
+      } else {
+        // For normal modes, use the standard query with RLS
+        while (hasMore) {
+          const { data: entriesData, error: entriesError, count } = await supabase
+            .from('form_tugas_data')
+            .select('*, penduduk(*)', { count: 'exact' })
+            .eq('form_tugas_id', formId)
+            .order('created_at')
+            .range(from, from + limit - 1);
+
+          if (entriesError) {
+            console.error('Error fetching form entries data:', entriesError);
+            // Jika error karena permission, lempar error spesifik
+            if (entriesError.code === '42501' || entriesError.message.includes('permission denied')) {
+              throw new Error('permission_denied_form_data');
+            }
+            throw entriesError;
+          }
+
+          if (entriesData) {
+            allEntriesData = [...allEntriesData, ...entriesData];
+            console.log(`Fetched ${entriesData.length} form entries, total so far: ${allEntriesData.length}`);
+            
+            // If we got less than the limit, we've reached the end
+            if (entriesData.length < limit) {
+              hasMore = false;
+            } else {
+              from += limit;
+            }
+          } else {
+            hasMore = false;
+          }
         }
       }
 
       console.log(`Total form entries fetched: ${allEntriesData.length} records from database`);
-
-      // Execute form and fields queries
-      const [formResult, fieldsResult] = await Promise.all([
-        formQuery, 
-        fieldsQuery
-      ]);
 
       if (formResult.error && formResult.error.code !== 'PGRST116') throw formResult.error;
       if (fieldsResult.error) throw fieldsResult.error;
@@ -381,30 +465,87 @@ const FormDataEntry = () => {
     data.formDef.fields.forEach(field => {
         dataToSave[field.nama_field] = formData[field.nama_field];
     });
-    const payload = {
-      form_tugas_id: formId,
-      penduduk_id: residentId,
-      data_custom: dataToSave,
-      user_id: user?.id,
-    };
-    try {
-      let error;
-      if (entryId) {
-        const { error: updateError } = await supabase.from('form_tugas_data').update(payload).eq('id', entryId);
-        error = updateError;
-      } else {
-        const { error: insertError } = await supabase.from('form_tugas_data').insert(payload);
-        error = insertError;
+    
+    // Check if form is in 'semua_data' mode
+    const isAllDataMode = data?.formDef?.visibilitas_dusun === 'semua_data';
+    
+    if (isAllDataMode) {
+      try {
+        // Use RPC function for 'semua_data' mode
+        let result;
+        if (entryId) {
+          // For updates in 'semua_data' mode, use the special RPC function
+          // Ensure we have required parameters before calling RPC
+          if (!entryId || !formId) {
+            throw new Error('Parameter yang diperlukan tidak lengkap untuk update');
+          }
+          result = await supabase.rpc('update_form_data_with_penduduk_check', {
+            p_form_data_id: entryId,
+            p_form_id: formId,
+            p_penduduk_id: residentId || null, // Use null if not provided
+            p_data_custom: dataToSave
+          });
+          
+          // Check result from the RPC function
+          if (result.error) {
+            console.error('RPC Error:', result.error);
+            throw result.error;
+          }
+          
+          // Check the success status from the RPC result
+          const rpcResult = result.data?.[0];
+          if (rpcResult && rpcResult.success === false) {
+            throw new Error(rpcResult.message || 'Gagal mengupdate data');
+          }
+        } else {
+          // For inserts, we can still use normal insert
+          const payload = {
+            form_tugas_id: formId,
+            penduduk_id: residentId || null, // Use null if not provided
+            data_custom: dataToSave,
+            user_id: user?.id,
+          };
+          result = await supabase.from('form_tugas_data').insert(payload);
+          
+          if (result.error) throw result.error;
+        }
+        
+        toast({ title: 'Berhasil', description: 'Data berhasil disimpan.' });
+        queryClient.invalidateQueries({ queryKey: ['form_data_and_def', formId] });
+        setIsFormOpen(false);
+        setEditingEntry(null);
+      } catch (err) {
+        toast({ title: 'Gagal', description: 'Terjadi kesalahan: ' + err.message, variant: 'destructive' });
+      } finally {
+        setIsSaving(false);
       }
-      if (error) throw error;
-      toast({ title: 'Berhasil', description: 'Data berhasil disimpan.' });
-      queryClient.invalidateQueries({ queryKey: ['form_data_and_def', formId] });
-      setIsFormOpen(false);
-      setEditingEntry(null);
-    } catch (err) {
-      toast({ title: 'Gagal', description: 'Terjadi kesalahan: ' + err.message, variant: 'destructive' });
-    } finally {
-      setIsSaving(false);
+    } else {
+      // Normal mode - use standard Supabase operations
+      const payload = {
+        form_tugas_id: formId,
+        penduduk_id: residentId || null, // Use null if not provided
+        data_custom: dataToSave,
+        user_id: user?.id,
+      };
+      try {
+        let error;
+        if (entryId) {
+          const { error: updateError } = await supabase.from('form_tugas_data').update(payload).eq('id', entryId);
+          error = updateError;
+        } else {
+          const { error: insertError } = await supabase.from('form_tugas_data').insert(payload);
+          error = insertError;
+        }
+        if (error) throw error;
+        toast({ title: 'Berhasil', description: 'Data berhasil disimpan.' });
+        queryClient.invalidateQueries({ queryKey: ['form_data_and_def', formId] });
+        setIsFormOpen(false);
+        setEditingEntry(null);
+      } catch (err) {
+        toast({ title: 'Gagal', description: 'Terjadi kesalahan: ' + err.message, variant: 'destructive' });
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -501,7 +642,7 @@ const FormDataEntry = () => {
             <p className="text-muted-foreground mb-4">
               Anda tidak memiliki izin untuk mengakses data formulir ini. 
               {data?.formDef?.visibilitas_dusun === 'semua_data' 
-                ? ' Anda mungkin tidak memiliki izin untuk formulir ini meskipun mode "lihat semua data" aktif.' 
+                ? ' Anda mungkin tidak memiliki izin untuk formulir ini meskipun mode "lihat & isi semua data" aktif.' 
                 : ' Formulir ini mungkin hanya menampilkan data dari dusun tertentu.'}
             </p>
             <div>

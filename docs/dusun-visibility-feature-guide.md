@@ -6,7 +6,7 @@ Fitur ini memungkinkan admin untuk mengatur visibilitas formulir tugas, apakah a
 - **Dusun tertentu** - hanya kadus dari dusun yang dipilih yang bisa melihat dan mengisi form
 
 ## Migrasi Database
-1. Jalankan file migrasi `20251005162000_minimal_form_visibility_update.sql` di SQL Editor Supabase
+1. Jalankan file migrasi `20251005163000_all_data_access_form_visibility.sql` di SQL Editor Supabase
 2. Migrasi ini akan:
    - Memperbarui kolom `visibilitas_dusun` untuk mendukung 3 opsi ('semua', 'tertentu', 'semua_data')
    - Memperbarui RLS untuk `form_tugas` dan `form_tugas_data` sesuai dengan aturan visibilitas yang baru

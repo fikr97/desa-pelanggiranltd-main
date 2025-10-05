@@ -16,7 +16,7 @@ Fitur ini memungkinkan admin untuk mengatur visibilitas formulir tugas dengan 3 
    - Kadus tetap hanya bisa mengisi dan mengedit data untuk penduduk dari dusun mereka sendiri
 
 ## Migrasi Database
-1. Jalankan file migrasi `20251005162000_minimal_form_visibility_update.sql` di SQL Editor Supabase
+1. Jalankan file migrasi `20251005163000_all_data_access_form_visibility.sql` di SQL Editor Supabase
 2. Migrasi ini akan:
    - Memperbarui constraint kolom `visibilitas_dusun` untuk menyertakan opsi 'semua_data'
    - Memperbarui RLS untuk mendukung ketiga mode visibilitas

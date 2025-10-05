@@ -116,6 +116,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       return; // Don't run until dusunList is populated
     }
 
+    // Only auto-fill resident data if we're adding new data, not when editing existing data
     if (selectedResident && !initialData) {
       const newFormData = {};
       formDef.fields.forEach(field => {
