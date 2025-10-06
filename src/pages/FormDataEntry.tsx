@@ -105,7 +105,7 @@ const FormDataEntry = () => {
   const { formId } = useParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState(null);
@@ -471,51 +471,67 @@ const FormDataEntry = () => {
     
     if (isAllDataMode) {
       try {
-        // Use RPC function for 'semua_data' mode
         let result;
         if (entryId) {
-          // For updates in 'semua_data' mode, use the special RPC function
-          // Ensure we have required parameters before calling RPC
-          if (!entryId || !formId) {
-            throw new Error('Parameter yang diperlukan tidak lengkap untuk update');
-          }
-          result = await supabase.rpc('update_form_data_with_penduduk_check', {
+          console.log('Updating existing entry in all data mode:', { 
+            entryId, 
+            formId, 
+            residentId: residentId || null, 
+            dataToSave 
+          });
+          // Use the new update function for updates in 'semua_data' mode
+          result = await supabase.rpc('update_form_data_for_all_dusun', {
             p_form_data_id: entryId,
             p_form_id: formId,
             p_penduduk_id: residentId || null, // Use null if not provided
             p_data_custom: dataToSave
           });
-          
-          // Check result from the RPC function
-          if (result.error) {
-            console.error('RPC Error:', result.error);
-            throw result.error;
-          }
-          
-          // Check the success status from the RPC result
-          const rpcResult = result.data?.[0];
-          if (rpcResult && rpcResult.success === false) {
-            throw new Error(rpcResult.message || 'Gagal mengupdate data');
-          }
         } else {
-          // For inserts, we can still use normal insert
-          const payload = {
-            form_tugas_id: formId,
-            penduduk_id: residentId || null, // Use null if not provided
-            data_custom: dataToSave,
-            user_id: user?.id,
-          };
-          result = await supabase.from('form_tugas_data').insert(payload);
-          
-          if (result.error) throw result.error;
+          console.log('Inserting new entry in all data mode:', { 
+            formId, 
+            residentId: residentId || null, 
+            dataToSave 
+          });
+          // For new entries in 'semua_data' mode, use special insert function
+          result = await supabase.rpc('insert_form_data_for_all_dusun', {
+            p_form_id: formId,
+            p_penduduk_id: residentId || null, // Use null if not provided
+            p_data_custom: dataToSave
+          });
         }
         
+        // Check result from the operation
+        if (result.error) {
+          console.error('Error saving data:', result.error);
+          throw result.error;
+        }
+        
+        // Check the success status from the RPC result for inserts/updates
+        if (result.data) {
+          const rpcResult = result.data?.[0];
+          if (rpcResult && rpcResult.success === false) {
+            throw new Error(rpcResult.message || 'Gagal menyimpan data');
+          }
+        }
+        
+        console.log('Data saved successfully in all data mode');
         toast({ title: 'Berhasil', description: 'Data berhasil disimpan.' });
         queryClient.invalidateQueries({ queryKey: ['form_data_and_def', formId] });
         setIsFormOpen(false);
         setEditingEntry(null);
       } catch (err) {
-        toast({ title: 'Gagal', description: 'Terjadi kesalahan: ' + err.message, variant: 'destructive' });
+        console.error('Error in all data mode:', err);
+        console.error('Error details:', {
+          message: err.message,
+          code: err.code,
+          hint: err.hint,
+          details: err.details
+        });
+        toast({ 
+          title: 'Gagal', 
+          description: `Terjadi kesalahan: ${err.message}. ${err.code ? `Kode: ${err.code}.` : ''}`, 
+          variant: 'destructive' 
+        });
       } finally {
         setIsSaving(false);
       }
@@ -527,22 +543,40 @@ const FormDataEntry = () => {
         data_custom: dataToSave,
         user_id: user?.id,
       };
+      
       try {
-        let error;
+        let result;
         if (entryId) {
-          const { error: updateError } = await supabase.from('form_tugas_data').update(payload).eq('id', entryId);
-          error = updateError;
+          console.log('Updating existing entry:', { entryId, payload });
+          result = await supabase.from('form_tugas_data').update(payload).eq('id', entryId);
         } else {
-          const { error: insertError } = await supabase.from('form_tugas_data').insert(payload);
-          error = insertError;
+          // For new entries, ensure we can save even without a resident
+          console.log('Inserting new entry:', { payload });
+          result = await supabase.from('form_tugas_data').insert(payload);
         }
-        if (error) throw error;
+        
+        if (result.error) {
+          console.error('Error saving data:', result.error);
+          throw result.error;
+        }
+        
         toast({ title: 'Berhasil', description: 'Data berhasil disimpan.' });
         queryClient.invalidateQueries({ queryKey: ['form_data_and_def', formId] });
         setIsFormOpen(false);
         setEditingEntry(null);
       } catch (err) {
-        toast({ title: 'Gagal', description: 'Terjadi kesalahan: ' + err.message, variant: 'destructive' });
+        console.error('Error in normal mode:', err);
+        console.error('Error details:', {
+          message: err.message,
+          code: err.code,
+          hint: err.hint,
+          details: err.details
+        });
+        toast({ 
+          title: 'Gagal', 
+          description: `Terjadi kesalahan saat menyimpan data: ${err.message}. ${err.code ? `Kode: ${err.code}.` : ''} Pastikan data yang dimasukkan benar dan lengkap.`, 
+          variant: 'destructive' 
+        });
       } finally {
         setIsSaving(false);
       }
@@ -1292,6 +1326,7 @@ const FormDataEntry = () => {
               onCancel={() => setIsFormOpen(false)}
               initialData={editingEntry}
               isLoading={isSaving}
+              profile={profile}
             />
           </div>
         </DialogContent>

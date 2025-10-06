@@ -19,7 +19,7 @@ import {
   jenisKelaminOptions
 } from '@/lib/options';
 
-const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLoading }) => {
+const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLoading, profile }) => {
   const [selectedResident, setSelectedResident] = useState(null);
   const [formData, setFormData] = useState({});
   const [dusunList, setDusunList] = useState<string[]>([]);
@@ -99,6 +99,12 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
         } else {
           value = '';
         }
+        
+        // Pastikan nilai dusun diisi dengan nilai sebenarnya saat edit
+        if (field.nama_field === 'dusun' && resident && !customValue) {
+          value = resident.dusun || '';
+        }
+        
         combinedData[field.nama_field] = applyFormat(value, field);
       });
       setFormData(combinedData);
@@ -116,7 +122,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       return; // Don't run until dusunList is populated
     }
 
-    // Only auto-fill resident data if we're adding new data, not when editing existing data
+    // Only auto-fill resident data if we're adding new data and a resident is selected, not when editing existing data
     if (selectedResident && !initialData) {
       const newFormData = {};
       formDef.fields.forEach(field => {
@@ -124,11 +130,21 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
         if (field.sumber_data && field.sumber_data.startsWith('penduduk.')) {
           value = selectedResident[field.nama_field] || '';
         }
-        // This now correctly resets custom fields to empty when a new resident is selected
         // Apply format to the auto-filled value
         newFormData[field.nama_field] = applyFormat(value, field);
       });
-      setFormData(newFormData);
+      setFormData(prev => ({ ...prev, ...newFormData }));
+    } else if (!selectedResident && !initialData) {
+      // If no resident is selected and we're creating new data, initialize with empty values
+      // but don't overwrite values that user might have already entered manually
+      const emptyFormData = {};
+      formDef.fields.forEach(field => {
+        if (!formData.hasOwnProperty(field.nama_field)) {
+          // Only initialize if field doesn't already have a value (user hasn't typed anything yet)
+          emptyFormData[field.nama_field] = '';
+        }
+      });
+      setFormData(prev => ({ ...prev, ...emptyFormData }));
     }
   }, [selectedResident, formDef, initialData, dusunList]);
 
@@ -243,26 +259,28 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
     }
   };
 
-  const handleSubmit = () => {
-    onSave({ 
-      residentId: selectedResident ? selectedResident.id : null, 
-      data: formData,
-      entryId: initialData ? initialData.id : null
-    });
-  };
+  // Cek apakah form ini memiliki visibilitas 'semua_data'
+  const isAllDataMode = formDef?.visibilitas_dusun === 'semua_data';
+  
+  // For 'semua_data' mode, show all residents; for other modes, filter by current selected resident's dusun or user's dusun
+  const filteredResidents = isAllDataMode ? residents : residents.filter(resident => 
+    resident.dusun === profile?.dusun
+  );
 
   return (
     <div className="space-y-6">
       <div>
         <Label>Pilih Penduduk (Opsional)</Label>
         <ResidentSearchCombobox 
-          residents={residents || []} 
+          residents={filteredResidents} 
           onSelect={setSelectedResident} 
           value={selectedResident ? selectedResident.nik : ''}
           placeholder="Ketik untuk mencari NIK atau Nama..."
         />
         <p className="text-xs text-muted-foreground mt-1">
-          Pilih penduduk untuk mengisi data secara otomatis. Biarkan kosong jika data untuk penduduk luar.
+          {isAllDataMode 
+            ? "Pilih penduduk untuk mengisi data secara otomatis (dapat memilih dari semua dusun)"
+            : "Pilih penduduk untuk mengisi data secara otomatis. Jika kosong, Anda tetap dapat mengisi semua field secara manual."}
         </p>
       </div>
 
@@ -272,7 +290,15 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       
       <div className="flex justify-end pt-4 gap-2">
         <Button variant="ghost" onClick={onCancel}>Batal</Button>
-        <Button onClick={handleSubmit} disabled={isLoading}>
+        <Button onClick={() => {
+          // Panggil handleSubmit yang didefinisikan sebelumnya
+          const residentId = selectedResident ? selectedResident.id : null;
+          onSave({ 
+            residentId: residentId, 
+            data: formData,
+            entryId: initialData ? initialData.id : null
+          });
+        }} disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Simpan Data
         </Button>
