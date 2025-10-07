@@ -536,27 +536,78 @@ const FormDataEntry = () => {
         setIsSaving(false);
       }
     } else {
-      // Normal mode - use standard Supabase operations
-      const payload = {
-        form_tugas_id: formId,
-        penduduk_id: residentId || null, // Use null if not provided
-        data_custom: dataToSave,
-        user_id: user?.id,
-      };
-      
+      // Normal mode - check if we need to use the update function for all dusun (for cases where kadus needs to update across dusun)
+      // The approach depends on the user role and form settings
       try {
+        // First, check if the user is an admin or kadus, and if we're in a situation where we might need 
+        // to use more complex permission handling
+        if (entryId) {
+          // For updates in normal mode, we'll check if an RPC function exists for updating
+          // First, let's try using the update_form_data_with_penduduk_check function if it exists
+          try {
+            console.log('Updating existing entry in normal mode using RPC:', { 
+              entryId, 
+              formId, 
+              residentId: residentId || null, 
+              dataToSave 
+            });
+            
+            const result = await supabase.rpc('update_form_data_with_penduduk_check', {
+              p_form_data_id: entryId,
+              p_form_id: formId,
+              p_penduduk_id: residentId || null, // Use null if not provided
+              p_data_custom: dataToSave
+            });
+            
+            // Check result from the operation
+            if (result.error) {
+              console.error('Error using update RPC function:', result.error);
+              // If the RPC function doesn't exist or fails, we'll try the direct approach below
+              throw result.error;
+            }
+            
+            // Check the success status from the RPC result for updates
+            if (result.data) {
+              const rpcResult = result.data?.[0];
+              if (rpcResult && rpcResult.success === false) {
+                throw new Error(rpcResult.message || 'Gagal menyimpan data');
+              }
+            }
+            
+            console.log('Data updated successfully using RPC in normal mode');
+            toast({ title: 'Berhasil', description: 'Data berhasil disimpan.' });
+            queryClient.invalidateQueries({ queryKey: ['form_data_and_def', formId] });
+            setIsFormOpen(false);
+            setEditingEntry(null);
+            setIsSaving(false);
+            return; // Exit early since we've successfully updated
+          } catch (rpcErr) {
+            console.log('RPC update function failed or not available, trying direct approach:', rpcErr.message);
+            // If RPC function doesn't exist or fails, we'll fall back to direct approach
+          }
+        }
+
+        // For both insert and fallback in update, use direct approach
+        const payload = {
+          penduduk_id: residentId || null, // Use null if not provided
+          data_custom: dataToSave,
+          user_id: user?.id,
+        };
+        
         let result;
         if (entryId) {
-          console.log('Updating existing entry:', { entryId, payload });
+          console.log('Updating existing entry with direct approach:', { entryId, payload });
+          // For updates, don't include form_tugas_id as it shouldn't change
           result = await supabase.from('form_tugas_data').update(payload).eq('id', entryId);
         } else {
-          // For new entries, ensure we can save even without a resident
-          console.log('Inserting new entry:', { payload });
-          result = await supabase.from('form_tugas_data').insert(payload);
+          // For new entries, include form_tugas_id
+          const insertPayload = { ...payload, form_tugas_id: formId };
+          console.log('Inserting new entry:', { insertPayload });
+          result = await supabase.from('form_tugas_data').insert(insertPayload);
         }
         
         if (result.error) {
-          console.error('Error saving data:', result.error);
+          console.error('Error saving data with direct approach:', result.error);
           throw result.error;
         }
         
