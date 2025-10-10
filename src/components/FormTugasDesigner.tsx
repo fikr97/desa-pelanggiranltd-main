@@ -12,7 +12,6 @@ import FormFieldManager from './FormFieldManager';
 import { useAuth } from '@/contexts/AuthContext';
 import DeckFieldSelector from './DeckFieldSelector';
 import { Switch } from '@/components/ui/switch';
-import DusunVisibilitySettings from './DusunVisibilitySettings';
 
 interface FormTugasDesignerProps {
   formTugas?: any; // Optional: for editing existing forms
@@ -28,8 +27,6 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
     show_add_button: true,
     show_edit_button: true,
     show_delete_button: true,
-    visibilitas_dusun: 'semua', // Default tetap 'semua' untuk backward compatibility
-    dusun_terpilih: [],
   });
   const [fields, setFields] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'settings' | 'fields' | 'deck'>('settings');
@@ -68,8 +65,6 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         show_add_button: formTugas.show_add_button !== undefined ? formTugas.show_add_button : true,
         show_edit_button: formTugas.show_edit_button !== undefined ? formTugas.show_edit_button : true,
         show_delete_button: formTugas.show_delete_button !== undefined ? formTugas.show_delete_button : true,
-        visibilitas_dusun: formTugas.visibilitas_dusun || 'semua',
-        dusun_terpilih: formTugas.dusun_terpilih || [],
       });
       loadFields(formTugas.id);
     } else {
@@ -81,8 +76,6 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         show_add_button: true,
         show_edit_button: true,
         show_delete_button: true,
-        visibilitas_dusun: 'semua',
-        dusun_terpilih: [],
       });
       setFields([]);
     }
@@ -114,8 +107,6 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
             show_add_button: formData.show_add_button,
             show_edit_button: formData.show_edit_button,
             show_delete_button: formData.show_delete_button,
-            visibilitas_dusun: formData.visibilitas_dusun,
-            dusun_terpilih: formData.dusun_terpilih,
             updated_at: new Date().toISOString() 
           })
           .eq('id', formId);
@@ -127,8 +118,6 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
           .insert([{ 
             ...formData, 
             created_by: user.id,
-            visibilitas_dusun: formData.visibilitas_dusun,
-            dusun_terpilih: formData.dusun_terpilih,
           }])
           .select('id')
           .single();
@@ -285,13 +274,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
                 </p>
               </div>
 
-              <DusunVisibilitySettings
-                formId={formTugas?.id}
-                visibility={formData.visibilitas_dusun}
-                dusunSelected={formData.dusun_terpilih}
-                onVisibilityChange={(value) => setFormData(prev => ({ ...prev, visibilitas_dusun: value }))}
-                onDusunSelectedChange={(dusunList) => setFormData(prev => ({ ...prev, dusun_terpilih: dusunList }))}
-              />
+
               
               <div className="pt-4 border-t">
                 <h3 className="text-lg font-semibold mb-4">Pengaturan Tombol</h3>

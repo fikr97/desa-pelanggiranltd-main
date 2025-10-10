@@ -259,11 +259,8 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
     }
   };
 
-  // Cek apakah form ini memiliki visibilitas 'semua_data'
-  const isAllDataMode = formDef?.visibilitas_dusun === 'semua_data';
-  
-  // For 'semua_data' mode, show all residents; for other modes, filter by current selected resident's dusun or user's dusun
-  const filteredResidents = isAllDataMode ? residents : residents.filter(resident => 
+  // Filter residents by user's dusun
+  const filteredResidents = residents.filter(resident => 
     resident.dusun === profile?.dusun
   );
 
@@ -278,9 +275,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
           placeholder="Ketik untuk mencari NIK atau Nama..."
         />
         <p className="text-xs text-muted-foreground mt-1">
-          {isAllDataMode 
-            ? "Pilih penduduk untuk mengisi data secara otomatis (dapat memilih dari semua dusun)"
-            : "Pilih penduduk untuk mengisi data secara otomatis. Jika kosong, Anda tetap dapat mengisi semua field secara manual."}
+          Pilih penduduk untuk mengisi data secara otomatis. Jika kosong, Anda tetap dapat mengisi semua field secara manual.
         </p>
       </div>
 
