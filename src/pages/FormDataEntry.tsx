@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -112,12 +112,12 @@ const FormDataEntry = () => {
   const [editingEntry, setEditingEntry] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
-  const [viewMode, setViewMode] = useState<'table' | 'deck'>('table');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchFields, setSearchFields] = useState<string[]>([]); // Array to store selected field names to search in
   const [groupByField, setGroupByField] = useState<string | null>('none');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState<'table' | 'deck'>('table');
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const { data, isLoading, error } = useQuery({
@@ -403,6 +403,31 @@ const FormDataEntry = () => {
   }, [sortedEntries, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(sortedEntries.length / itemsPerPage);
+
+  // Initialize view mode state management with localStorage and form configuration
+  const [initialViewModeSet, setInitialViewModeSet] = useState(false);
+  
+  // Set the initial view mode based on form settings when data is first loaded (only if no user preference saved)
+  useEffect(() => {
+    if (data?.formDef && !initialViewModeSet && !isLoading) {
+      // Initialize with user's previous preference from localStorage, if available
+      const savedViewMode = localStorage.getItem(`form_view_mode_${formId}`);
+      if (savedViewMode === 'table' || savedViewMode === 'deck') {
+        setViewMode(savedViewMode);
+      } else {
+        // If no saved preference, use the form's configured display type as default
+        setViewMode(data.formDef.display_type || 'table');
+      }
+      setInitialViewModeSet(true);
+    }
+  }, [data?.formDef, initialViewModeSet, isLoading, formId, setViewMode]);
+  
+  // Update localStorage when viewMode changes
+  useEffect(() => {
+    if (initialViewModeSet && viewMode) {
+      localStorage.setItem(`form_view_mode_${formId}`, viewMode);
+    }
+  }, [viewMode, formId, initialViewModeSet]);
 
   const requestSort = (key) => {
     let direction = 'ascending';
@@ -750,6 +775,7 @@ const FormDataEntry = () => {
   const { formDef, entries, residents } = data;
   
   // Determine view mode based on form settings and user preference
+  // When form is configured for deck view, use user preference; otherwise always table
   const actualViewMode = formDef.display_type === 'deck' ? viewMode : 'table';
   
   // Render table view with pagination
