@@ -323,6 +323,19 @@ const FormDataEntry = () => {
     enabled: !!formId,
   });
 
+  // Debug: Log residents data to help troubleshoot
+  useEffect(() => {
+    if (data?.residents) {
+      console.log('FormDataEntry - Total residents loaded:', data.residents.length);
+      if (data?.formDef?.visibilitas_dusun) {
+        console.log('FormDataEntry - Form visibility setting:', data.formDef.visibilitas_dusun);
+      }
+      if (profile?.dusun) {
+        console.log('FormDataEntry - User profile dusun:', profile.dusun);
+      }
+    }
+  }, [data, profile]);
+
   // Filter entries based on search term and selected fields
   const filteredEntries = useMemo(() => {
     if (!data?.entries || !searchTerm) return data?.entries || [];
@@ -404,30 +417,35 @@ const FormDataEntry = () => {
 
   const totalPages = Math.ceil(sortedEntries.length / itemsPerPage);
 
-  // Initialize view mode state management with localStorage and form configuration
-  const [initialViewModeSet, setInitialViewModeSet] = useState(false);
-  
-  // Set the initial view mode based on form settings when data is first loaded (only if no user preference saved)
+  // This single useEffect will manage the viewMode based on form config and user preference.
   useEffect(() => {
-    if (data?.formDef && !initialViewModeSet && !isLoading) {
-      // Initialize with user's previous preference from localStorage, if available
-      const savedViewMode = localStorage.getItem(`form_view_mode_${formId}`);
-      if (savedViewMode === 'table' || savedViewMode === 'deck') {
-        setViewMode(savedViewMode);
-      } else {
-        // If no saved preference, use the form's configured display type as default
-        setViewMode(data.formDef.display_type || 'table');
+    if (data?.formDef && !isLoading) {
+      const formDisplayType = data.formDef.display_type || 'table';
+
+      if (formDisplayType === 'table') {
+        // If the form is configured as a table, always use table view.
+        setViewMode('table');
+      } else { // formDisplayType is 'deck'
+        // If the form is a deck, respect user's choice from localStorage.
+        const savedViewMode = localStorage.getItem(`form_view_mode_${formId}`);
+        if (savedViewMode === 'table' || savedViewMode === 'deck') {
+          setViewMode(savedViewMode);
+        } else {
+          // Otherwise, default to deck view.
+          setViewMode('deck');
+        }
       }
-      setInitialViewModeSet(true);
     }
-  }, [data?.formDef, initialViewModeSet, isLoading, formId, setViewMode]);
-  
-  // Update localStorage when viewMode changes
+  }, [data?.formDef, isLoading, formId]);
+
+  // This effect is just for saving the user's choice.
   useEffect(() => {
-    if (initialViewModeSet && viewMode) {
+    // Only save the view mode if the form is a deck type.
+    // Don't save the preference for table-only forms.
+    if (data?.formDef?.display_type === 'deck' && viewMode) {
       localStorage.setItem(`form_view_mode_${formId}`, viewMode);
     }
-  }, [viewMode, formId, initialViewModeSet]);
+  }, [viewMode, formId, data?.formDef?.display_type]);
 
   const requestSort = (key) => {
     let direction = 'ascending';
@@ -486,10 +504,46 @@ const FormDataEntry = () => {
       setIsSaving(false);
       return;
     }
-    const dataToSave = {};
+    const dataToSave: Record<string, any> = {};
     data.formDef.fields.forEach(field => {
         dataToSave[field.nama_field] = formData[field.nama_field];
     });
+    
+    // Check for duplicate NIK if the form contains a NIK field
+    const nikField = data.formDef.fields.find(field => field.nama_field === 'nik');
+    if (nikField && dataToSave.nik) {
+      // Check if NIK already exists in the same form (excluding current entry if updating)
+      // Use a more direct approach to check for NIK in data_custom JSON
+      let query = supabase
+        .from('form_tugas_data')
+        .select('id, data_custom')
+        .eq('form_tugas_id', formId);
+      
+      if (entryId) {
+        query = query.not('id', 'eq', entryId); // Exclude current entry if updating
+      }
+      
+      const { data: existingEntries, error: queryError } = await query;
+      
+      if (queryError) {
+        console.error('Error checking for duplicate NIK:', queryError);
+        // Continue with the save operation in case of error, but log it
+      } else if (existingEntries) {
+        const duplicateEntry = existingEntries.find(entry => 
+          entry.data_custom && entry.data_custom.nik === dataToSave.nik
+        );
+        
+        if (duplicateEntry) {
+          toast({
+            title: 'NIK Sudah Ada',
+            description: 'NIK yang Anda masukkan sudah terdaftar dalam form ini. Silakan gunakan NIK yang berbeda.',
+            variant: 'destructive',
+          });
+          setIsSaving(false);
+          return;
+        }
+      }
+    }
     
     // Check if form is in 'semua_data' mode
     const isAllDataMode = data?.formDef?.visibilitas_dusun === 'semua_data';
@@ -774,9 +828,8 @@ const FormDataEntry = () => {
 
   const { formDef, entries, residents } = data;
   
-  // Determine view mode based on form settings and user preference
-  // When form is configured for deck view, use user preference; otherwise always table
-  const actualViewMode = formDef.display_type === 'deck' ? viewMode : 'table';
+  // Use the current view mode state (which respects user selection and defaults to form configuration)
+  const actualViewMode = viewMode;
   
   // Render table view with pagination
   const renderTableView = () => {
@@ -1258,7 +1311,7 @@ const FormDataEntry = () => {
           </div>
         </div>
 
-        {/* View mode toggle - only show if form is configured for deck view */}
+        {/* View mode toggle - show if form has deck fields */}
         {/* Search box, field selector, group by selector and view toggles */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <div className="flex flex-col md:flex-row gap-2 w-full">
@@ -1352,7 +1405,7 @@ const FormDataEntry = () => {
               </div>
             </div>
           </div>
-          {(formDef.display_type === 'deck') && (
+          {formDef.display_type === 'deck' && (
             <div className="flex items-center space-x-2">
               <List className={`h-4 w-4 ${actualViewMode === 'table' ? 'text-primary' : 'text-muted-foreground'}`} />
               <Switch

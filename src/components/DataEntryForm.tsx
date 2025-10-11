@@ -160,6 +160,11 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
 
     const requiredIndicator = field.is_required ? <span className="text-red-500 ml-1">*</span> : null;
 
+    // Special handling for NIK and No. Kartu Keluarga fields
+    const isNIKField = field.nama_field === 'nik';
+    const isNoKKField = field.nama_field === 'no_kk';
+    const isNIKorNoKKField = isNIKField || isNoKKField;
+
     if (field.tipe_field === 'predefined' && dropdownFields.includes(field.nama_field)) {
       return (
         <div key={field.id}>
@@ -190,7 +195,20 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
         return (
           <div key={field.id}>
             <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
-            <Input id={field.nama_field} type="number" value={value} onChange={e => handleInputChange(field.nama_field, e.target.value)} />
+            <Input 
+              id={field.nama_field} 
+              type="number" 
+              value={value} 
+              onChange={e => {
+                if (isNIKorNoKKField) {
+                  // For NIK and No. KK, ensure only numbers are entered and max length is 16
+                  const numericValue = e.target.value.replace(/\D/g, '').slice(0, 16);
+                  handleInputChange(field.nama_field, numericValue);
+                } else {
+                  handleInputChange(field.nama_field, e.target.value);
+                }
+              }}
+            />
           </div>
         );
       case 'date': {
@@ -253,16 +271,45 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
         return (
           <div key={field.id}>
             <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
-            <Input id={field.nama_field} value={value} onChange={e => handleInputChange(field.nama_field, e.target.value)} />
+            <Input 
+              id={field.nama_field} 
+              value={value} 
+              onChange={e => {
+                if (isNIKorNoKKField) {
+                  // For NIK and No. KK, ensure only numbers are entered and max length is 16
+                  const numericValue = e.target.value.replace(/\D/g, '').slice(0, 16);
+                  handleInputChange(field.nama_field, numericValue);
+                } else {
+                  handleInputChange(field.nama_field, e.target.value);
+                }
+              }}
+              maxLength={isNIKorNoKKField ? 16 : undefined}
+              type={isNIKorNoKKField ? "text" : undefined} // Use text type to allow maxLength, but filter input
+              inputMode={isNIKorNoKKField ? "numeric" : undefined} // Improve mobile keyboard experience
+            />
           </div>
         );
     }
   };
 
-  // Filter residents by user's dusun
-  const filteredResidents = residents.filter(resident => 
-    resident.dusun === profile?.dusun
-  );
+  // Filter residents by user's dusun only if form is not in 'semua_data' mode
+  // If profile is not available or dusun is not defined, show all residents
+  const isAllDataMode = formDef.visibilitas_dusun === 'semua_data';
+  const hasProfileDusun = profile?.dusun && profile.dusun !== '';
+  const filteredResidents = isAllDataMode || !hasProfileDusun
+    ? residents // Show all residents in 'semua_data' mode or if no profile dusun
+    : residents.filter(resident => 
+        resident.dusun === profile?.dusun
+      );
+
+  // Debug: Log the values to help troubleshoot
+  console.log('Form Data Entry - All residents:', residents.length);
+  console.log('Form Data Entry - Filtered residents:', filteredResidents.length);
+  console.log('Form Data Entry - Profile dusun:', profile?.dusun);
+  console.log('Form Data Entry - Has profile dusun:', hasProfileDusun);
+  console.log('Form Data Entry - Form visibility:', formDef.visibilitas_dusun);
+  console.log('Form Data Entry - Is all data mode:', isAllDataMode);
+  console.log('Form Data Entry - Form has visibilitas_dusun field:', 'visibilitas_dusun' in formDef);
 
   return (
     <div className="space-y-6">

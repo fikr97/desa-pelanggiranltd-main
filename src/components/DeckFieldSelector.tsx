@@ -38,36 +38,38 @@ const DeckFieldSelector: React.FC<DeckFieldSelectorProps> = ({
   };
 
   const handleFieldSettingsChange = (fieldId: string, setting: string, value: any) => {
-    const updatedFields = fields.map(field => {
+    let updatedFields = fields.map(field => {
       if (field.id === fieldId) {
-        const updatedField = { 
-          ...field, 
-          [setting]: value 
-        };
-        
-        // If we're changing the header status, make sure only one field is header
-        if (setting === 'deck_is_header' && value) {
-          // Reset all other fields' header status
-          return {
-            ...updatedField,
-            deck_is_header: true
-          };
+        // Update the specific field being changed
+        const newFieldData = { ...field, [setting]: value };
+
+        // If format is set to 'header', automatically make it the header
+        if (setting === 'deck_display_format' && value === 'header') {
+          newFieldData.deck_is_header = true;
+        }
+        // If format is changed away from 'header', it can't be the header
+        else if (setting === 'deck_display_format' && value !== 'header') {
+          newFieldData.deck_is_header = false;
         }
         
-        return updatedField;
+        return newFieldData;
       }
-      
-      // If the changed field is set as header, unset any other header fields
-      if (setting === 'deck_is_header' && value && field.id !== fieldId) {
-        return { 
-          ...field, 
-          deck_is_header: false 
-        };
-      }
-      
       return field;
     });
-    
+
+    // If a field was just made a header (either by format or switch),
+    // ensure it's the only one.
+    const isNowHeader = (setting === 'deck_display_format' && value === 'header') || (setting === 'deck_is_header' && value);
+    if (isNowHeader) {
+      updatedFields = updatedFields.map(field => {
+        if (field.id !== fieldId) {
+          // Unset header status for all other fields
+          return { ...field, deck_is_header: false };
+        }
+        return field;
+      });
+    }
+
     onFieldsUpdate(updatedFields);
   };
 
@@ -127,10 +129,10 @@ const DeckFieldSelector: React.FC<DeckFieldSelectorProps> = ({
                           </Select>
                         </div>
                         
-                        {(field.deck_display_format === 'header' || field.deck_is_header) && (
+                        {field.deck_display_format === 'header' && (
                           <div className="flex items-center gap-3">
                             <Switch
-                              checked={field.deck_is_header !== undefined ? field.deck_is_header : false}
+                              checked={field.deck_is_header || false}
                               onCheckedChange={(checked) => handleFieldSettingsChange(field.id, 'deck_is_header', checked)}
                             />
                             <Label className="text-sm">Gunakan sebagai judul kartu</Label>
