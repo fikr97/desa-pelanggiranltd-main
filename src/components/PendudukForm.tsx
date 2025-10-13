@@ -566,6 +566,7 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
                   <SelectItem value="B">B</SelectItem>
                   <SelectItem value="AB">AB</SelectItem>
                   <SelectItem value="O">O</SelectItem>
+                  <SelectItem value="-">Tidak Diketahui</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -904,6 +905,7 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
                   <SelectItem value="B">B</SelectItem>
                   <SelectItem value="AB">AB</SelectItem>
                   <SelectItem value="O">O</SelectItem>
+                  <SelectItem value="-">Tidak Diketahui</SelectItem>
                 </SelectContent>
               </Select>
             </div>
