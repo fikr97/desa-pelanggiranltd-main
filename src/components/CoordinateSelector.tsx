@@ -17,7 +17,6 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
   const [inputLng, setInputLng] = useState<string>(typeof value?.lng !== 'undefined' && value.lng !== '' ? String(value.lng) : '');
   const [searchQuery, setSearchQuery] = useState('');
   const [mapUrl, setMapUrl] = useState('');
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Initialize coordinates when component mounts or value changes
@@ -25,19 +24,6 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
     if (value) {
       setInputLat(typeof value.lat !== 'undefined' && value.lat !== '' ? String(value.lat) : '');
       setInputLng(typeof value.lng !== 'undefined' && value.lng !== '' ? String(value.lng) : '');
-      
-      // Update map if valid coordinates are provided
-      if (value.lat && value.lng && !isNaN(Number(value.lat)) && !isNaN(Number(value.lng))) {
-        const latNum = Number(value.lat);
-        const lngNum = Number(value.lng);
-        updateMapUrl(latNum, lngNum);
-      } else {
-        // Default map URL to Indonesia center
-        updateMapUrl(-6.200000, 106.816666);
-      }
-    } else {
-      // Default map URL to Indonesia center
-      updateMapUrl(-6.200000, 106.816666);
     }
   }, [value]);
 
@@ -66,15 +52,19 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
           setInputLat(latStr);
           setInputLng(lngStr);
           onChange({ lat: latStr, lng: lngStr });
-          updateMapUrl(latitude, longitude);
+          updateMapUrl(latitude, longitude, false); // Don't auto-center again
         },
         (error) => {
           console.error('Error getting location:', error);
           alert('Gagal mendapatkan lokasi saat ini. Pastikan Anda mengizinkan akses lokasi.');
+          // Fallback to default map
+          updateMapUrl(-6.200000, 106.816666, false);
         }
       );
     } else {
       alert('Geolocation tidak didukung oleh browser ini.');
+      // Fallback to default map
+      updateMapUrl(-6.200000, 106.816666, false);
     }
   };
 
@@ -92,7 +82,7 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
             setInputLat(lat);
             setInputLng(lon);
             onChange({ lat, lng: lon });
-            updateMapUrl(latNum, lngNum);
+            updateMapUrl(latNum, lngNum, false);
           } else {
             alert('Lokasi tidak ditemukan.');
           }
@@ -109,10 +99,9 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
     setOpen(false);
   };
 
-  const updateMapUrl = (lat: number, lng: number) => {
+  const updateMapUrl = (lat: number, lng: number, useCurrentLocation: boolean = false) => {
     // Use the separate HTML file with proper Leaflet integration
-    setMapUrl(`/coordinate-map.html?lat=${lat}&lng=${lng}`);
-    setIsMapLoaded(true);
+    setMapUrl(`/coordinate-map.html?lat=${lat}&lng=${lng}${useCurrentLocation ? '&useCurrentLocation=true' : ''}`);
   };
 
   // Handle coordinate input change
@@ -145,18 +134,31 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
           placeholder="Contoh: -6.200000, 106.816666"
           type="text"
         />
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog 
+          open={open} 
+          onOpenChange={(newOpen) => {
+            if (newOpen) {
+              // When dialog opens, set the map to use current location if possible
+              if (navigator.geolocation) {
+                updateMapUrl(-6.200000, 106.816666, true); // Use current location
+              } else {
+                updateMapUrl(-6.200000, 106.816666, false); // Default to Indonesia
+              }
+            }
+            setOpen(newOpen);
+          }}
+        >
           <DialogTrigger asChild>
             <Button variant="outline" type="button">
               <Crosshair className="h-4 w-4 mr-2" />
               Pilih dari Peta
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] w-full p-0">
+          <DialogContent className="max-w-4xl max-h-[90vh] w-full p-0 overflow-hidden flex flex-col">
             <DialogHeader className="p-4 pb-2">
               <DialogTitle>Pilih Lokasi dari Peta</DialogTitle>
             </DialogHeader>
-            <div className="p-4 space-y-3">
+            <div className="flex-1 flex flex-col p-4 space-y-3 overflow-hidden">
               <form onSubmit={handleSearch} className="flex gap-2">
                 <Input
                   value={searchQuery}
@@ -171,7 +173,7 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
                   <LocateFixed className="h-4 w-4" />
                 </Button>
               </form>
-              <div className="border rounded-lg h-[500px] relative overflow-hidden">
+              <div className="border rounded-lg flex-1 relative overflow-hidden">
                 <iframe
                   ref={iframeRef}
                   src={mapUrl}

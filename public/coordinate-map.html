@@ -6,8 +6,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    body, html { margin: 0; padding: 0; height: 100%; width: 100%; }
-    #map { height: 100%; width: 100%; }
+    body, html { 
+      margin: 0; 
+      padding: 0; 
+      height: 100%; 
+      width: 100%; 
+      overflow: hidden;
+    }
+    #map { 
+      height: 100%; 
+      width: 100%; 
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
     .coordinate-display {
       position: absolute;
       top: 10px;
@@ -50,32 +62,78 @@
     const urlParams = new URLSearchParams(window.location.search);
     const initialLat = parseFloat(urlParams.get('lat')) || -6.200000;
     const initialLng = parseFloat(urlParams.get('lng')) || 106.816666;
+    const useCurrentLocation = urlParams.get('useCurrentLocation') === 'true';
     
-    const map = L.map('map').setView([initialLat, initialLng], 15);
+    let map;
+    let marker;
     
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
-    
-    // Add a marker at the initial location
-    let marker = L.marker([initialLat, initialLng]).addTo(map);
-    
-    map.on('click', function(e) {
-      // Remove the existing marker and add a new one
-      map.removeLayer(marker);
-      marker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(map);
+    // Initialize the map
+    if (useCurrentLocation && navigator.geolocation) {
+      // If requested, try to get current location first
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          map = L.map('map').setView([latitude, longitude], 15);
+          
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          }).addTo(map);
+          
+          // Add a marker at the current location
+          marker = L.marker([latitude, longitude]).addTo(map);
+          
+          // Send the current coordinates to the parent window
+          parent.postMessage({
+            type: 'COORDINATE_SELECTED',
+            lat: latitude.toFixed(6),
+            lng: longitude.toFixed(6)
+          }, '*');
+        },
+        (error) => {
+          // If geolocation fails, use the initial coordinates
+          map = L.map('map').setView([initialLat, initialLng], 15);
+          
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          }).addTo(map);
+          
+          // Add a marker at the initial location
+          marker = L.marker([initialLat, initialLng]).addTo(map);
+        }
+      );
+    } else {
+      // Use the initial coordinates
+      map = L.map('map').setView([initialLat, initialLng], 15);
       
-      // Update coordinates display
-      document.getElementById('clickInstruction').textContent = 
-        'Lat: ' + e.latlng.lat.toFixed(6) + ', Lng: ' + e.latlng.lng.toFixed(6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
       
-      // Send the coordinates to the parent window
-      parent.postMessage({
-        type: 'COORDINATE_SELECTED',
-        lat: e.latlng.lat.toFixed(6),
-        lng: e.latlng.lng.toFixed(6)
-      }, '*');
-    });
+      // Add a marker at the initial location
+      marker = L.marker([initialLat, initialLng]).addTo(map);
+    }
+    
+    // Handle map clicks
+    if (map) {
+      map.on('click', function(e) {
+        // Remove the existing marker and add a new one
+        if (marker) {
+          map.removeLayer(marker);
+        }
+        marker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(map);
+        
+        // Update coordinates display
+        document.getElementById('clickInstruction').textContent = 
+          'Lat: ' + e.latlng.lat.toFixed(6) + ', Lng: ' + e.latlng.lng.toFixed(6);
+        
+        // Send the coordinates to the parent window
+        parent.postMessage({
+          type: 'COORDINATE_SELECTED',
+          lat: e.latlng.lat.toFixed(6),
+          lng: e.latlng.lng.toFixed(6)
+        }, '*');
+      });
+    }
   </script>
 </body>
 </html>
