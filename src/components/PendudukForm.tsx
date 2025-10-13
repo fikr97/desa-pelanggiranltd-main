@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface PendudukFormProps {
   penduduk?: any;
@@ -119,6 +121,9 @@ const pekerjaanOptions = [
 
 const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isMovingFamily, setIsMovingFamily] = useState(false);
+  const [showFamilyMoveDialog, setShowFamilyMoveDialog] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState<any[]>([]);
   const { toast } = useToast();
 
   // Fetch dusun data from wilayah table
@@ -255,71 +260,36 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
       const originalDusun = penduduk?.dusun;
       const dusunHasChanged = penduduk?.id && originalDusun !== formData.dusun;
 
-      if (penduduk?.id) {
-        // This is an UPDATE operation
-        let error = null;
+      if (penduduk?.id && dusunHasChanged) {
+        // Check if there are other family members with the same KK
+        const { data: familyMembers, error: familyError } = await supabase
+          .from('penduduk')
+          .select('*')
+          .eq('no_kk', penduduk.no_kk)
+          .neq('id', penduduk.id); // Exclude current resident
 
-        // 1. If dusun has changed, call the RPC function to move the resident
-        if (dusunHasChanged) {
-          console.log(`Dusun changed from '${originalDusun}' to '${formData.dusun}'. Calling RPC...`);
-          const { error: rpcError } = await supabase.rpc('move_penduduk', {
-            resident_id: penduduk.id,
-            new_dusun: formData.dusun
+        if (familyError) {
+          console.error('Error fetching family members:', familyError);
+          toast({
+            title: 'Gagal memuat data keluarga',
+            description: 'Terjadi kesalahan saat memeriksa anggota keluarga lainnya',
+            variant: 'destructive',
           });
-
-          if (rpcError) {
-            console.error('RPC Error moving resident:', rpcError);
-            // Throw the error to be caught by the catch block
-            throw new Error(`Gagal memindahkan dusun: ${rpcError.message}`);
-          }
-          console.log('RPC call successful.');
+          return;
         }
 
-        // 2. Update the rest of the form data (excluding dusun if it was changed)
-        const dataToUpdate = { ...formData };
-        if (dusunHasChanged) {
-          // We already handled the dusun update via RPC, so remove it from this update payload
-          delete (dataToUpdate as { dusun?: string }).dusun;
+        // Check if there are other family members with the same KK
+        if (familyMembers && familyMembers.length > 0) {
+          // Show popup to ask if user wants to move all family members
+          setFamilyMembers(familyMembers);
+          setShowFamilyMoveDialog(true);
+          setIsMovingFamily(true);
+          return; // Exit the function to show the dialog
         }
-        
-        console.log('Updating remaining data:', dataToUpdate);
-        const { error: updateError } = await supabase
-          .from('penduduk')
-          .update(dataToUpdate)
-          .eq('id', penduduk.id);
-
-        error = updateError;
-
-        if (error) {
-          console.error('Update error:', error);
-          throw error;
-        }
-
-        toast({
-          title: 'Data berhasil diperbarui',
-          description: 'Data penduduk telah diperbarui dalam sistem',
-        });
-
-      } else {
-        // This is a CREATE operation
-        console.log('Creating new penduduk');
-        const { error } = await supabase
-          .from('penduduk')
-          .insert([formData])
-          .select();
-
-        if (error) {
-          console.error('Insert error:', error);
-          throw error;
-        }
-
-        toast({
-          title: 'Data berhasil ditambahkan',
-          description: 'Data penduduk baru telah ditambahkan ke sistem',
-        });
       }
 
-      onClose();
+      // If no family members or user decides not to move family, proceed with normal update
+      await performUpdate();
     } catch (error: any) {
       if (error.code === '23505' && error.message.includes('penduduk_nik_key')) {
         console.error('Error saving penduduk: NIK already exists.', error);
@@ -338,6 +308,168 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const [showIndividualMoveDialog, setShowIndividualMoveDialog] = useState(false);
+  const [newKKNumber, setNewKKNumber] = useState('');
+  const [newStatusHubungan, setNewStatusHubungan] = useState('Anggota Keluarga');
+  const [newGolonganDarah, setNewGolonganDarah] = useState('');
+  const [newAgama, setNewAgama] = useState('');
+  const [newStatusKawin, setNewStatusKawin] = useState('');
+  const [newPendidikan, setNewPendidikan] = useState('');
+  const [newPekerjaan, setNewPekerjaan] = useState('');
+  
+  const performUpdate = async (moveAllFamilyMembers = false, individualNoKK?: string, individualStatus?: string, 
+    individualGolDarah?: string, individualAgama?: string, individualStatusKawin?: string, 
+    individualPendidikan?: string, individualPekerjaan?: string) => {
+    if (penduduk?.id) {
+      // This is an UPDATE operation
+      const originalDusun = penduduk.dusun;
+      const dusunHasChanged = originalDusun !== formData.dusun;
+
+      let error = null;
+
+      if (dusunHasChanged) {
+        if (moveAllFamilyMembers) {
+          // Move all family members with the same KK to new dusun
+          // First update all members of the same family with new dusun
+          const { error: updateError } = await supabase
+            .from('penduduk')
+            .update({ dusun: formData.dusun })
+            .eq('no_kk', penduduk.no_kk);
+
+          if (updateError) {
+            console.error('Error moving all family members:', updateError);
+            throw new Error(`Gagal memindahkan semua anggota keluarga: ${updateError.message}`);
+          }
+          console.log('All family members moved to new dusun successfully.');
+        } else {
+          // Move only the current resident
+          // If the user provided a new KK number for this individual
+          const updateData: any = { dusun: formData.dusun };
+          if (individualNoKK) {
+            updateData.no_kk = individualNoKK;
+          }
+          if (individualStatus) {
+            updateData.status_hubungan = individualStatus;
+          }
+          if (individualGolDarah) {
+            updateData.golongan_darah = individualGolDarah;
+          }
+          if (individualAgama) {
+            updateData.agama = individualAgama;
+          }
+          if (individualStatusKawin) {
+            updateData.status_kawin = individualStatusKawin;
+          }
+          if (individualPendidikan) {
+            updateData.pendidikan = individualPendidikan;
+          }
+          if (individualPekerjaan) {
+            updateData.pekerjaan = individualPekerjaan;
+          }
+          
+          console.log(`Moving individual with new data:`, updateData);
+          const { error: updateError } = await supabase
+            .from('penduduk')
+            .update(updateData)
+            .eq('id', penduduk.id);
+
+          if (updateError) {
+            console.error('Error moving individual resident:', updateError);
+            throw new Error(`Gagal memindahkan dusun: ${updateError.message}`);
+          }
+          console.log('Individual resident moved successfully.');
+        }
+      } else if (individualNoKK || individualStatus || individualGolDarah || individualAgama || individualStatusKawin || individualPendidikan || individualPekerjaan) {
+        // If dusun hasn't changed but we're changing other fields for individual
+        const updateData: any = {};
+        if (individualNoKK) updateData.no_kk = individualNoKK;
+        if (individualStatus) updateData.status_hubungan = individualStatus;
+        if (individualGolDarah) updateData.golongan_darah = individualGolDarah;
+        if (individualAgama) updateData.agama = individualAgama;
+        if (individualStatusKawin) updateData.status_kawin = individualStatusKawin;
+        if (individualPendidikan) updateData.pendidikan = individualPendidikan;
+        if (individualPekerjaan) updateData.pekerjaan = individualPekerjaan;
+        
+        if (Object.keys(updateData).length > 0) {
+          const { error: updateError } = await supabase
+            .from('penduduk')
+            .update(updateData)
+            .eq('id', penduduk.id);
+            
+          if (updateError) {
+            console.error('Error updating individual data:', updateError);
+            throw new Error(`Gagal memperbarui data individu: ${updateError.message}`);
+          }
+          console.log('Individual data updated successfully.');
+        }
+      }
+
+      // Update the rest of the form data (excluding fields that may have been handled separately)
+      const dataToUpdate = { ...formData };
+      delete (dataToUpdate as { dusun?: string }).dusun; // dusun already handled above
+      
+      // If we're changing fields separately, don't include them in this update
+      if (individualNoKK) delete (dataToUpdate as { no_kk?: string }).no_kk;
+      if (individualStatus) delete (dataToUpdate as { status_hubungan?: string }).status_hubungan;
+      if (individualGolDarah) delete (dataToUpdate as { golongan_darah?: string }).golongan_darah;
+      if (individualAgama) delete (dataToUpdate as { agama?: string }).agama;
+      if (individualStatusKawin) delete (dataToUpdate as { status_kawin?: string }).status_kawin;
+      if (individualPendidikan) delete (dataToUpdate as { pendidikan?: string }).pendidikan;
+      if (individualPekerjaan) delete (dataToUpdate as { pekerjaan?: string }).pekerjaan;
+      
+      console.log('Updating remaining data:', dataToUpdate);
+      if (Object.keys(dataToUpdate).length > 0) {
+        const { error: updateError } = await supabase
+          .from('penduduk')
+          .update(dataToUpdate)
+          .eq('id', penduduk.id);
+
+        error = updateError;
+
+        if (error) {
+          console.error('Update error:', error);
+          throw error;
+        }
+      }
+
+      toast({
+        title: 'Data berhasil diperbarui',
+        description: 'Data penduduk telah diperbarui dalam sistem',
+      });
+
+    } else {
+      // This is a CREATE operation
+      console.log('Creating new penduduk');
+      const { error } = await supabase
+        .from('penduduk')
+        .insert([formData])
+        .select();
+
+      if (error) {
+        console.error('Insert error:', error);
+        throw error;
+      }
+
+      toast({
+        title: 'Data berhasil ditambahkan',
+        description: 'Data penduduk baru telah ditambahkan ke sistem',
+      });
+    }
+
+    onClose();
+  };
+
+  const handleMoveFamilyDecision = async (decision: 'yes' | 'no') => {
+    setShowFamilyMoveDialog(false);
+    
+    if (decision === 'yes') {
+      await performUpdate(true); // Move all family members
+    } else {
+      // If user selects 'no', they need to enter new KK and family status
+      setShowIndividualMoveDialog(true); // Show dialog for individual move details
     }
   };
 
@@ -687,6 +819,190 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
           {penduduk ? 'Perbarui' : 'Simpan'}
         </Button>
       </div>
+
+      {/* Dialog for Family Move Decision */}
+      <Dialog open={showFamilyMoveDialog} onOpenChange={setShowFamilyMoveDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pemindahan Anggota Keluarga</DialogTitle>
+            <DialogDescription>
+              Terdapat {familyMembers.length} anggota keluarga lain dengan No. KK yang sama. Apakah Anda ingin memindahkan semua anggota keluarga ke dusun yang baru?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Alert>
+              <AlertDescription className="text-sm">
+                <div className="font-medium mb-2">Anggota Keluarga Terpengaruh:</div>
+                <ul className="list-disc pl-5 space-y-1">
+                  {familyMembers.map((member, index) => (
+                    <li key={member.id || index}>{member.nama} ({member.status_hubungan})</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          </div>
+          <div className="flex justify-end space-x-3">
+            <Button variant="outline" onClick={() => handleMoveFamilyDecision('no')}>
+              Tidak, Pindahkan Individu Saja
+            </Button>
+            <Button onClick={() => handleMoveFamilyDecision('yes')}>
+              Ya, Pindahkan Semua
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for Individual Move Details (when user chooses not to move all family) */}
+      <Dialog open={showIndividualMoveDialog} onOpenChange={setShowIndividualMoveDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Data Baru untuk Individu</DialogTitle>
+            <DialogDescription>
+              Karena Anda memilih memindahkan individu saja, silakan masukkan data baru untuk anggota ini:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4 max-h-96 overflow-y-auto">
+            <div>
+              <Label htmlFor="new_kk_number">Nomor Kartu Keluarga Baru</Label>
+              <Input
+                id="new_kk_number"
+                value={newKKNumber}
+                onChange={(e) => setNewKKNumber(e.target.value)}
+                placeholder="Masukkan nomor KK baru"
+                maxLength={16}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="new_status_hubungan">Status Hubungan dalam Keluarga</Label>
+              <Select value={newStatusHubungan} onValueChange={setNewStatusHubungan}>
+                <SelectTrigger id="new_status_hubungan" className="mt-1">
+                  <SelectValue placeholder="Pilih status hubungan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Kepala Keluarga">Kepala Keluarga</SelectItem>
+                  <SelectItem value="Istri">Istri</SelectItem>
+                  <SelectItem value="Anak">Anak</SelectItem>
+                  <SelectItem value="Menantu">Menantu</SelectItem>
+                  <SelectItem value="Cucu">Cucu</SelectItem>
+                  <SelectItem value="Orangtua">Orangtua</SelectItem>
+                  <SelectItem value="Mertua">Mertua</SelectItem>
+                  <SelectItem value="Famili Lain">Famili Lain</SelectItem>
+                  <SelectItem value="Pembantu">Pembantu</SelectItem>
+                  <SelectItem value="Lainnya">Lainnya</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="new_gol_darah">Golongan Darah</Label>
+              <Select value={newGolonganDarah} onValueChange={setNewGolonganDarah}>
+                <SelectTrigger id="new_gol_darah" className="mt-1">
+                  <SelectValue placeholder="Pilih golongan darah" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="A">A</SelectItem>
+                  <SelectItem value="B">B</SelectItem>
+                  <SelectItem value="AB">AB</SelectItem>
+                  <SelectItem value="O">O</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="new_agama">Agama</Label>
+              <Select value={newAgama} onValueChange={setNewAgama}>
+                <SelectTrigger id="new_agama" className="mt-1">
+                  <SelectValue placeholder="Pilih agama" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Islam">Islam</SelectItem>
+                  <SelectItem value="Kristen">Kristen</SelectItem>
+                  <SelectItem value="Katolik">Katolik</SelectItem>
+                  <SelectItem value="Hindu">Hindu</SelectItem>
+                  <SelectItem value="Buddha">Buddha</SelectItem>
+                  <SelectItem value="Konghucu">Konghucu</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="new_status_kawin">Status Perkawinan</Label>
+              <Select value={newStatusKawin} onValueChange={setNewStatusKawin}>
+                <SelectTrigger id="new_status_kawin" className="mt-1">
+                  <SelectValue placeholder="Pilih status kawin" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Belum Kawin">Belum Kawin</SelectItem>
+                  <SelectItem value="Kawin">Kawin</SelectItem>
+                  <SelectItem value="Cerai Hidup">Cerai Hidup</SelectItem>
+                  <SelectItem value="Cerai Mati">Cerai Mati</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="new_pendidikan">Pendidikan Terakhir</Label>
+              <Select value={newPendidikan} onValueChange={setNewPendidikan}>
+                <SelectTrigger id="new_pendidikan" className="mt-1">
+                  <SelectValue placeholder="Pilih pendidikan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Tidak/Belum Sekolah">Tidak/Belum Sekolah</SelectItem>
+                  <SelectItem value="Belum Tamat SD/Sederajat">Belum Tamat SD/Sederajat</SelectItem>
+                  <SelectItem value="Tamat SD/Sederajat">Tamat SD/Sederajat</SelectItem>
+                  <SelectItem value="SLTP/Sederajat">SLTP/Sederajat</SelectItem>
+                  <SelectItem value="SLTA/Sederajat">SLTA/Sederajat</SelectItem>
+                  <SelectItem value="Diploma I/II">Diploma I/II</SelectItem>
+                  <SelectItem value="Akademi/Diploma III/S.Muda">Akademi/Diploma III/S.Muda</SelectItem>
+                  <SelectItem value="Diploma IV/Strata I">Diploma IV/Strata I</SelectItem>
+                  <SelectItem value="Strata II">Strata II</SelectItem>
+                  <SelectItem value="Strata III">Strata III</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="new_pekerjaan">Pekerjaan</Label>
+              <Select value={newPekerjaan} onValueChange={setNewPekerjaan}>
+                <SelectTrigger id="new_pekerjaan" className="mt-1">
+                  <SelectValue placeholder="Pilih pekerjaan" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {pekerjaanOptions.map((pekerjaan) => (
+                    <SelectItem key={pekerjaan} value={pekerjaan}>
+                      {pekerjaan}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Alert>
+              <AlertDescription className="text-sm">
+                Jika Anda tidak mengisi field-field di atas, individu ini akan mempertahankan data sebelumnya.
+              </AlertDescription>
+            </Alert>
+          </div>
+          <div className="flex justify-end space-x-3">
+            <Button variant="outline" onClick={() => setShowIndividualMoveDialog(false)}>
+              Batal
+            </Button>
+            <Button onClick={() => {
+              // Validate new KK number if provided
+              if (newKKNumber && newKKNumber.length !== 0 && newKKNumber.length !== 16) {
+                toast({ 
+                  title: 'Data tidak valid', 
+                  description: 'No. KK harus terdiri dari 16 digit.', 
+                  variant: 'destructive' 
+                });
+                return;
+              }
+              
+              performUpdate(false, newKKNumber || undefined, newStatusHubungan, 
+                newGolonganDarah || undefined, newAgama || undefined, newStatusKawin || undefined, 
+                newPendidikan || undefined, newPekerjaan || undefined);
+              setShowIndividualMoveDialog(false);
+            }}>
+              Simpan Perubahan
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 };
