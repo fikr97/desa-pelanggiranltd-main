@@ -9,3 +9,83 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+// Image upload and management functions
+export const uploadImage = async (file: File, folder: string = 'default'): Promise<string | null> => {
+  try {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Hanya file gambar yang diperbolehkan');
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Ukuran file maksimal 5MB');
+    }
+
+    // Generate a unique filename
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExtension}`;
+    
+    // Upload to Supabase storage
+    const { data, error } = await supabase.storage
+      .from('form_images')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    // Get public URL
+    const { data: publicData } = supabase.storage
+      .from('form_images')
+      .getPublicUrl(fileName);
+
+    return publicData?.publicUrl || null;
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    throw error;
+  }
+};
+
+export const deleteImage = async (imageUrl: string): Promise<boolean> => {
+  try {
+    // Extract file path from the public URL
+    // Expected format: https://<project>.supabase.co/storage/v1/object/public/form_images/<folder>/<filename>
+    // We want to extract everything after the bucket name "form_images"
+    const url = new URL(imageUrl);
+    const pathParts = url.pathname.split('/');
+    
+    // Find where the bucket name 'form_images' is to extract the file path after it
+    const bucketIndex = pathParts.indexOf('form_images');
+    if (bucketIndex === -1) {
+      console.error('Could not find bucket name in image URL:', imageUrl);
+      return false;
+    }
+    
+    // Get the file path after the bucket name
+    const fileName = pathParts.slice(bucketIndex + 1).join('/');
+    
+    if (!fileName) {
+      console.error('Could not extract file name from image URL:', imageUrl);
+      return false;
+    }
+  
+    const { error } = await supabase.storage
+      .from('form_images')
+      .remove([fileName]);
+
+    if (error) {
+      console.error('Error deleting image:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error deleting image:', error);
+    return false;
+  }
+};

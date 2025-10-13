@@ -19,6 +19,7 @@ import {
   jenisKelaminOptions
 } from '@/lib/options';
 import CoordinateSelector from './CoordinateSelector';
+import ImageUploadField from './ImageUploadField';
 
 const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLoading, profile }) => {
   const [selectedResident, setSelectedResident] = useState(null);
@@ -293,6 +294,19 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
           </div>
         );
       }
+      case 'image':
+        return (
+          <div key={field.id}>
+            <ImageUploadField
+              label={field.label_field}
+              value={value}
+              onChange={(newValue) => handleInputChange(field.nama_field, newValue)}
+              isRequired={field.is_required}
+              disabled={isLoading}
+              formId={formDef.id}
+            />
+          </div>
+        );
       default: // 'text', 'predefined', etc.
         return (
           <div key={field.id}>

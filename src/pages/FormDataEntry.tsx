@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, deleteImage } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -65,6 +65,15 @@ const getFieldValue = (entry, field) => {
     value = entry.penduduk?.[field.nama_field] || 'N/A';
   } else {
     value = 'N/A';
+  }
+
+  // Special handling for image values
+  if (field.tipe_field === 'image') {
+    if (value && typeof value === 'string' && value.startsWith('http')) {
+      // Return a special indicator that this is an image
+      return { type: 'image', url: value };
+    }
+    return value || 'N/A';
   }
 
   // Special handling for coordinate values
@@ -498,6 +507,29 @@ const FormDataEntry = () => {
   const handleDelete = async () => {
     if (!entryToDelete) return;
     try {
+      // First, check if the entry has any images to delete
+      if (entryToDelete.data_custom) {
+        // Find all image fields in the current form
+        const imageFields = data.formDef.fields.filter(field => field.tipe_field === 'image');
+        
+        // Delete all images associated with this entry
+        for (const field of imageFields) {
+          const imageUrl = entryToDelete.data_custom[field.nama_field];
+          if (imageUrl && typeof imageUrl === 'string' && imageUrl.includes('supabase.co')) {
+            try {
+              const deleteResult = await deleteImage(imageUrl);
+              if (!deleteResult) {
+                console.warn(`Failed to delete image: ${imageUrl}`);
+              } else {
+                console.log(`Deleted image: ${imageUrl}`);
+              }
+            } catch (deleteError) {
+              console.error(`Error deleting image ${imageUrl}:`, deleteError);
+            }
+          }
+        }
+      }
+      
       const { error } = await supabase.from('form_tugas_data').delete().eq('id', entryToDelete.id);
       if (error) throw error;
       toast({ title: 'Berhasil', description: 'Data telah dihapus.' });
@@ -617,6 +649,36 @@ const FormDataEntry = () => {
       try {
         let result;
         if (entryId) {
+          // Check if any image fields have been updated to clean up old images (for all data mode)
+          const oldEntry = data.entries.find(entry => entry.id === entryId);
+          if (oldEntry) {
+            // Find all image fields in the form
+            const imageFields = data.formDef.fields.filter(field => field.tipe_field === 'image');
+            
+            // Compare old and new values for image fields
+            for (const field of imageFields) {
+              const oldUrl = oldEntry.data_custom?.[field.nama_field];
+              const newUrl = dataToSave[field.nama_field];
+              
+              // If the image has been changed, delete the old one
+              if (oldUrl && newUrl && oldUrl !== newUrl) {
+                // Check if oldUrl is a Supabase storage URL before attempting to delete
+                if (oldUrl.includes('supabase.co')) {
+                  try {
+                    const deleteResult = await deleteImage(oldUrl);
+                    if (!deleteResult) {
+                      console.warn(`Failed to delete old image: ${oldUrl}`);
+                    } else {
+                      console.log(`Deleted old image: ${oldUrl}`);
+                    }
+                  } catch (deleteError) {
+                    console.error(`Error deleting old image ${oldUrl}:`, deleteError);
+                  }
+                }
+              }
+            }
+          }
+          
           console.log('Updating existing entry in all data mode:', { 
             entryId, 
             formId, 
@@ -689,6 +751,36 @@ const FormDataEntry = () => {
           // For updates in normal mode, we'll check if an RPC function exists for updating
           // First, let's try using the update_form_data_with_penduduk_check function if it exists
           try {
+            // Check if any image fields have been updated to clean up old images (for RPC function in normal mode)
+            const oldEntry = data.entries.find(entry => entry.id === entryId);
+            if (oldEntry) {
+              // Find all image fields in the form
+              const imageFields = data.formDef.fields.filter(field => field.tipe_field === 'image');
+              
+              // Compare old and new values for image fields
+              for (const field of imageFields) {
+                const oldUrl = oldEntry.data_custom?.[field.nama_field];
+                const newUrl = dataToSave[field.nama_field];
+                
+                // If the image has been changed, delete the old one
+                if (oldUrl && newUrl && oldUrl !== newUrl) {
+                  // Check if oldUrl is a Supabase storage URL before attempting to delete
+                  if (oldUrl.includes('supabase.co')) {
+                    try {
+                      const deleteResult = await deleteImage(oldUrl);
+                      if (!deleteResult) {
+                        console.warn(`Failed to delete old image: ${oldUrl}`);
+                      } else {
+                        console.log(`Deleted old image: ${oldUrl}`);
+                      }
+                    } catch (deleteError) {
+                      console.error(`Error deleting old image ${oldUrl}:`, deleteError);
+                    }
+                  }
+                }
+              }
+            }
+            
             console.log('Updating existing entry in normal mode using RPC:', { 
               entryId, 
               formId, 
@@ -740,6 +832,36 @@ const FormDataEntry = () => {
         
         let result;
         if (entryId) {
+          // Check if any image fields have been updated to clean up old images
+          const oldEntry = data.entries.find(entry => entry.id === entryId);
+          if (oldEntry) {
+            // Find all image fields in the form
+            const imageFields = data.formDef.fields.filter(field => field.tipe_field === 'image');
+            
+            // Compare old and new values for image fields
+            for (const field of imageFields) {
+              const oldUrl = oldEntry.data_custom?.[field.nama_field];
+              const newUrl = dataToSave[field.nama_field];
+              
+              // If the image has been changed, delete the old one
+              if (oldUrl && newUrl && oldUrl !== newUrl) {
+                // Check if oldUrl is a Supabase storage URL before attempting to delete
+                if (oldUrl.includes('supabase.co')) {
+                  try {
+                    const deleteResult = await deleteImage(oldUrl);
+                    if (!deleteResult) {
+                      console.warn(`Failed to delete old image: ${oldUrl}`);
+                    } else {
+                      console.log(`Deleted old image: ${oldUrl}`);
+                    }
+                  } catch (deleteError) {
+                    console.error(`Error deleting old image ${oldUrl}:`, deleteError);
+                  }
+                }
+              }
+            }
+          }
+          
           console.log('Updating existing entry with direct approach:', { entryId, payload });
           // For updates, don't include form_tugas_id as it shouldn't change
           result = await supabase.from('form_tugas_data').update(payload).eq('id', entryId);
@@ -936,9 +1058,10 @@ const FormDataEntry = () => {
                       <TableCell>{index + 1}</TableCell>
                       {formDef.fields.map(field => (
                         <TableCell key={field.id}>
-                          {field.tipe_field === 'coordinate' ? (
-                            (() => {
-                              const value = getFieldValue(entry, field);
+                          {(() => {
+                            const value = getFieldValue(entry, field);
+                            
+                            if (field.tipe_field === 'coordinate') {
                               if (value && value !== 'Koordinat tidak valid') {
                                 // Try to parse the coordinate value
                                 let coords = null;
@@ -977,10 +1100,32 @@ const FormDataEntry = () => {
                                 }
                               }
                               return value;
-                            })()
-                          ) : (
-                            getFieldValue(entry, field)
-                          )}
+                            } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+                              // Handle image display in table view
+                              return (
+                                <a 
+                                  href={value.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="block"
+                                  onClick={(e) => e.stopPropagation()} // Prevent row click from firing
+                                >
+                                  <img 
+                                    src={value.url} 
+                                    alt="Gambar" 
+                                    className="max-h-16 object-cover rounded border"
+                                    onError={(e) => {
+                                      // If the image fails to load, show an error indicator
+                                      e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
+                                      e.currentTarget.className = 'max-h-16 object-cover rounded border text-gray-400';
+                                    }}
+                                  />
+                                </a>
+                              );
+                            }
+                            
+                            return value;
+                          })()}
                         </TableCell>
                       ))}
                       <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
@@ -1030,7 +1175,76 @@ const FormDataEntry = () => {
                   <TableRow key={entry.id}>
                     <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                     {formDef.fields.map(field => (
-                      <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
+                      <TableCell key={field.id}>
+                        {(() => {
+                          const value = getFieldValue(entry, field);
+                          
+                          if (field.tipe_field === 'coordinate') {
+                            if (value && value !== 'Koordinat tidak valid') {
+                              // Try to parse the coordinate value
+                              let coords = null;
+                              try {
+                                // If it's already an object format from JSON.parse
+                                if (typeof value === 'object') {
+                                  coords = value;
+                                } else {
+                                  // If it's in "lat, lng" format, split it
+                                  const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+                                  if (!isNaN(lat) && !isNaN(lng)) {
+                                    coords = { lat, lng };
+                                  }
+                                }
+                              } catch (e) {
+                                console.error("Error parsing coordinate for link:", e);
+                              }
+                              
+                              if (coords) {
+                                const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
+                                return (
+                                  <a 
+                                    href={mapUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline flex items-center gap-1"
+                                    onClick={(e) => e.stopPropagation()} // Prevent row click from firing
+                                  >
+                                    {value}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
+                                      <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                                      <circle cx="12" cy="10" r="3"/>
+                                    </svg>
+                                  </a>
+                                );
+                              }
+                            }
+                            return value;
+                          } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+                            // Handle image display in table view
+                            return (
+                              <a 
+                                href={value.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="block"
+                                onClick={(e) => e.stopPropagation()} // Prevent row click from firing
+                              >
+                                <img 
+                                  src={value.url} 
+                                  alt="Gambar" 
+                                  className="max-h-16 object-cover rounded border"
+                                  onError={(e) => {
+                                    // If the image fails to load, show an error indicator
+                                    e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
+                                    e.currentTarget.className = 'max-h-16 object-cover rounded border text-gray-400';
+                                  }}
+                                />
+                              </a>
+                            );
+                          }
+                          
+                          return value;
+                        })()}
+                      </TableCell>
                     ))}
                     <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
                       {formDef.show_edit_button && (
@@ -1193,48 +1407,75 @@ const FormDataEntry = () => {
                         <div className="space-y-2">
                           {bodyFields.map(field => {
                             const value = getFieldValue(entry, field);
-                            const displayValue = field.tipe_field === 'coordinate' ? (
-                              (() => {
-                                if (value && value !== 'Koordinat tidak valid') {
-                                  // Try to parse the coordinate value
-                                  let coords = null;
-                                  try {
-                                    // If it's already an object format from JSON.parse
-                                    if (typeof value === 'object') {
-                                      coords = value;
-                                    } else {
-                                      // If it's in "lat, lng" format, split it
-                                      const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
-                                      if (!isNaN(lat) && !isNaN(lng)) {
-                                        coords = { lat, lng };
-                                      }
+                            let displayValue;
+                            
+                            if (field.tipe_field === 'coordinate') {
+                              if (value && value !== 'Koordinat tidak valid') {
+                                // Try to parse the coordinate value
+                                let coords = null;
+                                try {
+                                  // If it's already an object format from JSON.parse
+                                  if (typeof value === 'object') {
+                                    coords = value;
+                                  } else {
+                                    // If it's in "lat, lng" format, split it
+                                    const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+                                    if (!isNaN(lat) && !isNaN(lng)) {
+                                      coords = { lat, lng };
                                     }
-                                  } catch (e) {
-                                    console.error("Error parsing coordinate for link:", e);
                                   }
-                                  
-                                  if (coords) {
-                                    const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
-                                    return (
-                                      <a 
-                                        href={mapUrl} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:underline flex items-center gap-1"
-                                        onClick={(e) => e.stopPropagation()} // Prevent card click from firing
-                                      >
-                                        {value}
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
-                                          <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
-                                          <circle cx="12" cy="10" r="3"/>
-                                        </svg>
-                                      </a>
-                                    );
-                                  }
+                                } catch (e) {
+                                  console.error("Error parsing coordinate for link:", e);
                                 }
-                                return value;
-                              })()
-                            ) : value;
+                                
+                                if (coords) {
+                                  const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
+                                  displayValue = (
+                                    <a 
+                                      href={mapUrl} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline flex items-center gap-1"
+                                      onClick={(e) => e.stopPropagation()} // Prevent card click from firing
+                                    >
+                                      {value}
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
+                                        <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                                        <circle cx="12" cy="10" r="3"/>
+                                      </svg>
+                                    </a>
+                                  );
+                                } else {
+                                  displayValue = value;
+                                }
+                              } else {
+                                displayValue = value;
+                              }
+                            } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+                              // Handle image display in deck view
+                              displayValue = (
+                                <a 
+                                  href={value.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="block"
+                                  onClick={(e) => e.stopPropagation()} // Prevent card click from firing
+                                >
+                                  <img 
+                                    src={value.url} 
+                                    alt="Gambar" 
+                                    className="max-h-32 object-cover rounded border w-full"
+                                    onError={(e) => {
+                                      // If the image fails to load, show an error indicator
+                                      e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
+                                      e.currentTarget.className = 'max-h-32 object-cover rounded border w-full text-gray-400';
+                                    }}
+                                  />
+                                </a>
+                              );
+                            } else {
+                              displayValue = value;
+                            }
                             
                             return (
                               <div key={field.id} className="flex flex-col">
@@ -1296,10 +1537,82 @@ const FormDataEntry = () => {
                     <div className="space-y-2">
                       {bodyFields.map(field => {
                         const value = getFieldValue(entry, field);
+                        
+                        let displayElement;
+                        if (field.tipe_field === 'coordinate') {
+                          if (value && value !== 'Koordinat tidak valid') {
+                            // Try to parse the coordinate value
+                            let coords = null;
+                            try {
+                              // If it's already an object format from JSON.parse
+                              if (typeof value === 'object') {
+                                coords = value;
+                              } else {
+                                // If it's in "lat, lng" format, split it
+                                const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+                                if (!isNaN(lat) && !isNaN(lng)) {
+                                  coords = { lat, lng };
+                                }
+                              }
+                            } catch (e) {
+                              console.error("Error parsing coordinate for link:", e);
+                            }
+                            
+                            if (coords) {
+                              const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
+                              displayElement = (
+                                <a 
+                                  href={mapUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline flex items-center gap-1"
+                                  onClick={(e) => e.stopPropagation()} // Prevent card click from firing
+                                >
+                                  {value}
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
+                                    <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                                    <circle cx="12" cy="10" r="3"/>
+                                  </svg>
+                                </a>
+                              );
+                            } else {
+                              displayElement = value;
+                            }
+                          } else {
+                            displayElement = value;
+                          }
+                        } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+                          // Handle image display in deck view
+                          displayElement = (
+                            <a 
+                              href={value.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="block"
+                              onClick={(e) => e.stopPropagation()} // Prevent card click from firing
+                            >
+                              <img 
+                                src={value.url} 
+                                alt="Gambar" 
+                                className="max-h-32 object-cover rounded border w-full mt-1"
+                                onError={(e) => {
+                                  // If the image fails to load, show an error indicator
+                                  e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
+                                  e.currentTarget.className = 'max-h-32 object-cover rounded border w-full mt-1 text-gray-400';
+                                }}
+                              />
+                            </a>
+                          );
+                        } else {
+                          displayElement = value;
+                        }
+                        
                         return (
                           <div key={field.id} className="flex flex-col">
                             <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
-                            <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>{value}</span>
+                            <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>
+                              {displayElement}
+                            </span>
                           </div>
                         );
                       })}

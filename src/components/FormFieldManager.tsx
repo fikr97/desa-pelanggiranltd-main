@@ -216,6 +216,7 @@ const CustomFieldDialog = ({ onSave }) => {
               <SelectItem value="date">Tanggal</SelectItem>
               <SelectItem value="dropdown">Dropdown (Pilihan)</SelectItem>
               <SelectItem value="coordinate">Koordinat/Geo-tagging</SelectItem>
+              <SelectItem value="image">Unggah Gambar</SelectItem>
             </SelectContent>
           </Select>
         </div>
