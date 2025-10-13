@@ -31,7 +31,13 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
         const latNum = Number(value.lat);
         const lngNum = Number(value.lng);
         updateMapUrl(latNum, lngNum);
+      } else {
+        // Default map URL to Indonesia center
+        updateMapUrl(-6.200000, 106.816666);
       }
+    } else {
+      // Default map URL to Indonesia center
+      updateMapUrl(-6.200000, 106.816666);
     }
   }, [value]);
 
@@ -104,85 +110,8 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
   };
 
   const updateMapUrl = (lat: number, lng: number) => {
-    // Create a simple HTML page with Leaflet that allows map clicking
-    const mapHtml = encodeURIComponent(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Coordinate Selector</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-        <style>
-          body, html { margin: 0; padding: 0; height: 100%; width: 100%; }
-          #map { height: 100%; width: 100%; }
-          .coordinate-display {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: white;
-            padding: 10px;
-            border-radius: 4px;
-            z-index: 1000;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-          }
-          .click-instruction {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px;
-            border-radius: 4px;
-            z-index: 1000;
-            font-family: Arial, sans-serif;
-            font-size: 16px;
-            text-align: center;
-          }
-        </style>
-      </head>
-      <body>
-        <div id="map"></div>
-        <div class="coordinate-display">
-          Klik pada peta untuk memilih koordinat
-        </div>
-        <div class="click-instruction" id="clickInstruction">
-          Klik di sini
-        </div>
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-        <script>
-          const map = L.map('map').setView([${lat}, ${lng}], 15);
-          
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          }).addTo(map);
-          
-          // Add a marker at the initial location
-          let marker = L.marker([${lat}, ${lng}]).addTo(map);
-          
-          map.on('click', function(e) {
-            // Remove the existing marker and add a new one
-            map.removeLayer(marker);
-            marker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(map);
-            
-            // Update coordinates display
-            document.getElementById('clickInstruction').textContent = 
-              'Lat: ' + e.latlng.lat.toFixed(6) + ', Lng: ' + e.latlng.lng.toFixed(6);
-            
-            // Send the coordinates to the parent window
-            parent.postMessage({
-              type: 'COORDINATE_SELECTED',
-              lat: e.latlng.lat.toFixed(6),
-              lng: e.latlng.lng.toFixed(6)
-            }, '*');
-          });
-        </script>
-      </body>
-      </html>
-    `);
-    
-    setMapUrl(`data:text/html;charset=utf-8,${mapHtml}`);
+    // Use the separate HTML file with proper Leaflet integration
+    setMapUrl(`/coordinate-map.html?lat=${lat}&lng=${lng}`);
     setIsMapLoaded(true);
   };
 
@@ -243,19 +172,12 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
                 </Button>
               </form>
               <div className="border rounded-lg h-[500px] relative overflow-hidden">
-                {isMapLoaded && (
-                  <iframe
-                    ref={iframeRef}
-                    src={mapUrl}
-                    className="w-full h-full border-0"
-                    title="Map Selector"
-                  />
-                )}
-                {!isMapLoaded && (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                    <p className="text-gray-500">Memuat peta...</p>
-                  </div>
-                )}
+                <iframe
+                  ref={iframeRef}
+                  src={mapUrl}
+                  className="w-full h-full border-0"
+                  title="Map Selector"
+                />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" onClick={() => setOpen(false)} type="button">Batal</Button>
