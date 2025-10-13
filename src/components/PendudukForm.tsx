@@ -333,21 +333,47 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
       if (dusunHasChanged) {
         if (moveAllFamilyMembers) {
           // Move all family members with the same KK to new dusun
-          // First update all members of the same family with new dusun
-          const { error: updateError } = await supabase
+          // Use the move_penduduk RPC function for each family member to comply with RLS
+          const { data: familyMembers, error: fetchError } = await supabase
             .from('penduduk')
-            .update({ dusun: formData.dusun })
+            .select('id')
             .eq('no_kk', penduduk.no_kk);
 
-          if (updateError) {
-            console.error('Error moving all family members:', updateError);
-            throw new Error(`Gagal memindahkan semua anggota keluarga: ${updateError.message}`);
+          if (fetchError) {
+            console.error('Error fetching family members:', fetchError);
+            throw new Error(`Gagal mengambil data anggota keluarga: ${fetchError.message}`);
           }
-          console.log('All family members moved to new dusun successfully.');
+
+          // Move each family member individually using the RPC function
+          for (const member of familyMembers) {
+            const { error: rpcError } = await supabase.rpc('move_penduduk', {
+              resident_id: member.id,
+              new_dusun: formData.dusun
+            });
+
+            if (rpcError) {
+              console.error('Error moving family member:', rpcError);
+              throw new Error(`Gagal memindahkan anggota keluarga ${member.id}: ${rpcError.message}`);
+            }
+          }
+          
+          console.log('All family members moved to new dusun successfully using RPC.');
         } else {
           // Move only the current resident
           // If the user provided a new KK number for this individual
-          const updateData: any = { dusun: formData.dusun };
+          // First handle the dusun change using RPC function
+          const { error: rpcError } = await supabase.rpc('move_penduduk', {
+            resident_id: penduduk.id,
+            new_dusun: formData.dusun
+          });
+
+          if (rpcError) {
+            console.error('Error moving resident via RPC:', rpcError);
+            throw new Error(`Gagal memindahkan dusun: ${rpcError.message}`);
+          }
+          
+          // Now update other fields (no_kk, status_hubungan, etc.) with specific values
+          const updateData: any = {};
           if (individualNoKK) {
             updateData.no_kk = individualNoKK;
           }
@@ -370,16 +396,19 @@ const PendudukForm: React.FC<PendudukFormProps> = ({ penduduk, onClose }) => {
             updateData.pekerjaan = individualPekerjaan;
           }
           
-          console.log(`Moving individual with new data:`, updateData);
-          const { error: updateError } = await supabase
-            .from('penduduk')
-            .update(updateData)
-            .eq('id', penduduk.id);
+          if (Object.keys(updateData).length > 0) {
+            console.log(`Updating individual with additional data:`, updateData);
+            const { error: updateError } = await supabase
+              .from('penduduk')
+              .update(updateData)
+              .eq('id', penduduk.id);
 
-          if (updateError) {
-            console.error('Error moving individual resident:', updateError);
-            throw new Error(`Gagal memindahkan dusun: ${updateError.message}`);
+            if (updateError) {
+              console.error('Error updating individual resident fields:', updateError);
+              throw new Error(`Gagal memperbarui data individu: ${updateError.message}`);
+            }
           }
+          
           console.log('Individual resident moved successfully.');
         }
       } else if (individualNoKK || individualStatus || individualGolDarah || individualAgama || individualStatusKawin || individualPendidikan || individualPekerjaan) {
