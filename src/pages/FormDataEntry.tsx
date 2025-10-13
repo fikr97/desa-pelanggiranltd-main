@@ -905,7 +905,14 @@ const FormDataEntry = () => {
     const dataForSheet = sortedEntries.map(entry => {
       const row = {};
       data.formDef.fields.forEach(field => {
-        row[field.label_field] = getFieldValue(entry, field);
+        let value = getFieldValue(entry, field);
+        
+        // Handle image fields for export - extract URL if it's an image object
+        if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+          value = value.url;  // Use the URL directly for export
+        }
+        
+        row[field.label_field] = value;
       });
       return row;
     });
