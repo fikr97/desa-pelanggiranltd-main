@@ -67,6 +67,30 @@ const getFieldValue = (entry, field) => {
     value = 'N/A';
   }
 
+  // Special handling for coordinate values
+  if (field.tipe_field === 'coordinate') {
+    if (value && typeof value === 'string') {
+      try {
+        const coordObj = JSON.parse(value);
+        if (coordObj.lat !== undefined && coordObj.lng !== undefined) {
+          return `${coordObj.lat}, ${coordObj.lng}`;
+        }
+      } catch (e) {
+        console.error("Error parsing coordinate value:", e);
+        // If parsing fails, try to split by comma if it's in "lat, lng" format
+        if (value.includes(',')) {
+          const [lat, lng] = value.split(',');
+          return `${lat.trim()}, ${lng.trim()}`;
+        }
+        return 'Koordinat tidak valid';
+      }
+    } else if (value && typeof value === 'object') {
+      // If it's already an object, format it properly
+      return `${value.lat}, ${value.lng}`;
+    }
+    return 'Koordinat tidak valid';
+  }
+
   // Apply date format transformation first
   if ((field.tipe_field === 'date' || field.sumber_data === 'penduduk.tanggal_lahir') && value && value !== 'N/A' && field.format_tanggal) {
     try {
@@ -491,8 +515,27 @@ const FormDataEntry = () => {
     const missingFields = [];
     for (const field of requiredFields) {
       const value = formData[field.nama_field];
-      if (value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
-        missingFields.push(field.label_field);
+      if (field.tipe_field === 'coordinate') {
+        // For coordinate fields, check if both lat and lng are provided
+        let isEmpty = true;
+        if (value) {
+          try {
+            const coordValue = typeof value === 'string' ? JSON.parse(value) : value;
+            if (coordValue && coordValue.lat && coordValue.lng) {
+              isEmpty = false;
+            }
+          } catch (e) {
+            // If parsing fails but value exists, consider it as filled
+            if (value) isEmpty = false;
+          }
+        }
+        if (isEmpty) {
+          missingFields.push(field.label_field);
+        }
+      } else {
+        if (value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
+          missingFields.push(field.label_field);
+        }
       }
     }
     if (missingFields.length > 0) {
@@ -506,7 +549,22 @@ const FormDataEntry = () => {
     }
     const dataToSave: Record<string, any> = {};
     data.formDef.fields.forEach(field => {
+      // Handle coordinate fields specifically
+      if (field.tipe_field === 'coordinate') {
+        const coordValue = formData[field.nama_field];
+        if (coordValue && typeof coordValue === 'object') {
+          // If it's an object, stringify it
+          dataToSave[field.nama_field] = JSON.stringify(coordValue);
+        } else if (typeof coordValue === 'string' && coordValue.includes(',')) {
+          // If it's a string like "lat, lng", parse and reformat
+          const [lat, lng] = coordValue.split(',').map(coord => coord.trim());
+          dataToSave[field.nama_field] = JSON.stringify({ lat, lng });
+        } else {
+          dataToSave[field.nama_field] = coordValue;
+        }
+      } else {
         dataToSave[field.nama_field] = formData[field.nama_field];
+      }
     });
     
     // Check for duplicate NIK if the form contains a NIK field
@@ -870,7 +928,53 @@ const FormDataEntry = () => {
                     <TableRow key={entry.id}>
                       <TableCell>{index + 1}</TableCell>
                       {formDef.fields.map(field => (
-                        <TableCell key={field.id}>{getFieldValue(entry, field)}</TableCell>
+                        <TableCell key={field.id}>
+                          {field.tipe_field === 'coordinate' ? (
+                            (() => {
+                              const value = getFieldValue(entry, field);
+                              if (value && value !== 'Koordinat tidak valid') {
+                                // Try to parse the coordinate value
+                                let coords = null;
+                                try {
+                                  // If it's already an object format from JSON.parse
+                                  if (typeof value === 'object') {
+                                    coords = value;
+                                  } else {
+                                    // If it's in "lat, lng" format, split it
+                                    const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+                                    if (!isNaN(lat) && !isNaN(lng)) {
+                                      coords = { lat, lng };
+                                    }
+                                  }
+                                } catch (e) {
+                                  console.error("Error parsing coordinate for link:", e);
+                                }
+                                
+                                if (coords) {
+                                  const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
+                                  return (
+                                    <a 
+                                      href={mapUrl} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline flex items-center gap-1"
+                                      onClick={(e) => e.stopPropagation()} // Prevent row click from firing
+                                    >
+                                      {value}
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
+                                        <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                                        <circle cx="12" cy="10" r="3"/>
+                                      </svg>
+                                    </a>
+                                  );
+                                }
+                              }
+                              return value;
+                            })()
+                          ) : (
+                            getFieldValue(entry, field)
+                          )}
+                        </TableCell>
                       ))}
                       <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
                         {formDef.show_edit_button && (
@@ -1082,10 +1186,53 @@ const FormDataEntry = () => {
                         <div className="space-y-2">
                           {bodyFields.map(field => {
                             const value = getFieldValue(entry, field);
+                            const displayValue = field.tipe_field === 'coordinate' ? (
+                              (() => {
+                                if (value && value !== 'Koordinat tidak valid') {
+                                  // Try to parse the coordinate value
+                                  let coords = null;
+                                  try {
+                                    // If it's already an object format from JSON.parse
+                                    if (typeof value === 'object') {
+                                      coords = value;
+                                    } else {
+                                      // If it's in "lat, lng" format, split it
+                                      const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+                                      if (!isNaN(lat) && !isNaN(lng)) {
+                                        coords = { lat, lng };
+                                      }
+                                    }
+                                  } catch (e) {
+                                    console.error("Error parsing coordinate for link:", e);
+                                  }
+                                  
+                                  if (coords) {
+                                    const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
+                                    return (
+                                      <a 
+                                        href={mapUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:underline flex items-center gap-1"
+                                        onClick={(e) => e.stopPropagation()} // Prevent card click from firing
+                                      >
+                                        {value}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
+                                          <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                                          <circle cx="12" cy="10" r="3"/>
+                                        </svg>
+                                      </a>
+                                    );
+                                  }
+                                }
+                                return value;
+                              })()
+                            ) : value;
+                            
                             return (
                               <div key={field.id} className="flex flex-col">
                                 <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
-                                <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>{value}</span>
+                                <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>{displayValue}</span>
                               </div>
                             );
                           })}

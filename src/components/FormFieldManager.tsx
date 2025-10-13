@@ -215,6 +215,7 @@ const CustomFieldDialog = ({ onSave }) => {
               <SelectItem value="number">Angka</SelectItem>
               <SelectItem value="date">Tanggal</SelectItem>
               <SelectItem value="dropdown">Dropdown (Pilihan)</SelectItem>
+              <SelectItem value="coordinate">Koordinat/Geo-tagging</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -238,8 +239,8 @@ const CustomFieldDialog = ({ onSave }) => {
 }
 
 const isFormattableField = (field) => {
-  // Disable for date and number types
-  if (field.tipe_field === 'date' || field.tipe_field === 'number') {
+  // Disable for date, number, and coordinate types
+  if (field.tipe_field === 'date' || field.tipe_field === 'number' || field.tipe_field === 'coordinate') {
     return false;
   }
   // Disable for predefined date field
@@ -420,6 +421,9 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
                       value={field.format_tanggal} 
                       onChange={(newValue) => updateField(index, { format_tanggal: newValue })} 
                     />
+                  )}
+                  {field.tipe_field === 'coordinate' && (
+                    <p className="text-xs text-muted-foreground mt-1">Tipe field koordinat akan menyimpan data dalam format latitude dan longitude.</p>
                   )}
                   {isFormattableField(field) && (
                     <TextFormatSelector

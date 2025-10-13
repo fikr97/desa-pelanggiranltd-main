@@ -18,6 +18,7 @@ import {
   statusHubunganOptions,
   jenisKelaminOptions
 } from '@/lib/options';
+import CoordinateSelector from './CoordinateSelector';
 
 const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLoading, profile }) => {
   const [selectedResident, setSelectedResident] = useState(null);
@@ -267,6 +268,39 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
             </Select>
           </div>
         );
+      case 'coordinate': {
+        // Handle coordinate values - should be an object like { lat: number, lng: number }
+        let coordValue = { lat: '', lng: '' };
+        if (typeof value === 'string' && value) {
+          try {
+            coordValue = JSON.parse(value);
+          } catch (e) {
+            console.error("Error parsing coordinate value:", e);
+            // If parsing fails, try to split by comma if it's in "lat, lng" format
+            if (value.includes(',')) {
+              const [lat, lng] = value.split(',');
+              coordValue = { lat: lat.trim(), lng: lng.trim() };
+            }
+          }
+        } else if (typeof value === 'object' && value !== null) {
+          coordValue = value;
+        }
+        
+        const handleCoordinateChange = (coords) => {
+          handleInputChange(field.nama_field, JSON.stringify(coords));
+        };
+        
+        return (
+          <div key={field.id} className="space-y-2">
+            <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
+            <CoordinateSelector 
+              value={coordValue} 
+              onChange={handleCoordinateChange} 
+              placeholder="Pilih lokasi dari peta"
+            />
+          </div>
+        );
+      }
       default: // 'text', 'predefined', etc.
         return (
           <div key={field.id}>
