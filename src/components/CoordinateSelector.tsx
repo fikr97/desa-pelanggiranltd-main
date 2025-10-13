@@ -154,26 +154,26 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
               Pilih dari Peta
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] w-full p-0 overflow-hidden flex flex-col">
+          <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-[95vh] p-0 overflow-hidden flex flex-col">
             <DialogHeader className="p-4 pb-2">
               <DialogTitle>Pilih Lokasi dari Peta</DialogTitle>
             </DialogHeader>
-            <div className="flex-1 flex flex-col p-4 space-y-3 overflow-hidden">
-              <form onSubmit={handleSearch} className="flex gap-2">
+            <div className="flex-1 flex flex-col p-0 space-y-3 overflow-hidden">
+              <div className="p-4 border-b flex gap-2">
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari lokasi..."
                   className="flex-grow"
                 />
-                <Button variant="outline" type="submit">
+                <Button variant="outline" onClick={handleSearch} type="button">
                   <Search className="h-4 w-4" />
                 </Button>
                 <Button variant="outline" onClick={handleUseCurrentLocation} type="button">
                   <LocateFixed className="h-4 w-4" />
                 </Button>
-              </form>
-              <div className="border rounded-lg flex-1 relative overflow-hidden">
+              </div>
+              <div className="border-t flex-1 relative overflow-hidden">
                 <iframe
                   ref={iframeRef}
                   src={mapUrl}
@@ -181,7 +181,7 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
                   title="Map Selector"
                 />
               </div>
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="p-4 border-t flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setOpen(false)} type="button">Batal</Button>
                 <Button onClick={handleConfirm} type="button">Gunakan Lokasi Ini</Button>
               </div>
