@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Crosshair, MapPin, Search, LocateFixed } from 'lucide-react';
+import { Crosshair, Search, LocateFixed } from 'lucide-react';
 
 interface CoordinateSelectorProps {
   value: { lat: number | string; lng: number | string };
@@ -16,7 +16,9 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
   const [inputLat, setInputLat] = useState<string>(typeof value?.lat !== 'undefined' && value.lat !== '' ? String(value.lat) : '');
   const [inputLng, setInputLng] = useState<string>(typeof value?.lng !== 'undefined' && value.lng !== '' ? String(value.lng) : '');
   const [searchQuery, setSearchQuery] = useState('');
-  const [mapCenter, setMapCenter] = useState({ lat: -6.200000, lng: 106.816666 }); // Default to Indonesia
+  const [mapUrl, setMapUrl] = useState('');
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Initialize coordinates when component mounts or value changes
   useEffect(() => {
@@ -24,22 +26,41 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
       setInputLat(typeof value.lat !== 'undefined' && value.lat !== '' ? String(value.lat) : '');
       setInputLng(typeof value.lng !== 'undefined' && value.lng !== '' ? String(value.lng) : '');
       
-      // Update map center if valid coordinates are provided
+      // Update map if valid coordinates are provided
       if (value.lat && value.lng && !isNaN(Number(value.lat)) && !isNaN(Number(value.lng))) {
-        setMapCenter({ lat: Number(value.lat), lng: Number(value.lng) });
+        const latNum = Number(value.lat);
+        const lngNum = Number(value.lng);
+        updateMapUrl(latNum, lngNum);
       }
     }
   }, [value]);
+
+  // Handle messages from the iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'COORDINATE_SELECTED') {
+        const { lat, lng } = event.data;
+        setInputLat(lat);
+        setInputLng(lng);
+        onChange({ lat, lng });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [onChange]);
 
   const handleUseCurrentLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          setInputLat(String(latitude));
-          setInputLng(String(longitude));
-          onChange({ lat: String(latitude), lng: String(longitude) });
-          setMapCenter({ lat: latitude, lng: longitude });
+          const latStr = String(latitude);
+          const lngStr = String(longitude);
+          setInputLat(latStr);
+          setInputLng(lngStr);
+          onChange({ lat: latStr, lng: lngStr });
+          updateMapUrl(latitude, longitude);
         },
         (error) => {
           console.error('Error getting location:', error);
@@ -60,10 +81,12 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
         .then(data => {
           if (data && data.length > 0) {
             const { lat, lon } = data[0];
+            const latNum = parseFloat(lat);
+            const lngNum = parseFloat(lon);
             setInputLat(lat);
             setInputLng(lon);
             onChange({ lat, lng: lon });
-            setMapCenter({ lat: parseFloat(lat), lng: parseFloat(lon) });
+            updateMapUrl(latNum, lngNum);
           } else {
             alert('Lokasi tidak ditemukan.');
           }
@@ -80,29 +103,117 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
     setOpen(false);
   };
 
-  // Generate the map URL based on coordinates
-  const generateMapUrl = () => {
-    const zoom = 15; // Default zoom level
-    let lat = inputLat && !isNaN(Number(inputLat)) ? Number(inputLat) : mapCenter.lat;
-    let lng = inputLng && !isNaN(Number(inputLng)) ? Number(inputLng) : mapCenter.lng;
+  const updateMapUrl = (lat: number, lng: number) => {
+    // Create a simple HTML page with Leaflet that allows map clicking
+    const mapHtml = encodeURIComponent(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Coordinate Selector</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <style>
+          body, html { margin: 0; padding: 0; height: 100%; width: 100%; }
+          #map { height: 100%; width: 100%; }
+          .coordinate-display {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            z-index: 1000;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+          }
+          .click-instruction {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 4px;
+            z-index: 1000;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div id="map"></div>
+        <div class="coordinate-display">
+          Klik pada peta untuk memilih koordinat
+        </div>
+        <div class="click-instruction" id="clickInstruction">
+          Klik di sini
+        </div>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script>
+          const map = L.map('map').setView([${lat}, ${lng}], 15);
+          
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          }).addTo(map);
+          
+          // Add a marker at the initial location
+          let marker = L.marker([${lat}, ${lng}]).addTo(map);
+          
+          map.on('click', function(e) {
+            // Remove the existing marker and add a new one
+            map.removeLayer(marker);
+            marker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(map);
+            
+            // Update coordinates display
+            document.getElementById('clickInstruction').textContent = 
+              'Lat: ' + e.latlng.lat.toFixed(6) + ', Lng: ' + e.latlng.lng.toFixed(6);
+            
+            // Send the coordinates to the parent window
+            parent.postMessage({
+              type: 'COORDINATE_SELECTED',
+              lat: e.latlng.lat.toFixed(6),
+              lng: e.latlng.lng.toFixed(6)
+            }, '*');
+          });
+        </script>
+      </body>
+      </html>
+    `);
     
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01}%2C${lat - 0.01}%2C${lng + 0.01}%2C${lat + 0.01}&layer=mapnik`;
+    setMapUrl(`data:text/html;charset=utf-8,${mapHtml}`);
+    setIsMapLoaded(true);
+  };
+
+  // Handle coordinate input change
+  const handleCoordinateInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value.includes(',')) {
+      const [lat, lng] = value.split(',').map(coord => coord.trim());
+      if (lat && lng) {
+        setInputLat(lat);
+        setInputLng(lng);
+        onChange({ lat, lng });
+        if (!isNaN(Number(lat)) && !isNaN(Number(lng))) {
+          updateMapUrl(Number(lat), Number(lng));
+        }
+      }
+    } else if (value === '') {
+      setInputLat('');
+      setInputLng('');
+      onChange({ lat: '', lng: '' });
+    }
   };
 
   return (
     <div className="space-y-2">
       <Label>Geo-tagging (Koordinat)</Label>
-      <div className="flex items-center gap-2">
+      <div className="space-y-2">
         <Input
-          value={inputLat}
-          onChange={(e) => setInputLat(e.target.value)}
-          placeholder="Latitude"
-          type="text"
-        />
-        <Input
-          value={inputLng}
-          onChange={(e) => setInputLng(e.target.value)}
-          placeholder="Longitude"
+          value={inputLat && inputLng ? `${inputLat}, ${inputLng}` : ''}
+          onChange={handleCoordinateInputChange}
+          placeholder="Contoh: -6.200000, 106.816666"
           type="text"
         />
         <Dialog open={open} onOpenChange={setOpen}>
@@ -132,17 +243,19 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
                 </Button>
               </form>
               <div className="border rounded-lg h-[500px] relative overflow-hidden">
-                <iframe
-                  src={generateMapUrl()}
-                  className="w-full h-full border-0"
-                  title="Map Selector"
-                />
-                <div className="absolute top-4 left-4 bg-white p-2 rounded shadow">
-                  <div className="text-xs">
-                    <div>Lat: {inputLat || 'Belum dipilih'}</div>
-                    <div>Lng: {inputLng || 'Belum dipilih'}</div>
+                {isMapLoaded && (
+                  <iframe
+                    ref={iframeRef}
+                    src={mapUrl}
+                    className="w-full h-full border-0"
+                    title="Map Selector"
+                  />
+                )}
+                {!isMapLoaded && (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                    <p className="text-gray-500">Memuat peta...</p>
                   </div>
-                </div>
+                )}
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" onClick={() => setOpen(false)} type="button">Batal</Button>
@@ -153,7 +266,7 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
         </Dialog>
       </div>
       <p className="text-xs text-muted-foreground">
-        Klik "Pilih dari Peta" untuk menandai lokasi secara langsung pada peta.
+        Masukkan koordinat atau klik "Pilih dari Peta" untuk menandai lokasi secara langsung.
       </p>
     </div>
   );
