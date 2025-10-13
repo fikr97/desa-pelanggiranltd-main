@@ -70,22 +70,23 @@ const getFieldValue = (entry, field) => {
   // Special handling for coordinate values
   if (field.tipe_field === 'coordinate') {
     if (value && typeof value === 'string') {
-      try {
-        const coordObj = JSON.parse(value);
-        if (coordObj.lat !== undefined && coordObj.lng !== undefined) {
-          return `${coordObj.lat}, ${coordObj.lng}`;
+      // If it's already in the correct "lat, lng" format, return as is
+      if (value.includes(',')) {
+        return value;
+      } else {
+        try {
+          // If it's a JSON string, parse it and convert
+          const coordObj = JSON.parse(value);
+          if (coordObj.lat !== undefined && coordObj.lng !== undefined) {
+            return `${coordObj.lat}, ${coordObj.lng}`;
+          }
+        } catch (e) {
+          console.error("Error parsing coordinate value:", e);
+          return 'Koordinat tidak valid';
         }
-      } catch (e) {
-        console.error("Error parsing coordinate value:", e);
-        // If parsing fails, try to split by comma if it's in "lat, lng" format
-        if (value.includes(',')) {
-          const [lat, lng] = value.split(',');
-          return `${lat.trim()}, ${lng.trim()}`;
-        }
-        return 'Koordinat tidak valid';
       }
     } else if (value && typeof value === 'object') {
-      // If it's already an object, format it properly
+      // If it's an object, format it as a string
       return `${value.lat}, ${value.lng}`;
     }
     return 'Koordinat tidak valid';
@@ -525,8 +526,15 @@ const FormDataEntry = () => {
               isEmpty = false;
             }
           } catch (e) {
-            // If parsing fails but value exists, consider it as filled
-            if (value) isEmpty = false;
+            // If parsing fails but value exists, check if it's in "lat, lng" format
+            if (typeof value === 'string' && value.includes(',')) {
+              const [lat, lng] = value.split(',').map(coord => coord.trim());
+              if (lat && lng) {
+                isEmpty = false;
+              }
+            } else if (value) {
+              isEmpty = false; // If it's a string that doesn't parse as JSON but exists, consider it filled
+            }
           }
         }
         if (isEmpty) {
@@ -552,13 +560,12 @@ const FormDataEntry = () => {
       // Handle coordinate fields specifically
       if (field.tipe_field === 'coordinate') {
         const coordValue = formData[field.nama_field];
-        if (coordValue && typeof coordValue === 'object') {
-          // If it's an object, stringify it
-          dataToSave[field.nama_field] = JSON.stringify(coordValue);
-        } else if (typeof coordValue === 'string' && coordValue.includes(',')) {
-          // If it's a string like "lat, lng", parse and reformat
-          const [lat, lng] = coordValue.split(',').map(coord => coord.trim());
-          dataToSave[field.nama_field] = JSON.stringify({ lat, lng });
+        if (typeof coordValue === 'string' && coordValue.includes(',')) {
+          // If it's already in the "lat, lng" format, store as is
+          dataToSave[field.nama_field] = coordValue;
+        } else if (coordValue && typeof coordValue === 'object') {
+          // If it's an object, convert to "lat, lng" string format
+          dataToSave[field.nama_field] = `${coordValue.lat}, ${coordValue.lng}`;
         } else {
           dataToSave[field.nama_field] = coordValue;
         }

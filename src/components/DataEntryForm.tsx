@@ -269,25 +269,17 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
           </div>
         );
       case 'coordinate': {
-        // Handle coordinate values - should be an object like { lat: number, lng: number }
-        let coordValue = { lat: '', lng: '' };
+        // Handle coordinate values - now in "lat,lng" string format
+        let coordValue = '';
         if (typeof value === 'string' && value) {
-          try {
-            coordValue = JSON.parse(value);
-          } catch (e) {
-            console.error("Error parsing coordinate value:", e);
-            // If parsing fails, try to split by comma if it's in "lat, lng" format
-            if (value.includes(',')) {
-              const [lat, lng] = value.split(',');
-              coordValue = { lat: lat.trim(), lng: lng.trim() };
-            }
-          }
-        } else if (typeof value === 'object' && value !== null) {
           coordValue = value;
+        } else if (typeof value === 'object' && value !== null) {
+          // Handle case where we still receive an object
+          coordValue = `${value.lat || ''}, ${value.lng || ''}`;
         }
         
         const handleCoordinateChange = (coords) => {
-          handleInputChange(field.nama_field, JSON.stringify(coords));
+          handleInputChange(field.nama_field, coords);
         };
         
         return (

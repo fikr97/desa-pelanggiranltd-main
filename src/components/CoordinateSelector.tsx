@@ -6,15 +6,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Crosshair, Search, LocateFixed } from 'lucide-react';
 
 interface CoordinateSelectorProps {
-  value: { lat: number | string; lng: number | string };
-  onChange: (coords: { lat: number | string; lng: number | string }) => void;
+  value: string | { lat: number | string; lng: number | string } | null;
+  onChange: (coords: string) => void;
   placeholder?: string;
 }
 
 const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange, placeholder }) => {
   const [open, setOpen] = useState(false);
-  const [inputLat, setInputLat] = useState<string>(typeof value?.lat !== 'undefined' && value.lat !== '' ? String(value.lat) : '');
-  const [inputLng, setInputLng] = useState<string>(typeof value?.lng !== 'undefined' && value.lng !== '' ? String(value.lng) : '');
+  const [inputLat, setInputLat] = useState<string>('');
+  const [inputLng, setInputLng] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [mapUrl, setMapUrl] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -22,8 +22,21 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
   // Initialize coordinates when component mounts or value changes
   useEffect(() => {
     if (value) {
-      setInputLat(typeof value.lat !== 'undefined' && value.lat !== '' ? String(value.lat) : '');
-      setInputLng(typeof value.lng !== 'undefined' && value.lng !== '' ? String(value.lng) : '');
+      if (typeof value === 'string' && value.includes(',')) {
+        // Handle string format "lat,lng"
+        const [lat, lng] = value.split(',').map(coord => coord.trim());
+        if (lat && lng) {
+          setInputLat(lat);
+          setInputLng(lng);
+        }
+      } else if (typeof value === 'object' && value !== null) {
+        // Handle object format
+        setInputLat(String(value.lat || ''));
+        setInputLng(String(value.lng || ''));
+      }
+    } else {
+      setInputLat('');
+      setInputLng('');
     }
   }, [value]);
 
@@ -34,7 +47,7 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
         const { lat, lng } = event.data;
         setInputLat(lat);
         setInputLng(lng);
-        onChange({ lat, lng });
+        onChange(`${lat}, ${lng}`);
       }
     };
 
@@ -51,7 +64,7 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
           const lngStr = String(longitude);
           setInputLat(latStr);
           setInputLng(lngStr);
-          onChange({ lat: latStr, lng: lngStr });
+          onChange(`${latStr}, ${lngStr}`);
           updateMapUrl(latitude, longitude, false); // Don't auto-center again
         },
         (error) => {
@@ -81,7 +94,7 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
             const lngNum = parseFloat(lon);
             setInputLat(lat);
             setInputLng(lon);
-            onChange({ lat, lng: lon });
+            onChange(`${lat}, ${lon}`);
             updateMapUrl(latNum, lngNum, false);
           } else {
             alert('Lokasi tidak ditemukan.');
@@ -95,7 +108,7 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
   };
 
   const handleConfirm = () => {
-    onChange({ lat: inputLat, lng: inputLng });
+    onChange(`${inputLat}, ${inputLng}`);
     setOpen(false);
   };
 
@@ -112,7 +125,7 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
       if (lat && lng) {
         setInputLat(lat);
         setInputLng(lng);
-        onChange({ lat, lng });
+        onChange(`${lat}, ${lng}`);
         if (!isNaN(Number(lat)) && !isNaN(Number(lng))) {
           updateMapUrl(Number(lat), Number(lng));
         }
@@ -120,7 +133,7 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
     } else if (value === '') {
       setInputLat('');
       setInputLng('');
-      onChange({ lat: '', lng: '' });
+      onChange('');
     }
   };
 

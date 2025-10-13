@@ -133,6 +133,32 @@
           lng: e.latlng.lng.toFixed(6)
         }, '*');
       });
+      
+      // Add event for marker drag
+      map.on('dragend', function() {
+        if (marker) {
+          const latlng = marker.getLatLng();
+          // Send the coordinates to the parent window
+          parent.postMessage({
+            type: 'COORDINATE_SELECTED',
+            lat: latlng.lat.toFixed(6),
+            lng: latlng.lng.toFixed(6)
+          }, '*');
+        }
+      });
+    }
+    
+    // Add functionality to move the marker to the clicked location
+    function updateMarker(lat, lng) {
+      if (marker) {
+        map.removeLayer(marker);
+      }
+      marker = L.marker([lat, lng]).addTo(map);
+      map.setView([lat, lng], 15);
+      
+      // Update coordinates display
+      document.getElementById('clickInstruction').textContent = 
+        'Lat: ' + lat.toFixed(6) + ', Lng: ' + lng.toFixed(6);
     }
   </script>
 </body>
