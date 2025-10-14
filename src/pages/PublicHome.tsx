@@ -630,7 +630,7 @@ const PublicHome = () => {
             <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
               <div className="text-sm text-muted-foreground text-center md:text-left">
                 <p className="font-medium">SIDesa - Sistem Informasi Desa</p>
-                <p>© 2024 Ihsanul Fikri. All rights reserved.</p>
+                <p>© {new Date().getFullYear()} Ihsanul Fikri. All rights reserved.</p>
               </div>
               
               <div className="flex items-center space-x-4">

@@ -37,7 +37,7 @@ const Layout = ({ children }: LayoutProps) => {
           </div>
         </main>
         <footer className="p-4 text-center text-sm text-muted-foreground">
-          Copyright © 2024 Ihsanul Fikri
+          Copyright © {new Date().getFullYear()} Ihsanul Fikri
         </footer>
       </div>
     </div>

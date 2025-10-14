@@ -341,7 +341,7 @@ const PublicLayout = ({ children }: PublicLayoutProps) => {
         <div className="container mx-auto py-6 px-4">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-center md:text-left mb-4 md:mb-0">
-              <p className="text-sm text-muted-foreground">&copy; 2024 Ihsanul Fikri. All rights reserved.</p>
+              <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Ihsanul Fikri. All rights reserved.</p>
             </div>
             <div className="flex items-center space-x-4">
               <Link to="/privacy-policy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
