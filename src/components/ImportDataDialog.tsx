@@ -147,7 +147,32 @@ const ImportDataDialog: React.FC<ImportDataDialogProps> = ({
             const data_custom: Record<string, any> = {};
             Object.entries(fieldMappings).forEach(([csvHeader, formFieldName]) => {
               if (formFieldName && formFieldName !== 'ignore') {
-                data_custom[formFieldName] = row[csvHeader];
+                // Clean the field name to prevent duplication (e.g., NIKNIK should be NIK)
+                // Also check if the field name is duplicated by being a combination of header + field name
+                let cleanFieldName = formFieldName.trim();
+                
+                // If CSV header is part of the field name (e.g., "NIK" + "NIK" = "NIKNIK"), 
+                // we should handle this case to avoid duplication
+                // This addresses the issue where mapping causes field names to be duplicated (e.g., "NIKNIK" instead of "NIK")
+                if (csvHeader && cleanFieldName.startsWith(csvHeader) && cleanFieldName.length > csvHeader.length) {
+                  const potentialDuplicate = cleanFieldName.substring(csvHeader.length);
+                  if (csvHeader === potentialDuplicate) {
+                    // This means we have a duplicated field name like "NIKNIK" from "NIK" + "NIK"
+                    cleanFieldName = csvHeader; // Use only the original field name
+                  }
+                }
+                
+                // Also prevent duplication in case of similar naming patterns
+                // Check for potential duplicate patterns like "nama_nama" -> "nama", etc.
+                if (cleanFieldName.includes('_')) {
+                  const parts = cleanFieldName.split('_');
+                  if (parts.length === 2 && parts[0] === parts[1]) {
+                    // If both parts are identical (e.g., "nama_nama"), use only the first part
+                    cleanFieldName = parts[0];
+                  }
+                }
+                
+                data_custom[cleanFieldName] = row[csvHeader];
               }
             });
 
