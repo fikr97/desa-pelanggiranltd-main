@@ -150,6 +150,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
           deck_display_order: field.deck_display_order !== undefined ? field.deck_display_order : 0,
           deck_display_format: field.deck_display_format !== undefined ? field.deck_display_format : 'default',
           deck_is_header: field.deck_is_header !== undefined ? field.deck_is_header : false,
+          section_name: field.section_name, // Add section name
           urutan: index,
         }));
 

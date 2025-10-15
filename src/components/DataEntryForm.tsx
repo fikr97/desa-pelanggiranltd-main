@@ -367,7 +367,23 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       </div>
 
       <div className="space-y-4">
-        {formDef.fields.map(field => renderField(field))}
+        {Object.entries(
+          formDef.fields.reduce((acc, field) => {
+            const sectionName = field.section_name || 'Lainnya';
+            if (!acc[sectionName]) {
+              acc[sectionName] = [];
+            }
+            acc[sectionName].push(field);
+            return acc;
+          }, {})
+        ).map(([sectionName, sectionFields]) => (
+          <div key={sectionName} className="p-4 border rounded-lg">
+            <h3 className="text-lg font-semibold mb-4">{sectionName}</h3>
+            <div className="space-y-4">
+              {(sectionFields as any[]).map(field => renderField(field))}
+            </div>
+          </div>
+        ))}
       </div>
       
       <div className="flex justify-end pt-4 gap-2">

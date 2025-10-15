@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
@@ -106,7 +106,6 @@ const PREDEFINED_FIELDS = [
   { value: 'dusun', label: 'Dusun' },
 ];
 
-// This is a placeholder for the props. It will be updated later.
 interface FormFieldManagerProps {
   fields: any[];
   onFieldsChange: (fields: any[]) => void;
@@ -169,12 +168,6 @@ const PredefinedFieldDialog = ({ onSave, existingFields }) => {
     </DialogContent>
   );
 };
-
-// This is a placeholder for the props. It will be updated later.
-interface FormFieldManagerProps {
-  fields: any[];
-  onFieldsChange: (fields: any[]) => void;
-}
 
 const CustomFieldDialog = ({ onSave }) => {
   const [label, setLabel] = useState('');
@@ -239,21 +232,59 @@ const CustomFieldDialog = ({ onSave }) => {
   );
 }
 
+const SectionNameDialog = ({ onSave, onCancel, existingNames }) => {
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSave = () => {
+    if (!name.trim()) {
+      setError('Nama seksi tidak boleh kosong.');
+      return;
+    }
+    if (existingNames.includes(name.trim())) {
+      setError('Nama seksi sudah ada.');
+      return;
+    }
+    onSave(name.trim());
+  };
+
+  return (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Tambah Seksi Baru</DialogTitle>
+      </DialogHeader>
+      <div className="py-4">
+        <Label htmlFor="section-name">Nama Seksi</Label>
+        <Input
+          id="section-name"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            if (error) setError('');
+          }}
+          placeholder="Contoh: Informasi Pribadi"
+        />
+        {error && <p className="text-sm text-destructive mt-1">{error}</p>}
+      </div>
+      <DialogFooter>
+        <Button variant="ghost" onClick={onCancel}>Batal</Button>
+        <Button onClick={handleSave}>Simpan</Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+};
+
 const isFormattableField = (field) => {
-  // Disable for date, number, and coordinate types
   if (field.tipe_field === 'date' || field.tipe_field === 'number' || field.tipe_field === 'coordinate') {
     return false;
   }
-  // Disable for predefined date field
   if (field.sumber_data === 'penduduk.tanggal_lahir') {
       return false;
   }
-  // Enable for all others (text, textarea, dropdown, most predefined)
   return true;
 };
 
 const DeckDisplayOptions = ({ fieldIndex, field, updateField }) => {
-  // Initialize with default values if properties don't exist
   const [deckField, setDeckField] = useState({
     visible: field.deck_visible !== undefined ? field.deck_visible : false,
     display_order: field.deck_display_order !== undefined ? field.deck_display_order : 0,
@@ -265,7 +296,6 @@ const DeckDisplayOptions = ({ fieldIndex, field, updateField }) => {
     const newDeckField = { ...deckField, [key]: value };
     setDeckField(newDeckField);
 
-    // Apply changes to the field
     updateField(fieldIndex, {
       deck_visible: newDeckField.visible,
       deck_display_order: newDeckField.display_order,
@@ -326,22 +356,34 @@ const DeckDisplayOptions = ({ fieldIndex, field, updateField }) => {
 const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => {
   const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
   const [isPredefinedDialogOpen, setIsPredefinedDialogOpen] = useState(false);
+  const [isSectionDialogOpen, setIsSectionDialogOpen] = useState(false);
+  const [sectionNames, setSectionNames] = useState<string[]>([]);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+
+  useEffect(() => {
+    const existingSections = fields.reduce((acc, field) => {
+      if (field.section_name && !acc.includes(field.section_name)) {
+        acc.push(field.section_name);
+      }
+      return acc;
+    }, []);
+    setSectionNames(existingSections);
+  }, [fields]);
 
   const handleSavePredefinedFields = (newFields) => {
-    // Add default deck fields if they don't exist
     const fieldsWithDefaults = newFields.map(field => ({
       ...field,
       deck_visible: field.deck_visible !== undefined ? field.deck_visible : false,
       deck_display_order: field.deck_display_order !== undefined ? field.deck_display_order : 0,
       deck_display_format: field.deck_display_format !== undefined ? field.deck_display_format : 'default',
       deck_is_header: field.deck_is_header !== undefined ? field.deck_is_header : false,
+      section_name: activeSection,
     }));
     onFieldsChange([...fields, ...fieldsWithDefaults]);
     setIsPredefinedDialogOpen(false);
   };
 
   const handleSaveCustomField = (newField) => {
-    // Add default deck fields if they don't exist
     const fieldWithDefaults = {
       ...newField,
       sumber_data: null,
@@ -349,6 +391,7 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
       deck_display_order: 0,
       deck_display_format: 'default',
       deck_is_header: false,
+      section_name: activeSection,
     };
     onFieldsChange([...fields, fieldWithDefaults]);
     setIsCustomDialogOpen(false);
@@ -363,7 +406,7 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
   const moveField = (index: number, direction: 'up' | 'down') => {
     const newFields = [...fields];
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= newFields.length) return;
+    if (newIndex < 0 || newIndex >= newFields.length) return; 
     
     const [movedField] = newFields.splice(index, 1);
     newFields.splice(newIndex, 0, movedField);
@@ -376,14 +419,50 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
     onFieldsChange(newFields);
   };
 
+  const handleSaveSection = (newSectionName: string) => {
+    setSectionNames(prev => [...prev, newSectionName]);
+    setActiveSection(newSectionName);
+    setIsSectionDialogOpen(false);
+  };
+
+  const allSectionNames = [...sectionNames];
+  fields.forEach(field => {
+    const sectionName = field.section_name || 'Lainnya';
+    if (!allSectionNames.includes(sectionName)) {
+      allSectionNames.push(sectionName);
+    }
+  });
+  if (allSectionNames.length === 0) {
+    allSectionNames.push('Lainnya');
+  }
+  const uniqueSectionNames = [...new Set(allSectionNames)];
+
+  const sections = uniqueSectionNames.reduce((acc, name) => {
+    acc[name] = fields.filter(f => (f.section_name || 'Lainnya') === name);
+    return acc;
+  }, {});
+
   return (
     <Card>
       <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <CardTitle>Desain Form</CardTitle>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <Dialog open={isPredefinedDialogOpen} onOpenChange={setIsPredefinedDialogOpen}>
+          <Dialog open={isSectionDialogOpen} onOpenChange={setIsSectionDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Tambah Seksi
+              </Button>
+            </DialogTrigger>
+            <SectionNameDialog 
+              onSave={handleSaveSection} 
+              onCancel={() => setIsSectionDialogOpen(false)}
+              existingNames={uniqueSectionNames}
+            />
+          </Dialog>
+          <Dialog open={isPredefinedDialogOpen} onOpenChange={setIsPredefinedDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="w-full" onClick={() => setActiveSection(activeSection || 'Lainnya')}>
                 <Plus className="h-4 w-4 mr-2" />
                 Tambah Field Penduduk
               </Button>
@@ -392,7 +471,7 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
           </Dialog>
           <Dialog open={isCustomDialogOpen} onOpenChange={setIsCustomDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="w-full">
+              <Button className="w-full" onClick={() => setActiveSection(activeSection || 'Lainnya')}>
                 <Plus className="h-4 w-4 mr-2" />
                 Tambah Field Custom
               </Button>
@@ -402,67 +481,76 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {fields.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">Belum ada field yang ditambahkan.</p>
-          ) : (
-            fields.map((field, index) => (
-              <div key={index} className="flex items-start justify-between p-4 border rounded-lg bg-background">
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{field.label_field}</p>
-                    {field.is_required && <span className="px-2 py-0.5 text-xs font-semibold text-red-800 bg-red-100 rounded-full">Wajib</span>}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Tipe: {field.tipe_field} ({field.nama_field})</p>
-                  {field.tipe_field === 'dropdown' && field.opsi_pilihan && (
-                    <p className="text-xs text-muted-foreground">Pilihan: {Array.isArray(field.opsi_pilihan) ? field.opsi_pilihan.join(', ') : ''}</p>
-                  )}
-                  {(field.tipe_field === 'date' || (field.tipe_field === 'predefined' && field.sumber_data === 'penduduk.tanggal_lahir')) && (
-                    <DateFormatEditor 
-                      value={field.format_tanggal} 
-                      onChange={(newValue) => updateField(index, { format_tanggal: newValue })} 
-                    />
-                  )}
-                  {field.tipe_field === 'coordinate' && (
-                    <p className="text-xs text-muted-foreground mt-1">Tipe field koordinat akan menyimpan data dalam format latitude dan longitude.</p>
-                  )}
-                  {isFormattableField(field) && (
-                    <TextFormatSelector
-                      value={field.text_format}
-                      onChange={(newValue) => updateField(index, { text_format: newValue })}
-                    />
-                  )}
-                  {/* Deck display options */}
-                  <DeckDisplayOptions
-                    fieldIndex={index}
-                    field={field}
-                    updateField={updateField}
-                  />
-                </div>
-                <div className="flex flex-col items-end gap-3 ml-4">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor={`required-switch-${index}`} className="text-sm font-normal">Wajib diisi</Label>
-                    <Switch
-                      id={`required-switch-${index}`}
-                      checked={field.is_required || false}
-                      onCheckedChange={(checked) => updateField(index, { is_required: checked })}
-                    />
-                  </div>
-                  <div className="flex items-center">
-                    <Button size="icon" variant="ghost" onClick={() => moveField(index, 'up')} disabled={index === 0}>
-                      <ArrowUp className="h-4 w-4" />
-                    </Button>
-                    <Button size="icon" variant="ghost" onClick={() => moveField(index, 'down')} disabled={index === fields.length - 1}>
-                      <ArrowDown className="h-4 w-4" />
-                    </Button>
-                    <Button size="icon" variant="destructive" onClick={() => removeField(index)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+        <div className="space-y-6">
+          {Object.entries(sections).map(([sectionName, sectionFields]) => (
+            <div key={sectionName} className="p-4 border rounded-lg">
+              <h3 className="text-lg font-semibold mb-4">{sectionName}</h3>
+              <div className="space-y-4">
+                {(sectionFields as any[]).length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Belum ada field di seksi ini.</p>
+                ) : (
+                  (sectionFields as any[]).map((field, index) => {
+                    const originalIndex = fields.findIndex(f => f === field);
+                    return (
+                      <div key={originalIndex} className="flex items-start justify-between p-4 border rounded-lg bg-background">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{field.label_field}</p>
+                            {field.is_required && <span className="px-2 py-0.5 text-xs font-semibold text-red-800 bg-red-100 rounded-full">Wajib</span>}
+                          </div>
+                          <p className="text-sm text-muted-foreground">Tipe: {field.tipe_field} ({field.nama_field})</p>
+                          {field.tipe_field === 'dropdown' && field.opsi_pilihan && (
+                            <p className="text-xs text-muted-foreground">Pilihan: {Array.isArray(field.opsi_pilihan) ? field.opsi_pilihan.join(', ') : ''}</p>
+                          )}
+                          {(field.tipe_field === 'date' || (field.tipe_field === 'predefined' && field.sumber_data === 'penduduk.tanggal_lahir')) && (
+                            <DateFormatEditor 
+                              value={field.format_tanggal} 
+                              onChange={(newValue) => updateField(originalIndex, { format_tanggal: newValue })} 
+                            />
+                          )}
+                          {field.tipe_field === 'coordinate' && (
+                            <p className="text-xs text-muted-foreground mt-1">Tipe field koordinat akan menyimpan data dalam format latitude dan longitude.</p>
+                          )}
+                          {isFormattableField(field) && (
+                            <TextFormatSelector
+                              value={field.text_format}
+                              onChange={(newValue) => updateField(originalIndex, { text_format: newValue })}
+                            />
+                          )}
+                          <DeckDisplayOptions
+                            fieldIndex={originalIndex}
+                            field={field}
+                            updateField={updateField}
+                          />
+                        </div>
+                        <div className="flex flex-col items-end gap-3 ml-4">
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor={`required-switch-${originalIndex}`} className="text-sm font-normal">Wajib diisi</Label>
+                            <Switch
+                              id={`required-switch-${originalIndex}`}
+                              checked={field.is_required || false}
+                              onCheckedChange={(checked) => updateField(originalIndex, { is_required: checked })}
+                            />
+                          </div>
+                          <div className="flex items-center">
+                            <Button size="icon" variant="ghost" onClick={() => moveField(originalIndex, 'up')} disabled={originalIndex === 0}>
+                              <ArrowUp className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => moveField(originalIndex, 'down')} disabled={originalIndex === fields.length - 1}>
+                              <ArrowDown className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="destructive" onClick={() => removeField(originalIndex)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
-            ))
-          )}
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
