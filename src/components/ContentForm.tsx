@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,6 +33,17 @@ const ContentForm = ({ open, onOpenChange, type, editData }: ContentFormProps) =
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm({
     defaultValues: editData || {}
   });
+
+  // Reset form values when editData changes (when editing an item)
+  useEffect(() => {
+    if (editData) {
+      reset(editData);
+      setImagePreview(editData.gambar || editData.url_media || null);
+    } else {
+      reset({});
+      setImagePreview(null);
+    }
+  }, [editData, reset]);
 
   const getTableName = () => {
     switch (type) {
