@@ -89,3 +89,67 @@ export const deleteImage = async (imageUrl: string): Promise<boolean> => {
     return false;
   }
 };
+
+// Specific function to upload profile avatar
+export const uploadProfileAvatar = async (file: File): Promise<string | null> => {
+  try {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Hanya file gambar yang diperbolehkan');
+    }
+
+    // Validate file size (max 2MB for avatar)
+    if (file.size > 2 * 1024 * 1024) {
+      throw new Error('Ukuran file maksimal 2MB');
+    }
+
+    // Generate a unique filename for profile avatar
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `profile-avatars/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExtension}`;
+    
+    // Upload to Supabase storage
+    const { data, error } = await supabase.storage
+      .from('form_images')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    // Get public URL
+    const { data: publicData } = supabase.storage
+      .from('form_images')
+      .getPublicUrl(fileName);
+
+    return publicData?.publicUrl || null;
+  } catch (error) {
+    console.error('Error uploading profile avatar:', error);
+    throw error;
+  }
+};
+
+// Function to update user's profile with avatar URL
+export const updateProfileAvatar = async (userId: string, avatarUrl: string | null): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        avatar_url: avatarUrl,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error updating profile avatar:', error);
+      throw error;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error updating profile avatar:', error);
+    return false;
+  }
+};

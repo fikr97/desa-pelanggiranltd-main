@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { User, Settings, MapPin } from 'lucide-react';
+import { User, Settings, MapPin, Camera } from 'lucide-react';
+import AvatarUpload from '@/components/AvatarUpload';
 
 const UserProfilePage = () => {
   const { profile, refreshProfile } = useAuth();
@@ -134,13 +135,30 @@ const UserProfilePage = () => {
           {/* Profile Overview */}
           <Card className="lg:col-span-1">
             <CardHeader className="text-center">
-              <Avatar className="w-24 h-24 mx-auto mb-4">
-                <AvatarImage src={profile.avatar_url || ''} />
-                <AvatarFallback className="text-lg bg-gradient-primary text-white">
-                  {getInitials(profile.nama)}
-                </AvatarFallback>
-              </Avatar>
-              <CardTitle className="text-xl">{profile.nama}</CardTitle>
+              {editing ? (
+                <div className="space-y-4">
+                  <AvatarUpload
+                    currentAvatar={profile.avatar_url || null}
+                    userId={profile.user_id}
+                    onAvatarChange={(avatarUrl) => {
+                      // Update profile state to reflect the new avatar URL
+                      // This will cause the avatar to update immediately
+                      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+                    }}
+                  />
+                  <CardTitle className="text-xl">{profile.nama}</CardTitle>
+                </div>
+              ) : (
+                <>
+                  <Avatar className="w-24 h-24 mx-auto mb-4">
+                    <AvatarImage src={profile.avatar_url || ''} />
+                    <AvatarFallback className="text-lg bg-gradient-primary text-white">
+                      {getInitials(profile.nama)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <CardTitle className="text-xl">{profile.nama}</CardTitle>
+                </>
+              )}
               <CardDescription className="space-y-2">
                 <Badge variant={getRoleColor(profile.role)} className="mb-2">
                   {getRoleLabel(profile.role)}
