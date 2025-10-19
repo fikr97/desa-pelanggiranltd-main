@@ -81,15 +81,8 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
     if (navigator.geolocation) {
       setIsGettingLocation(true);
       
-      // Set timeout untuk menangani kasus di mana pengguna tidak merespon permintaan lokasi
-      const timeoutId = setTimeout(() => {
-        setIsGettingLocation(false);
-        alert('Permintaan lokasi saat ini memakan waktu terlalu lama. Silakan coba lagi atau gunakan fitur pencarian.');
-      }, 10000); // 10 detik timeout
-      
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          clearTimeout(timeoutId);
           setIsGettingLocation(false);
           
           const { latitude, longitude } = position.coords;
@@ -101,7 +94,6 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
           updateMapUrl(latitude, longitude, false); // Don't auto-center again
         },
         (error) => {
-          clearTimeout(timeoutId);
           setIsGettingLocation(false);
           console.error('Error getting location:', error);
           
@@ -113,9 +105,7 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
             case error.POSITION_UNAVAILABLE:
               errorMessage = 'Informasi lokasi tidak tersedia.';
               break;
-            case error.TIMEOUT:
-              errorMessage = 'Permintaan lokasi saat ini habis waktu.';
-              break;
+            // Timeout tidak akan terjadi karena kita set timeout: Infinity
             default:
               errorMessage = 'Terjadi kesalahan saat mendapatkan lokasi.';
               break;
@@ -124,6 +114,11 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
           alert(errorMessage);
           // Fallback to default map
           updateMapUrl(-6.200000, 106.816666, false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: Infinity, // Tidak ada batas waktu
+          maximumAge: 0      // Tidak menggunakan cache
         }
       );
     } else {
