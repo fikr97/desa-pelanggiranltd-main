@@ -17,14 +17,14 @@ import * as XLSX from 'xlsx';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface FilterValues {
-  jenis_kelamin?: string;
-  agama?: string;
-  status_kawin?: string;
-  pendidikan?: string;
-  pekerjaan?: string;
-  golongan_darah?: string;
-  status_hubungan?: string;
-  dusun?: string;
+  jenis_kelamin?: string | string[];
+  agama?: string | string[];
+  status_kawin?: string | string[];
+  pendidikan?: string | string[];
+  pekerjaan?: string | string[];
+  golongan_darah?: string | string[];
+  status_hubungan?: string | string[];
+  dusun?: string | string[];
   rt?: string;
   rw?: string;
   umur_min?: string;
@@ -154,16 +154,74 @@ const Penduduk = () => {
       if (!matchesSearch) return false;
 
       // Apply advanced filters
-      if (advancedFilters.jenis_kelamin && item.jenis_kelamin !== advancedFilters.jenis_kelamin) return false;
-      if (advancedFilters.agama && item.agama !== advancedFilters.agama) return false;
-      if (advancedFilters.status_kawin && item.status_kawin !== advancedFilters.status_kawin) return false;
-      if (advancedFilters.pendidikan && item.pendidikan !== advancedFilters.pendidikan) return false;
-      if (advancedFilters.golongan_darah && item.golongan_darah !== advancedFilters.golongan_darah) return false;
-      if (advancedFilters.status_hubungan && item.status_hubungan !== advancedFilters.status_hubungan) return false;
-      if (advancedFilters.dusun && item.dusun?.toLowerCase() !== advancedFilters.dusun.toLowerCase()) return false;
+      // For multi-value filters (jenis_kelamin, agama, status_kawin, etc.), check if the item's value is included in the array
+      if (advancedFilters.jenis_kelamin) {
+        if (Array.isArray(advancedFilters.jenis_kelamin)) {
+          if (!advancedFilters.jenis_kelamin.includes(item.jenis_kelamin)) return false;
+        } else if (item.jenis_kelamin !== advancedFilters.jenis_kelamin) {
+          return false;
+        }
+      }
+      
+      if (advancedFilters.agama) {
+        if (Array.isArray(advancedFilters.agama)) {
+          if (!advancedFilters.agama.includes(item.agama)) return false;
+        } else if (item.agama !== advancedFilters.agama) {
+          return false;
+        }
+      }
+      
+      if (advancedFilters.status_kawin) {
+        if (Array.isArray(advancedFilters.status_kawin)) {
+          if (!advancedFilters.status_kawin.includes(item.status_kawin)) return false;
+        } else if (item.status_kawin !== advancedFilters.status_kawin) {
+          return false;
+        }
+      }
+      
+      if (advancedFilters.pendidikan) {
+        if (Array.isArray(advancedFilters.pendidikan)) {
+          if (!advancedFilters.pendidikan.includes(item.pendidikan)) return false;
+        } else if (item.pendidikan !== advancedFilters.pendidikan) {
+          return false;
+        }
+      }
+      
+      if (advancedFilters.golongan_darah) {
+        if (Array.isArray(advancedFilters.golongan_darah)) {
+          if (!advancedFilters.golongan_darah.includes(item.golongan_darah)) return false;
+        } else if (item.golongan_darah !== advancedFilters.golongan_darah) {
+          return false;
+        }
+      }
+      
+      if (advancedFilters.status_hubungan) {
+        if (Array.isArray(advancedFilters.status_hubungan)) {
+          if (!advancedFilters.status_hubungan.includes(item.status_hubungan)) return false;
+        } else if (item.status_hubungan !== advancedFilters.status_hubungan) {
+          return false;
+        }
+      }
+      
+      if (advancedFilters.dusun) {
+        if (Array.isArray(advancedFilters.dusun)) {
+          if (!advancedFilters.dusun.some(d => d.toLowerCase() === item.dusun?.toLowerCase())) return false;
+        } else if (item.dusun?.toLowerCase() !== advancedFilters.dusun.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // Single-value filters (rt, rw) remain the same
       if (advancedFilters.rt && item.rt !== advancedFilters.rt) return false;
       if (advancedFilters.rw && item.rw !== advancedFilters.rw) return false;
-      if (advancedFilters.pekerjaan && item.pekerjaan !== advancedFilters.pekerjaan) return false;
+      
+      if (advancedFilters.pekerjaan) {
+        if (Array.isArray(advancedFilters.pekerjaan)) {
+          if (!advancedFilters.pekerjaan.includes(item.pekerjaan)) return false;
+        } else if (item.pekerjaan !== advancedFilters.pekerjaan) {
+          return false;
+        }
+      }
 
       // Age filters
       if (advancedFilters.umur_min || advancedFilters.umur_max) {
@@ -306,7 +364,16 @@ const Penduduk = () => {
       // Generate filename with current date and filter info
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0];
-      const activeFiltersCount = Object.values(advancedFilters).filter(Boolean).length;
+      const activeFiltersCount = Object.values(advancedFilters).reduce((count, value) => {
+        if (value) {
+          if (Array.isArray(value)) {
+            return count + value.length;
+          } else {
+            return count + 1;
+          }
+        }
+        return count;
+      }, 0);
       const filterInfo = activeFiltersCount > 0 ? `_${activeFiltersCount}filter` : '';
       const filename = `Data_Penduduk_Terfilter_${dateStr}${filterInfo}.xlsx`;
 
@@ -327,7 +394,16 @@ const Penduduk = () => {
     }
   };
 
-  const activeFiltersCount = Object.values(advancedFilters).filter(Boolean).length;
+  const activeFiltersCount = Object.values(advancedFilters).reduce((count, value) => {
+    if (value) {
+      if (Array.isArray(value)) {
+        return count + value.length;
+      } else {
+        return count + 1;
+      }
+    }
+    return count;
+  }, 0);
 
   if (isLoading) {
     return (

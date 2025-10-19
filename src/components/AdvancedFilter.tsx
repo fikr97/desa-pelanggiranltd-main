@@ -9,16 +9,18 @@ import { Separator } from '@/components/ui/separator';
 import { Filter, X, Download, Search, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import MultiSelectFilter from '@/components/ui/multi-select';
 
+// Define filter types - support both single and multi-value filters
 interface FilterValues {
-  jenis_kelamin?: string;
-  agama?: string;
-  status_kawin?: string;
-  pendidikan?: string;
-  pekerjaan?: string;
-  golongan_darah?: string;
-  status_hubungan?: string;
-  dusun?: string;
+  jenis_kelamin?: string | string[]; // Now supports both string and array
+  agama?: string | string[];
+  status_kawin?: string | string[];
+  pendidikan?: string | string[];
+  pekerjaan?: string | string[];
+  golongan_darah?: string | string[];
+  status_hubungan?: string | string[];
+  dusun?: string | string[];
   rt?: string;
   rw?: string;
   umur_min?: string;
@@ -46,6 +48,23 @@ const AdvancedFilter = ({
 }: AdvancedFilterProps) => {
   const [filters, setFilters] = useState<FilterValues>(initialFilters);
 
+  // Handle changes for single-value filters (select dropdowns)
+  const handleSingleFilterChange = (key: keyof FilterValues, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value || undefined
+    }));
+  };
+
+  // Handle changes for multi-value filters
+  const handleMultiFilterChange = (key: keyof FilterValues, value: string[]) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value.length > 0 ? value : undefined
+    }));
+  };
+
+  // Generic filter change handler for string values (like RT, RW, age inputs)
   const handleFilterChange = (key: keyof FilterValues, value: string) => {
     setFilters(prev => ({
       ...prev,
@@ -64,15 +83,31 @@ const AdvancedFilter = ({
   };
 
   const getActiveFiltersCount = () => {
-    return Object.values(filters).filter(value => value && value !== '').length;
+    let count = 0;
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) {
+        if (Array.isArray(value)) {
+          count += value.length;
+        } else {
+          count += 1;
+        }
+      }
+    });
+    return count;
   };
 
   const getFilterSummary = () => {
     const activeFilters = Object.entries(filters)
-      .filter(([_, value]) => value && value !== '')
-      .map(([key, value]) => {
+      .filter(([_, value]) => value && 
+        (typeof value === 'string' ? value !== '' : Array.isArray(value) && value.length > 0))
+      .flatMap(([key, value]) => {
         const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        return `${label}: ${value}`;
+        
+        if (Array.isArray(value)) {
+          return value.map(v => `${label}: ${v}`);
+        } else {
+          return [`${label}: ${value}`];
+        }
       });
     return activeFilters;
   };
@@ -175,92 +210,68 @@ const AdvancedFilter = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Jenis Kelamin</Label>
-                <Select value={filters.jenis_kelamin || 'all'} onValueChange={(value) => handleFilterChange('jenis_kelamin', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih jenis kelamin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua</SelectItem>
-                    {jenisKelaminOptions.map(option => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  options={jenisKelaminOptions}
+                  value={Array.isArray(filters.jenis_kelamin) ? filters.jenis_kelamin : filters.jenis_kelamin ? [filters.jenis_kelamin] : []}
+                  onChange={(value) => handleMultiFilterChange('jenis_kelamin', value)}
+                  label="Jenis Kelamin"
+                  placeholder="Pilih jenis kelamin..."
+                />
               </div>
 
               <div className="space-y-2">
                 <Label>Agama</Label>
-                <Select value={filters.agama || 'all'} onValueChange={(value) => handleFilterChange('agama', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih agama" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua</SelectItem>
-                    {agamaOptions.map(option => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  options={agamaOptions}
+                  value={Array.isArray(filters.agama) ? filters.agama : filters.agama ? [filters.agama] : []}
+                  onChange={(value) => handleMultiFilterChange('agama', value)}
+                  label="Agama"
+                  placeholder="Pilih agama..."
+                />
               </div>
 
               <div className="space-y-2">
                 <Label>Status Perkawinan</Label>
-                <Select value={filters.status_kawin || 'all'} onValueChange={(value) => handleFilterChange('status_kawin', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua</SelectItem>
-                    {statusKawinOptions.map(option => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  options={statusKawinOptions}
+                  value={Array.isArray(filters.status_kawin) ? filters.status_kawin : filters.status_kawin ? [filters.status_kawin] : []}
+                  onChange={(value) => handleMultiFilterChange('status_kawin', value)}
+                  label="Status Perkawinan"
+                  placeholder="Pilih status..."
+                />
               </div>
 
               <div className="space-y-2">
                 <Label>Pendidikan</Label>
-                <Select value={filters.pendidikan || 'all'} onValueChange={(value) => handleFilterChange('pendidikan', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih pendidikan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua</SelectItem>
-                    {pendidikanOptions.map(option => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  options={pendidikanOptions}
+                  value={Array.isArray(filters.pendidikan) ? filters.pendidikan : filters.pendidikan ? [filters.pendidikan] : []}
+                  onChange={(value) => handleMultiFilterChange('pendidikan', value)}
+                  label="Pendidikan"
+                  placeholder="Pilih pendidikan..."
+                />
               </div>
 
               <div className="space-y-2">
                 <Label>Golongan Darah</Label>
-                <Select value={filters.golongan_darah || 'all'} onValueChange={(value) => handleFilterChange('golongan_darah', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih golongan darah" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua</SelectItem>
-                    {golonganDarahOptions.map(option => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  options={golonganDarahOptions}
+                  value={Array.isArray(filters.golongan_darah) ? filters.golongan_darah : filters.golongan_darah ? [filters.golongan_darah] : []}
+                  onChange={(value) => handleMultiFilterChange('golongan_darah', value)}
+                  label="Golongan Darah"
+                  placeholder="Pilih golongan darah..."
+                />
               </div>
 
               <div className="space-y-2">
                 <Label>Status Hubungan</Label>
-                <Select value={filters.status_hubungan || 'all'} onValueChange={(value) => handleFilterChange('status_hubungan', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih status hubungan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua</SelectItem>
-                    {statusHubunganOptions.map(option => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  options={statusHubunganOptions}
+                  value={Array.isArray(filters.status_hubungan) ? filters.status_hubungan : filters.status_hubungan ? [filters.status_hubungan] : []}
+                  onChange={(value) => handleMultiFilterChange('status_hubungan', value)}
+                  label="Status Hubungan"
+                  placeholder="Pilih status hubungan..."
+                />
               </div>
             </div>
           </div>
@@ -271,30 +282,13 @@ const AdvancedFilter = ({
 
               <div className="space-y-2">
                 <Label>Dusun</Label>
-                <Select value={filters.dusun || 'all'} onValueChange={(value) => handleFilterChange('dusun', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih dusun" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Dusun</SelectItem>
-                    {loadingDusun ? (
-                      <div className="p-2 text-center">
-                        <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                        <span className="text-sm">Memuat dusun...</span>
-                      </div>
-                    ) : dusunOptions.length > 0 ? (
-                      dusunOptions.map((dusun) => (
-                        <SelectItem key={dusun} value={dusun}>
-                          {dusun}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <div className="p-2 text-center text-sm text-muted-foreground">
-                        Tidak ada dusun tersedia
-                      </div>
-                    )}
-                  </SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  options={dusunOptions}
+                  value={Array.isArray(filters.dusun) ? filters.dusun : filters.dusun ? [filters.dusun] : []}
+                  onChange={(value) => handleMultiFilterChange('dusun', value)}
+                  label="Dusun"
+                  placeholder="Pilih dusun..."
+                />
               </div>
 
               <div className="space-y-2">
@@ -317,17 +311,13 @@ const AdvancedFilter = ({
 
               <div className="space-y-2">
                 <Label>Pekerjaan</Label>
-                <Select value={filters.pekerjaan || 'all'} onValueChange={(value) => handleFilterChange('pekerjaan', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih pekerjaan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua</SelectItem>
-                    {pekerjaanOptions.map(option => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelectFilter
+                  options={pekerjaanOptions}
+                  value={Array.isArray(filters.pekerjaan) ? filters.pekerjaan : filters.pekerjaan ? [filters.pekerjaan] : []}
+                  onChange={(value) => handleMultiFilterChange('pekerjaan', value)}
+                  label="Pekerjaan"
+                  placeholder="Pilih pekerjaan..."
+                />
               </div>
             </div>
           </div>
