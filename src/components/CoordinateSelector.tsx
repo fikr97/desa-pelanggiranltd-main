@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Crosshair, Search, LocateFixed } from 'lucide-react';
+import { Crosshair, Search, LocateFixed, Loader2 } from 'lucide-react';
 
 interface CoordinateSelectorProps {
   value: string | { lat: number | string; lng: number | string } | null;
@@ -17,6 +17,7 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
   const [inputLng, setInputLng] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [mapUrl, setMapUrl] = useState('');
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Initialize coordinates when component mounts or value changes
@@ -78,8 +79,19 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
 
   const handleUseCurrentLocation = () => {
     if (navigator.geolocation) {
+      setIsGettingLocation(true);
+      
+      // Set timeout untuk menangani kasus di mana pengguna tidak merespon permintaan lokasi
+      const timeoutId = setTimeout(() => {
+        setIsGettingLocation(false);
+        alert('Permintaan lokasi saat ini memakan waktu terlalu lama. Silakan coba lagi atau gunakan fitur pencarian.');
+      }, 10000); // 10 detik timeout
+      
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          clearTimeout(timeoutId);
+          setIsGettingLocation(false);
+          
           const { latitude, longitude } = position.coords;
           const latStr = String(latitude.toFixed(6));
           const lngStr = String(longitude.toFixed(6));
@@ -89,8 +101,27 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
           updateMapUrl(latitude, longitude, false); // Don't auto-center again
         },
         (error) => {
+          clearTimeout(timeoutId);
+          setIsGettingLocation(false);
           console.error('Error getting location:', error);
-          alert('Gagal mendapatkan lokasi saat ini. Pastikan Anda mengizinkan akses lokasi.');
+          
+          let errorMessage = 'Gagal mendapatkan lokasi saat ini.';
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Izin akses lokasi ditolak. Silakan periksa pengaturan browser Anda.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Informasi lokasi tidak tersedia.';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Permintaan lokasi saat ini habis waktu.';
+              break;
+            default:
+              errorMessage = 'Terjadi kesalahan saat mendapatkan lokasi.';
+              break;
+          }
+          
+          alert(errorMessage);
           // Fallback to default map
           updateMapUrl(-6.200000, 106.816666, false);
         }
@@ -202,6 +233,8 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
                 // Use default coordinates
                 updateMapUrl(-6.200000, 106.816666, true); // May attempt to use current location
               }
+              // Reset loading state when dialog opens
+              setIsGettingLocation(false);
             }
             setOpen(newOpen);
           }}
@@ -227,8 +260,8 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
                 <Button variant="outline" onClick={handleSearch} type="button">
                   <Search className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" onClick={handleUseCurrentLocation} type="button">
-                  <LocateFixed className="h-4 w-4" />
+                <Button variant="outline" onClick={handleUseCurrentLocation} type="button" disabled={isGettingLocation}>
+                  {isGettingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
                 </Button>
               </div>
               <div className="border-t flex-1 relative overflow-hidden">
