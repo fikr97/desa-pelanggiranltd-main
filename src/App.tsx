@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import AdminWrapper from '@/components/AdminWrapper';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Index from "./pages/Index";
 import PendudukPage from "./pages/PendudukPage";
@@ -42,119 +43,151 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="system" storageKey="desa-ui-theme">
+    <ThemeProvider defaultTheme="light" storageKey="desa-ui-theme">
       <TooltipProvider>
         <AuthProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<PublicHome />} />
-            <Route path="/profil-desa" element={<PublicProfilDesa />} />
-            <Route path="/pemerintahan" element={<PublicPemerintahan />} />
-            <Route path="/sejarah" element={<SejarahDesa />} />
-            <Route path="/visi-misi" element={<VisiMisi />} />
-            <Route path="/geografis" element={<KondisiGeografis />} />
-            <Route path="/berita" element={<BeritaPage />} />
-            <Route path="/berita/:slug" element={<BeritaDetailPage />} />
-            <Route path="/galeri" element={<GaleriPage />} />
-            <Route path="/pengumuman" element={<PengumumanPage />} />
-            <Route path="/agenda" element={<AgendaPage />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-            <Route path="/terms-of-service" element={<TermsOfService />} />
-            
-            {/* Protected admin/dashboard routes */}
-            <Route path="/admin" element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            } />
-            <Route path="/penduduk" element={
-              <ProtectedRoute>
-                <PendudukPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/data-keluarga" element={
-              <ProtectedRoute>
-                <DataKeluargaPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/wilayah" element={
-              <ProtectedRoute allowedRoles={['admin', 'kadus']}>
-                <WilayahPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/info-desa" element={
-              <ProtectedRoute>
-                <InfoDesaPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/template-surat" element={
-              <ProtectedRoute>
-                <TemplateSuratPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/arsip-surat-keluar" element={
-              <ProtectedRoute>
-                <ArsipSuratKeluarPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/form-tugas" element={
-              <ProtectedRoute>
-                <FormTugasPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/form-tugas/:formId/data" element={
-              <ProtectedRoute>
-                <FormDataEntryPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/statistik" element={
-              <ProtectedRoute>
-                <StatistikPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/laporan" element={
-              <ProtectedRoute>
-                <LaporanPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/pengaturan" element={
-              <ProtectedRoute>
-                <PengaturanPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/content" element={
-              <ProtectedRoute allowedRoles={['admin', 'kadus']}>
-                <AdminContentPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/users" element={
-              <ProtectedRoute requiredRole="admin">
-                <UserManagementPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <UserProfilePage />
-              </ProtectedRoute>
-            } />
-            
-            {/* Fallback */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </ThemeProvider>
-</QueryClientProvider>
+            <Routes>
+              {/* Public routes - menggunakan ThemeProvider default (light) */}
+              <Route path="/" element={<PublicHome />} />
+              <Route path="/profil-desa" element={<PublicProfilDesa />} />
+              <Route path="/pemerintahan" element={<PublicPemerintahan />} />
+              <Route path="/sejarah" element={<SejarahDesa />} />
+              <Route path="/visi-misi" element={<VisiMisi />} />
+              <Route path="/geografis" element={<KondisiGeografis />} />
+              <Route path="/berita" element={<BeritaPage />} />
+              <Route path="/berita/:slug" element={<BeritaDetailPage />} />
+              <Route path="/galeri" element={<GaleriPage />} />
+              <Route path="/pengumuman" element={<PengumumanPage />} />
+              <Route path="/agenda" element={<AgendaPage />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
+              
+              {/* Protected admin/dashboard routes - menggunakan AdminThemeProvider */}
+              <Route path="/admin" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <Index />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/dashboard" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <Index />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/penduduk" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <PendudukPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/data-keluarga" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <DataKeluargaPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/wilayah" element={
+                <AdminWrapper>
+                  <ProtectedRoute allowedRoles={['admin', 'kadus']}>
+                    <WilayahPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/info-desa" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <InfoDesaPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/template-surat" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <TemplateSuratPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/arsip-surat-keluar" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <ArsipSuratKeluarPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/form-tugas" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <FormTugasPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/form-tugas/:formId/data" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <FormDataEntryPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/statistik" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <StatistikPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/laporan" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <LaporanPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/pengaturan" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <PengaturanPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/admin/content" element={
+                <AdminWrapper>
+                  <ProtectedRoute allowedRoles={['admin', 'kadus']}>
+                    <AdminContentPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/admin/users" element={
+                <AdminWrapper>
+                  <ProtectedRoute requiredRole="admin">
+                    <UserManagementPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/profile" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <UserProfilePage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              
+              {/* Fallback */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </ThemeProvider>
+  </QueryClientProvider>
 );
 
 export default App;

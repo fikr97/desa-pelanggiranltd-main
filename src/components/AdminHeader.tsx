@@ -1,9 +1,9 @@
-
 import React from 'react';
-import { Bell, Menu } from 'lucide-react';
+import { Bell, Menu, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useTheme } from '@/components/AdminThemeProvider';
 import UserMenu from './UserMenu';
 import DateTime from './DateTime';
 import NotificationPopover from './NotificationPopover';
@@ -13,7 +13,9 @@ interface HeaderProps {
   isSidebarCollapsed?: boolean;
 }
 
-const Header = ({ onMobileMenuToggle, isSidebarCollapsed = false }: HeaderProps) => {
+const AdminHeader = ({ onMobileMenuToggle, isSidebarCollapsed = false }: HeaderProps) => {
+  const { theme, setTheme } = useTheme();
+  
   // Fetch village name with refetch interval to get updated data
   const { data: infoDesaData } = useQuery({
     queryKey: ['info-desa-header'],
@@ -62,6 +64,19 @@ const Header = ({ onMobileMenuToggle, isSidebarCollapsed = false }: HeaderProps)
             <DateTime />
           </div>
           
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 sm:h-10 sm:w-10 hover:bg-primary/10"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          >
+            {theme === "light" ? (
+              <Moon className="h-4 w-4 sm:h-5 sm:w-5" />
+            ) : (
+              <Sun className="h-4 w-4 sm:h-5 sm:w-5" />
+            )}
+          </Button>
+          
           <NotificationPopover />
           
           <UserMenu />
@@ -71,4 +86,4 @@ const Header = ({ onMobileMenuToggle, isSidebarCollapsed = false }: HeaderProps)
   );
 };
 
-export default Header;
+export default AdminHeader;
