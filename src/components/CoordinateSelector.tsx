@@ -43,11 +43,15 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
   // Handle messages from the iframe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      // Only process messages from our coordinate map
       if (event.data && event.data.type === 'COORDINATE_SELECTED') {
         const { lat, lng } = event.data;
         setInputLat(lat);
         setInputLng(lng);
         onChange(`${lat}, ${lng}`);
+        
+        // Update the map URL to center on the selected coordinates
+        updateMapUrl(parseFloat(lat), parseFloat(lng), false);
       }
     };
 
@@ -55,13 +59,30 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
     return () => window.removeEventListener('message', handleMessage);
   }, [onChange]);
 
+  // Send coordinate updates to the iframe when input changes
+  useEffect(() => {
+    if (iframeRef.current && inputLat && inputLng && open) {
+      const latNum = parseFloat(inputLat);
+      const lngNum = parseFloat(inputLng);
+      
+      if (!isNaN(latNum) && !isNaN(lngNum)) {
+        // Send the current coordinates to the map iframe
+        iframeRef.current.contentWindow?.postMessage({
+          type: 'UPDATE_COORDINATES',
+          lat: latNum,
+          lng: lngNum
+        }, '*');
+      }
+    }
+  }, [inputLat, inputLng, open]);
+
   const handleUseCurrentLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          const latStr = String(latitude);
-          const lngStr = String(longitude);
+          const latStr = String(latitude.toFixed(6));
+          const lngStr = String(longitude.toFixed(6));
           setInputLat(latStr);
           setInputLng(lngStr);
           onChange(`${latStr}, ${lngStr}`);
@@ -92,9 +113,12 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
             const { lat, lon } = data[0];
             const latNum = parseFloat(lat);
             const lngNum = parseFloat(lon);
-            setInputLat(lat);
-            setInputLng(lon);
-            onChange(`${lat}, ${lon}`);
+            const latStr = latNum.toFixed(6);
+            const lngStr = lngNum.toFixed(6);
+            
+            setInputLat(latStr);
+            setInputLng(lngStr);
+            onChange(`${latStr}, ${lngStr}`);
             updateMapUrl(latNum, lngNum, false);
           } else {
             alert('Lokasi tidak ditemukan.');
@@ -108,7 +132,16 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
   };
 
   const handleConfirm = () => {
-    onChange(`${inputLat}, ${inputLng}`);
+    // Validate coordinates before confirming
+    const latNum = parseFloat(inputLat);
+    const lngNum = parseFloat(inputLng);
+    
+    if (isNaN(latNum) || isNaN(lngNum) || Math.abs(latNum) > 90 || Math.abs(lngNum) > 180) {
+      alert('Koordinat tidak valid. Silakan masukkan koordinat yang benar.');
+      return;
+    }
+    
+    onChange(`${latNum.toFixed(6)}, ${lngNum.toFixed(6)}`);
     setOpen(false);
   };
 
@@ -123,11 +156,21 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
     if (value.includes(',')) {
       const [lat, lng] = value.split(',').map(coord => coord.trim());
       if (lat && lng) {
-        setInputLat(lat);
-        setInputLng(lng);
-        onChange(`${lat}, ${lng}`);
-        if (!isNaN(Number(lat)) && !isNaN(Number(lng))) {
-          updateMapUrl(Number(lat), Number(lng));
+        const latNum = parseFloat(lat);
+        const lngNum = parseFloat(lng);
+        
+        if (!isNaN(latNum) && !isNaN(lngNum)) {
+          // Format coordinates to 6 decimal places for consistency
+          const formattedLat = latNum.toFixed(6);
+          const formattedLng = lngNum.toFixed(6);
+          
+          setInputLat(formattedLat);
+          setInputLng(formattedLng);
+          onChange(`${formattedLat}, ${formattedLng}`);
+          
+          if (!isNaN(latNum) && !isNaN(lngNum)) {
+            updateMapUrl(latNum, lngNum);
+          }
         }
       }
     } else if (value === '') {
@@ -151,11 +194,13 @@ const CoordinateSelector: React.FC<CoordinateSelectorProps> = ({ value, onChange
           open={open} 
           onOpenChange={(newOpen) => {
             if (newOpen) {
-              // When dialog opens, set the map to use current location if possible
-              if (navigator.geolocation) {
-                updateMapUrl(-6.200000, 106.816666, true); // Use current location
+              // When dialog opens, set the map to use default location or current coordinates
+              if (inputLat && inputLng && !isNaN(parseFloat(inputLat)) && !isNaN(parseFloat(inputLng))) {
+                // Use existing coordinates if available
+                updateMapUrl(parseFloat(inputLat), parseFloat(inputLng), false);
               } else {
-                updateMapUrl(-6.200000, 106.816666, false); // Default to Indonesia
+                // Use default coordinates
+                updateMapUrl(-6.200000, 106.816666, true); // May attempt to use current location
               }
             }
             setOpen(newOpen);
