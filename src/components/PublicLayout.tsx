@@ -317,7 +317,7 @@ const PublicLayout = ({ children }: PublicLayoutProps) => {
                         <div className="border-t pt-4 mt-4">
                           <MobileMenuItem href="/admin" onClick={() => setIsOpen(false)}>
                             <div className="flex items-center space-x-2 bg-primary text-primary-foreground rounded-md p-2">
-                              <span>Portal Admin</span>
+                              <span>Login</span>
                             </div>
                           </MobileMenuItem>
                         </div>
