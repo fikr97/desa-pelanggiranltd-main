@@ -7,10 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, ListPlus, LayoutGrid } from 'lucide-react';
+import { Settings, ListPlus } from 'lucide-react';
 import FormFieldManager from './FormFieldManager';
 import { useAuth } from '@/contexts/AuthContext';
-import DeckFieldSelector from './DeckFieldSelector';
 import { Switch } from '@/components/ui/switch';
 
 interface FormTugasDesignerProps {
@@ -29,7 +28,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
     show_delete_button: true,
   });
   const [fields, setFields] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'settings' | 'fields' | 'deck'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'fields'>('settings');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -218,15 +217,6 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
           <ListPlus className="h-4 w-4 mr-2" />
           Desain Form
         </button>
-        {formData.display_type === 'deck' && (
-          <button
-            className={`px-4 py-2 font-medium flex items-center ${activeTab === 'deck' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
-            onClick={() => setActiveTab('deck')}
-          >
-            <LayoutGrid className="h-4 w-4 mr-2" />
-            Tampilan Kartu
-          </button>
-        )}
       </div>
 
       <div className="flex-1 overflow-auto p-1">
@@ -323,12 +313,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
           <FormFieldManager fields={fields} onFieldsChange={setFields} />
         )}
         
-        {activeTab === 'deck' && (
-          <DeckFieldSelector 
-            fields={fields} 
-            onFieldsUpdate={setFields} 
-          />
-        )}
+
       </div>
 
       {/* Action Buttons */}

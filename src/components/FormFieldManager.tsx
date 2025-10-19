@@ -425,22 +425,20 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
     setIsSectionDialogOpen(false);
   };
 
-  const allSectionNames = [...sectionNames];
-  fields.forEach(field => {
-    const sectionName = field.section_name || 'Lainnya';
-    if (!allSectionNames.includes(sectionName)) {
-      allSectionNames.push(sectionName);
-    }
-  });
-  if (allSectionNames.length === 0) {
-    allSectionNames.push('Lainnya');
-  }
-  const uniqueSectionNames = [...new Set(allSectionNames)];
-
-  const sections = uniqueSectionNames.reduce((acc, name) => {
-    acc[name] = fields.filter(f => (f.section_name || 'Lainnya') === name);
+  // Separate fields with sections from those without sections
+  const fieldsWithSections = fields.filter(field => field.section_name && field.section_name.trim() !== '');
+  const fieldsWithoutSections = fields.filter(field => !field.section_name || field.section_name.trim() === '');
+  
+  const sectionNamesList = [...new Set(fieldsWithSections.map(field => field.section_name))];
+  
+  // Group fields with sections
+  const sectionsWithFields = sectionNamesList.reduce((acc, name) => {
+    acc[name] = fieldsWithSections.filter(f => f.section_name === name);
     return acc;
   }, {});
+  
+  // Get all possible section names for dialog
+  const allSectionNames = [...new Set(fields.map(field => field.section_name).filter(name => name && name.trim() !== ''))];
 
   return (
     <Card>
@@ -457,7 +455,7 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
             <SectionNameDialog 
               onSave={handleSaveSection} 
               onCancel={() => setIsSectionDialogOpen(false)}
-              existingNames={uniqueSectionNames}
+              existingNames={allSectionNames}
             />
           </Dialog>
           <Dialog open={isPredefinedDialogOpen} onOpenChange={setIsPredefinedDialogOpen}>
@@ -482,7 +480,8 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          {Object.entries(sections).map(([sectionName, sectionFields]) => (
+          {/* Render fields with sections first */}
+          {Object.entries(sectionsWithFields).map(([sectionName, sectionFields]) => (
             <div key={sectionName} className="p-4 border rounded-lg">
               <h3 className="text-lg font-semibold mb-4">{sectionName}</h3>
               <div className="space-y-4">
@@ -551,6 +550,73 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
               </div>
             </div>
           ))}
+          
+          {/* Render fields without sections separately, if any */}
+          {fieldsWithoutSections.length > 0 && (
+            <div key="Lainnya" className="p-4 border rounded-lg">
+              <h3 className="text-lg font-semibold mb-4">Lainnya</h3>
+              <div className="space-y-4">
+                {fieldsWithoutSections.map((field, index) => {
+                  const originalIndex = fields.findIndex(f => f === field);
+                  return (
+                    <div key={originalIndex} className="flex items-start justify-between p-4 border rounded-lg bg-background">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{field.label_field}</p>
+                          {field.is_required && <span className="px-2 py-0.5 text-xs font-semibold text-red-800 bg-red-100 rounded-full">Wajib</span>}
+                        </div>
+                        <p className="text-sm text-muted-foreground">Tipe: {field.tipe_field} ({field.nama_field})</p>
+                        {field.tipe_field === 'dropdown' && field.opsi_pilihan && (
+                          <p className="text-xs text-muted-foreground">Pilihan: {Array.isArray(field.opsi_pilihan) ? field.opsi_pilihan.join(', ') : ''}</p>
+                        )}
+                        {(field.tipe_field === 'date' || (field.tipe_field === 'predefined' && field.sumber_data === 'penduduk.tanggal_lahir')) && (
+                          <DateFormatEditor 
+                            value={field.format_tanggal} 
+                            onChange={(newValue) => updateField(originalIndex, { format_tanggal: newValue })} 
+                          />
+                        )}
+                        {field.tipe_field === 'coordinate' && (
+                          <p className="text-xs text-muted-foreground mt-1">Tipe field koordinat akan menyimpan data dalam format latitude dan longitude.</p>
+                        )}
+                        {isFormattableField(field) && (
+                          <TextFormatSelector
+                            value={field.text_format}
+                            onChange={(newValue) => updateField(originalIndex, { text_format: newValue })}
+                          />
+                        )}
+                        <DeckDisplayOptions
+                          fieldIndex={originalIndex}
+                          field={field}
+                          updateField={updateField}
+                        />
+                      </div>
+                      <div className="flex flex-col items-end gap-3 ml-4">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor={`required-switch-${originalIndex}`} className="text-sm font-normal">Wajib diisi</Label>
+                          <Switch
+                            id={`required-switch-${originalIndex}`}
+                            checked={field.is_required || false}
+                            onCheckedChange={(checked) => updateField(originalIndex, { is_required: checked })}
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <Button size="icon" variant="ghost" onClick={() => moveField(originalIndex, 'up')} disabled={originalIndex === 0}>
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => moveField(originalIndex, 'down')} disabled={originalIndex === fields.length - 1}>
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="destructive" onClick={() => removeField(originalIndex)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
