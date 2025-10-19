@@ -233,11 +233,18 @@ const AdvancedFilter = ({
 
               <div className="space-y-2">
                 <Label>Dusun</Label>
-                <Input
-                  placeholder="Nama dusun"
-                  value={filters.dusun || ''}
-                  onChange={(e) => handleFilterChange('dusun', e.target.value)}
-                />
+                <Select value={filters.dusun || ''} onValueChange={(value) => handleFilterChange('dusun', value === 'all' ? undefined : value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih dusun" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Semua</SelectItem>
+                    <SelectItem value="Dusun I">Dusun I</SelectItem>
+                    <SelectItem value="Dusun II">Dusun II</SelectItem>
+                    <SelectItem value="Dusun III">Dusun III</SelectItem>
+                    <SelectItem value="Dusun IV">Dusun IV</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

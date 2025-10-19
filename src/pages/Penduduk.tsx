@@ -160,7 +160,7 @@ const Penduduk = () => {
       if (advancedFilters.pendidikan && item.pendidikan !== advancedFilters.pendidikan) return false;
       if (advancedFilters.golongan_darah && item.golongan_darah !== advancedFilters.golongan_darah) return false;
       if (advancedFilters.status_hubungan && item.status_hubungan !== advancedFilters.status_hubungan) return false;
-      if (advancedFilters.dusun && !item.dusun?.toLowerCase().includes(advancedFilters.dusun.toLowerCase())) return false;
+      if (advancedFilters.dusun && item.dusun?.toLowerCase() !== advancedFilters.dusun.toLowerCase()) return false;
       if (advancedFilters.rt && item.rt !== advancedFilters.rt) return false;
       if (advancedFilters.rw && item.rw !== advancedFilters.rw) return false;
       if (advancedFilters.pekerjaan && item.pekerjaan !== advancedFilters.pekerjaan) return false;
