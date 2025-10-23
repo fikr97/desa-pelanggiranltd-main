@@ -26,6 +26,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
     show_add_button: true,
     show_edit_button: true,
     show_delete_button: true,
+    default_group_by: '',
   });
   const [fields, setFields] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'settings' | 'fields'>('settings');
@@ -64,6 +65,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         show_add_button: formTugas.show_add_button !== undefined ? formTugas.show_add_button : true,
         show_edit_button: formTugas.show_edit_button !== undefined ? formTugas.show_edit_button : true,
         show_delete_button: formTugas.show_delete_button !== undefined ? formTugas.show_delete_button : true,
+        default_group_by: formTugas.default_group_by || '',
       });
       loadFields(formTugas.id);
     } else {
@@ -75,6 +77,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         show_add_button: true,
         show_edit_button: true,
         show_delete_button: true,
+        default_group_by: '',
       });
       setFields([]);
     }
@@ -106,6 +109,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
             show_add_button: formData.show_add_button,
             show_edit_button: formData.show_edit_button,
             show_delete_button: formData.show_delete_button,
+            default_group_by: formData.default_group_by,
             updated_at: new Date().toISOString() 
           })
           .eq('id', formId);
@@ -263,6 +267,29 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
                 </Select>
                 <p className="text-xs text-muted-foreground mt-1">
                   Pilih bagaimana data nantinya akan ditampilkan saat diisi
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="default_group_by">Grup Default Berdasarkan</Label>
+                <Select
+                  value={formData.default_group_by}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, default_group_by: value === 'none' ? '' : value }))}
+                >
+                  <SelectTrigger id="default_group_by">
+                    <SelectValue placeholder="Pilih field untuk grup..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Tidak Ada</SelectItem>
+                    {fields.map(field => (
+                      <SelectItem key={field.id} value={field.nama_field}>
+                        {field.label_field}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Pilih field yang akan digunakan untuk pengelompokan default pada tampilan data.
                 </p>
               </div>
 

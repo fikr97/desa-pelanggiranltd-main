@@ -451,23 +451,25 @@ const FormDataEntry = () => {
 
   const totalPages = Math.ceil(sortedEntries.length / itemsPerPage);
 
-  // This single useEffect will manage the viewMode based on form config and user preference.
+  // This single useEffect will manage the viewMode and default grouping based on form config and user preference.
   useEffect(() => {
     if (data?.formDef && !isLoading) {
+      // Set view mode
       const formDisplayType = data.formDef.display_type || 'table';
-
       if (formDisplayType === 'table') {
-        // If the form is configured as a table, always use table view.
         setViewMode('table');
       } else { // formDisplayType is 'deck'
-        // If the form is a deck, respect user's choice from localStorage.
         const savedViewMode = localStorage.getItem(`form_view_mode_${formId}`);
         if (savedViewMode === 'table' || savedViewMode === 'deck') {
           setViewMode(savedViewMode);
         } else {
-          // Otherwise, default to deck view.
           setViewMode('deck');
         }
+      }
+
+      // Set default group by field
+      if (data.formDef.default_group_by) {
+        setGroupByField(data.formDef.default_group_by);
       }
     }
   }, [data?.formDef, isLoading, formId]);
