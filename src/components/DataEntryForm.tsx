@@ -171,10 +171,9 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       return (
         <div key={field.id}>
           <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
-          <Select value={value} onValueChange={(newValue) => handleInputChange(field.nama_field, newValue)}>
-            <SelectTrigger id={field.nama_field}>
-              <SelectValue placeholder={`Pilih ${field.label_field}...`} />
-            </SelectTrigger>
+                        <Select value={value} onValueChange={(newValue) => handleInputChange(field.nama_field, newValue)} disabled={field.is_editable === false}>
+                          <SelectTrigger id={field.nama_field}>
+                            <SelectValue placeholder={`Pilih ${field.label_field}...`} />            </SelectTrigger>
             <SelectContent>
               {getDropdownOptions(field.nama_field).map(option => (
                 <SelectItem key={option} value={option}>{option}</SelectItem>
@@ -190,7 +189,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
         return (
           <div key={field.id}>
             <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
-            <Textarea id={field.nama_field} value={value} onChange={e => handleInputChange(field.nama_field, e.target.value)} />
+            <Textarea id={field.nama_field} value={value} onChange={e => handleInputChange(field.nama_field, e.target.value)} disabled={field.is_editable === false} />
           </div>
         );
       case 'number':
@@ -210,6 +209,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
                   handleInputChange(field.nama_field, e.target.value);
                 }
               }}
+              disabled={field.is_editable === false}
             />
           </div>
         );
@@ -248,6 +248,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
                 value={value ? format(new Date(value), 'yyyy-MM-dd', { locale: id }) : ''} 
                 onChange={e => handleInputChange(field.nama_field, e.target.value)}
                 className="w-auto"
+                disabled={field.is_editable === false}
               />
             </div>
           </div>
@@ -257,7 +258,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
         return (
           <div key={field.id}>
             <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
-            <Select value={value} onValueChange={(newValue) => handleInputChange(field.nama_field, newValue)}>
+            <Select value={value} onValueChange={(newValue) => handleInputChange(field.nama_field, newValue)} disabled={field.is_editable === false}>
               <SelectTrigger id={field.nama_field}>
                 <SelectValue placeholder="Pilih..." />
               </SelectTrigger>
@@ -290,6 +291,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
               value={coordValue} 
               onChange={handleCoordinateChange} 
               placeholder="Pilih lokasi dari peta"
+              disabled={field.is_editable === false}
             />
           </div>
         );
@@ -302,7 +304,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
               value={value}
               onChange={(newValue) => handleInputChange(field.nama_field, newValue)}
               isRequired={field.is_required}
-              disabled={isLoading}
+              disabled={isLoading || field.is_editable === false}
               formId={formDef.id}
             />
           </div>
@@ -326,6 +328,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
               maxLength={isNIKorNoKKField ? 16 : undefined}
               type={isNIKorNoKKField ? "text" : undefined} // Use text type to allow maxLength, but filter input
               inputMode={isNIKorNoKKField ? "numeric" : undefined} // Improve mobile keyboard experience
+              disabled={field.is_editable === false}
             />
           </div>
         );

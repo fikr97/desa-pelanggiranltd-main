@@ -143,6 +143,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
           opsi_pilihan: field.opsi_pilihan,
           format_tanggal: field.format_tanggal,
           is_required: field.is_required || false,
+          is_editable: field.is_editable !== false,
           text_format: field.text_format || 'normal',
           // Set default values for deck fields if they don't exist
           deck_visible: field.deck_visible !== undefined ? field.deck_visible : false,

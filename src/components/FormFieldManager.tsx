@@ -531,6 +531,14 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
                               onCheckedChange={(checked) => updateField(originalIndex, { is_required: checked })}
                             />
                           </div>
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor={`editable-switch-${originalIndex}`} className="text-sm font-normal">Dapat diedit</Label>
+                            <Switch
+                              id={`editable-switch-${originalIndex}`}
+                              checked={field.is_editable !== false}
+                              onCheckedChange={(checked) => updateField(originalIndex, { is_editable: checked })}
+                            />
+                          </div>
                           <div className="flex items-center">
                             <Button size="icon" variant="ghost" onClick={() => moveField(originalIndex, 'up')} disabled={originalIndex === 0}>
                               <ArrowUp className="h-4 w-4" />
@@ -597,6 +605,14 @@ const FormFieldManager = ({ fields, onFieldsChange }: FormFieldManagerProps) => 
                             id={`required-switch-${originalIndex}`}
                             checked={field.is_required || false}
                             onCheckedChange={(checked) => updateField(originalIndex, { is_required: checked })}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor={`editable-switch-${originalIndex}`} className="text-sm font-normal">Dapat diedit</Label>
+                          <Switch
+                            id={`editable-switch-${originalIndex}`}
+                            checked={field.is_editable !== false}
+                            onCheckedChange={(checked) => updateField(originalIndex, { is_editable: checked })}
                           />
                         </div>
                         <div className="flex items-center">
