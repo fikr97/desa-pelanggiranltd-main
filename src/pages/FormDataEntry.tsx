@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Loader2, Download, Upload, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown, Grid3X3, List, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Check } from 'lucide-react';
+import { Loader2, Download, Upload, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown, Grid3X3, List, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Check, FileText } from 'lucide-react';
 import DataEntryForm from '@/components/DataEntryForm';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -1153,7 +1153,7 @@ const FormDataEntry = () => {
                     className="flex items-center h-8"
                     disabled={index === currentGroupPath.length - 1}
                   >
-                    <span>{fieldName}: {group}</span>
+                    <span>{group}</span>
                   </Button>
                 </div>
               );
@@ -1261,7 +1261,7 @@ const FormDataEntry = () => {
                                     className="max-h-16 object-cover rounded border"
                                     onError={(e) => {
                                       // If the image fails to load, show an error indicator
-                                      e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
+                                      e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><line x1='3' y1='9' x2='21' y2='9'/><line x1='9' y1='21' x2='9' y2='9'/></svg>";
                                       e.currentTarget.className = 'max-h-16 object-cover rounded border text-gray-400';
                                     }}
                                   />
@@ -1423,7 +1423,7 @@ const FormDataEntry = () => {
                       }`}></div>
                       <div>
                         <h3 className="font-medium text-gray-800 text-sm">
-                          {fieldName}: {groupKey}
+                          {groupKey}
                         </h3>
                         <p className="text-xs text-gray-600">
                           {subEntryCount} item
@@ -1444,18 +1444,6 @@ const FormDataEntry = () => {
                   </div>
                 );
               })}
-              {currentGroupPath.length > 0 && (
-                <div className="mt-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={navigateBack}
-                    className="flex items-center"
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Kembali
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
         );
@@ -1546,7 +1534,7 @@ const FormDataEntry = () => {
                                   className="max-h-16 object-cover rounded border"
                                   onError={(e) => {
                                     // If the image fails to load, show an error indicator
-                                    e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
+                                    e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><line x1='3' y1='9' x2='21' y2='9'/><line x1='9' y1='21' x2='9' y2='9'/></svg>";
                                     e.currentTarget.className = 'max-h-16 object-cover rounded border text-gray-400';
                                   }}
                                 />
@@ -1709,7 +1697,7 @@ const FormDataEntry = () => {
                     className="flex items-center h-8"
                     disabled={index === currentGroupPath.length - 1}
                   >
-                    <span>{fieldName}: {group}</span>
+                    <span>{group}</span>
                   </Button>
                 </div>
               );
@@ -1724,7 +1712,7 @@ const FormDataEntry = () => {
         return (
           <div>
             {renderBreadcrumbs()}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-3">
               {paginatedEntries.map((entry, index) => {
                 // Use deck display fields from the form fields if they exist and are visible
                 // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
@@ -1740,110 +1728,123 @@ const FormDataEntry = () => {
                 const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
                 
                 return (
-                  <Card key={entry.id} className="overflow-hidden flex flex-col">
-                    {headerFieldValue && (
-                      <CardHeader className={headerField.deck_display_format === 'header' ? 'bg-primary text-primary-foreground' : 'bg-muted'}>
-                        <CardTitle className="text-lg break-words">{headerFieldValue}</CardTitle>
-                      </CardHeader>
-                    )}
-                    <CardContent className="p-4 flex-grow">
-                      <div className="space-y-2">
-                        {bodyFields.map(field => {
-                          const value = getFieldValue(entry, field);
-                          
-                          let displayElement;
-                          if (field.tipe_field === 'coordinate') {
-                            if (value && value !== 'Koordinat tidak valid') {
-                              // Try to parse the coordinate value
-                              let coords = null;
-                              try {
-                                // If it's already an object format from JSON.parse
-                                if (typeof value === 'object') {
-                                  coords = value;
-                                } else {
-                                  // If it's in "lat, lng" format, split it
-                                  const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
-                                  if (!isNaN(lat) && !isNaN(lng)) {
-                                    coords = { lat, lng };
-                                  }
-                                }
-                              } catch (e) {
-                                console.error("Error parsing coordinate for link:", e);
-                              }
+                  <Card key={entry.id} className="overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                    <div className="flex flex-col sm:flex-row">
+                      {/* Left side - Header and primary info */}
+                      <div className="flex-1 p-4 min-w-0">
+                        {headerFieldValue && (
+                          <div className="mb-3">
+                            <h3 className={`font-semibold text-gray-900 ${headerField.deck_display_format === 'header' ? 'text-lg' : 'text-base'}`}>
+                              {headerFieldValue}
+                            </h3>
+                          </div>
+                        )}
+                        
+                        {/* Horizontal layout for deck fields - show only first 3-4 fields, with 'lainnya' indicator for additional fields */}
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {bodyFields.slice(0, 3).map(field => {
+                              const value = getFieldValue(entry, field);
                               
-                              if (coords) {
-                                const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
+                              let displayElement;
+                              if (field.tipe_field === 'coordinate') {
+                                if (value && value !== 'Koordinat tidak valid') {
+                                  // Try to parse the coordinate value
+                                  let coords = null;
+                                  try {
+                                    // If it's already an object format from JSON.parse
+                                    if (typeof value === 'object') {
+                                      coords = value;
+                                    } else {
+                                      // If it's in "lat, lng" format, split it
+                                      const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+                                      if (!isNaN(lat) && !isNaN(lng)) {
+                                        coords = { lat, lng };
+                                      }
+                                    }
+                                  } catch (e) {
+                                    console.error("Error parsing coordinate for link:", e);
+                                  }
+                                  
+                                  if (coords) {
+                                    const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
+                                    displayElement = (
+                                      <a 
+                                        href={mapUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:underline text-xs"
+                                        onClick={(e) => e.stopPropagation()} // Prevent card click from firing
+                                      >
+                                        {value}
+                                      </a>
+                                    );
+                                  } else {
+                                    displayElement = <span className="text-xs text-gray-700">{value}</span>;
+                                  }
+                                } else {
+                                  displayElement = <span className="text-xs text-gray-700">{value}</span>;
+                                }
+                              } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+                                // Handle image display in deck view
                                 displayElement = (
                                   <a 
-                                    href={mapUrl} 
+                                    href={value.url} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline flex items-center gap-1"
+                                    className="inline-block"
                                     onClick={(e) => e.stopPropagation()} // Prevent card click from firing
                                   >
-                                    {value}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
-                                      <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
-                                      <circle cx="12" cy="10" r="3"/>
-                                    </svg>
+                                    <img 
+                                      src={value.url} 
+                                      alt="Gambar" 
+                                      className="h-10 w-10 object-cover rounded border"
+                                      onError={(e) => {
+                                        // If the image fails to load, show an error indicator
+                                        e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><line x1='3' y1='9' x2='21' y2='9'/><line x1='9' y1='21' x2='9' y2='9'/></svg>";
+                                        e.currentTarget.className = 'h-10 w-10 object-cover rounded border text-gray-400';
+                                      }}
+                                    />
                                   </a>
                                 );
                               } else {
-                                displayElement = value;
+                                displayElement = <span className="text-xs text-gray-700">{value}</span>;
                               }
-                            } else {
-                              displayElement = value;
-                            }
-                          } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
-                            // Handle image display in deck view
-                            displayElement = (
-                              <a 
-                                href={value.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="block"
-                                onClick={(e) => e.stopPropagation()} // Prevent card click from firing
-                              >
-                                <img 
-                                  src={value.url} 
-                                  alt="Gambar" 
-                                  className="max-h-32 object-cover rounded border w-full mt-1"
-                                  onError={(e) => {
-                                    // If the image fails to load, show an error indicator
-                                    e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
-                                    e.currentTarget.className = 'max-h-32 object-cover rounded border w-full mt-1 text-gray-400';
-                                  }}
-                                />
-                              </a>
-                            );
-                          } else {
-                            displayElement = value;
-                          }
-                          
-                          return (
-                            <div key={field.id} className="flex flex-col">
-                              <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
-                              <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>
-                                {displayElement}
-                              </span>
+                              
+                              return (
+                                <div key={field.id} className="flex flex-col">
+                                  <Label className="text-xs font-medium text-muted-foreground truncate">{field.label_field}</Label>
+                                  <div className="mt-1">
+                                    {displayElement}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {bodyFields.length > 3 && (
+                            <div className="pt-1">
+                              <span className="text-xs text-gray-500">+{bodyFields.length - 3} field lainnya</span>
                             </div>
-                          );
-                        })}
+                          )}
+                        </div>
                       </div>
                       
-                      <div className="flex gap-2 mt-4 justify-end">
-                        {formDef.show_edit_button && (
-                          <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {formDef.show_delete_button && (
-                          <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                      {/* Right side - Actions */}
+                      <div className="flex items-center justify-center p-4 border-t sm:border-t-0 sm:border-l border-gray-100 bg-gray-50">
+                        <div className="flex gap-2">
+                          {formDef.show_edit_button && (
+                            <Button variant="outline" size="sm" onClick={() => handleEdit(entry)} className="h-8 w-8 p-0">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {formDef.show_delete_button && (
+                            <Button variant="outline" size="sm" onClick={() => openDeleteDialog(entry)} className="h-8 w-8 p-0">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </CardContent>
+                    </div>
                   </Card>
                 );
               })}
@@ -1981,7 +1982,7 @@ const FormDataEntry = () => {
                       }`}></div>
                       <div>
                         <h3 className="font-medium text-gray-800 text-sm">
-                          {fieldName}: {groupKey}
+                          {groupKey}
                         </h3>
                         <p className="text-xs text-gray-600">
                           {subEntryCount} item
@@ -2002,23 +2003,12 @@ const FormDataEntry = () => {
                   </div>
                 );
               })}
-              {currentGroupPath.length > 0 && (
-                <div className="mt-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={navigateBack}
-                    className="flex items-center"
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Kembali
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
         );
-      }
-    } else {
+      } // End of groupedEntriesForCurrentLevel condition
+    } // End of grouped entries condition
+    else {
       // Non-grouped deck view with pagination
       // Use deck display fields from the form fields if they exist and are visible
       // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
@@ -2028,7 +2018,7 @@ const FormDataEntry = () => {
       
       return (
         <div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-3">
             {paginatedEntries.map((entry, index) => {
               // Find the header field if any
               const headerField = visibleDeckFields.find(f => f.deck_is_header);
@@ -2038,110 +2028,123 @@ const FormDataEntry = () => {
               const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
               
               return (
-                <Card key={entry.id} className="overflow-hidden flex flex-col">
-                  {headerFieldValue && (
-                    <CardHeader className={headerField.deck_display_format === 'header' ? 'bg-primary text-primary-foreground' : 'bg-muted'}>
-                      <CardTitle className="text-lg break-words">{headerFieldValue}</CardTitle>
-                    </CardHeader>
-                  )}
-                  <CardContent className="p-4 flex-grow">
-                    <div className="space-y-2">
-                      {bodyFields.map(field => {
-                        const value = getFieldValue(entry, field);
-                        
-                        let displayElement;
-                        if (field.tipe_field === 'coordinate') {
-                          if (value && value !== 'Koordinat tidak valid') {
-                            // Try to parse the coordinate value
-                            let coords = null;
-                            try {
-                              // If it's already an object format from JSON.parse
-                              if (typeof value === 'object') {
-                                coords = value;
-                              } else {
-                                // If it's in "lat, lng" format, split it
-                                const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
-                                if (!isNaN(lat) && !isNaN(lng)) {
-                                  coords = { lat, lng };
-                                }
-                              }
-                            } catch (e) {
-                              console.error("Error parsing coordinate for link:", e);
-                            }
+                <Card key={entry.id} className="overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                  <div className="flex flex-col sm:flex-row">
+                    {/* Left side - Header and primary info */}
+                    <div className="flex-1 p-4 min-w-0">
+                      {headerFieldValue && (
+                        <div className="mb-3">
+                          <h3 className={`font-semibold text-gray-900 ${headerField.deck_display_format === 'header' ? 'text-lg' : 'text-base'}`}>
+                            {headerFieldValue}
+                          </h3>
+                        </div>
+                      )}
+                      
+                      {/* Horizontal layout for deck fields - show only first 3-4 fields, with 'lainnya' indicator for additional fields */}
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {bodyFields.slice(0, 3).map(field => {
+                            const value = getFieldValue(entry, field);
                             
-                            if (coords) {
-                              const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
+                            let displayElement;
+                            if (field.tipe_field === 'coordinate') {
+                              if (value && value !== 'Koordinat tidak valid') {
+                                // Try to parse the coordinate value
+                                let coords = null;
+                                try {
+                                  // If it's already an object format from JSON.parse
+                                  if (typeof value === 'object') {
+                                    coords = value;
+                                  } else {
+                                    // If it's in "lat, lng" format, split it
+                                    const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+                                    if (!isNaN(lat) && !isNaN(lng)) {
+                                      coords = { lat, lng };
+                                    }
+                                  }
+                                } catch (e) {
+                                  console.error("Error parsing coordinate for link:", e);
+                                }
+                                
+                                if (coords) {
+                                  const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
+                                  displayElement = (
+                                    <a 
+                                      href={mapUrl} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline text-xs"
+                                      onClick={(e) => e.stopPropagation()} // Prevent card click from firing
+                                    >
+                                      {value}
+                                    </a>
+                                  );
+                                } else {
+                                  displayElement = <span className="text-xs text-gray-700">{value}</span>;
+                                }
+                              } else {
+                                displayElement = <span className="text-xs text-gray-700">{value}</span>;
+                              }
+                            } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+                              // Handle image display in deck view
                               displayElement = (
                                 <a 
-                                  href={mapUrl} 
+                                  href={value.url} 
                                   target="_blank" 
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 hover:underline flex items-center gap-1"
+                                  className="inline-block"
                                   onClick={(e) => e.stopPropagation()} // Prevent card click from firing
                                 >
-                                  {value}
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
-                                    <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
-                                    <circle cx="12" cy="10" r="3"/>
-                                  </svg>
+                                  <img 
+                                    src={value.url} 
+                                    alt="Gambar" 
+                                    className="h-10 w-10 object-cover rounded border"
+                                  onError={(e) => {
+                                    // If the image fails to load, show an error indicator
+                                    e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><line x1='3' y1='9' x2='21' y2='9'/><line x1='9' y1='21' x2='9' y2='9'/></svg>";
+                                    e.currentTarget.className = 'h-10 w-10 object-cover rounded border text-gray-400';
+                                  }}
+                                  ></img>
                                 </a>
                               );
                             } else {
-                              displayElement = value;
+                              displayElement = <span className="text-xs text-gray-700">{value}</span>;
                             }
-                          } else {
-                            displayElement = value;
-                          }
-                        } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
-                          // Handle image display in deck view
-                          displayElement = (
-                            <a 
-                              href={value.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="block"
-                              onClick={(e) => e.stopPropagation()} // Prevent card click from firing
-                            >
-                              <img 
-                                src={value.url} 
-                                alt="Gambar" 
-                                className="max-h-32 object-cover rounded border w-full mt-1"
-                                onError={(e) => {
-                                  // If the image fails to load, show an error indicator
-                                  e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
-                                  e.currentTarget.className = 'max-h-32 object-cover rounded border w-full mt-1 text-gray-400';
-                                }}
-                              />
-                            </a>
-                          );
-                        } else {
-                          displayElement = value;
-                        }
-                        
-                        return (
-                          <div key={field.id} className="flex flex-col">
-                            <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
-                            <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>
-                              {displayElement}
-                            </span>
+                            
+                            return (
+                              <div key={field.id} className="flex flex-col">
+                                <Label className="text-xs font-medium text-muted-foreground truncate">{field.label_field}</Label>
+                                <div className="mt-1">
+                                  {displayElement}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {bodyFields.length > 3 && (
+                          <div className="pt-1">
+                            <span className="text-xs text-gray-500">+{bodyFields.length - 3} field lainnya</span>
                           </div>
-                        );
-                      })}
+                        )}
+                      </div>
                     </div>
                     
-                    <div className="flex gap-2 mt-4 justify-end">
-                      {formDef.show_edit_button && (
-                        <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {formDef.show_delete_button && (
-                        <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                    {/* Right side - Actions */}
+                    <div className="flex items-center justify-center p-4 border-t sm:border-t-0 sm:border-l border-gray-100 bg-gray-50">
+                      <div className="flex gap-2">
+                        {formDef.show_edit_button && (
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(entry)} className="h-8 w-8 p-0">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {formDef.show_delete_button && (
+                          <Button variant="outline" size="sm" onClick={() => openDeleteDialog(entry)} className="h-8 w-8 p-0">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </CardContent>
+                  </div>
                 </Card>
               );
             })}
