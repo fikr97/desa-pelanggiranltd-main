@@ -1437,27 +1437,29 @@ const FormDataEntry = () => {
           
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 p-4 bg-muted rounded-lg">
-              <div className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="text-xs text-gray-600">
                 Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedEntries.length)} dari {sortedEntries.length} data
               </div>
               
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={firstPage}
                   disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
                 >
-                  <ChevronsLeft className="h-4 w-4" />
+                  <ChevronsLeft className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={prevPage}
                   disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-3.5 w-3.5" />
                 </Button>
                 
                 <div className="flex items-center space-x-1">
@@ -1479,7 +1481,7 @@ const FormDataEntry = () => {
                         variant={pageNum === currentPage ? "default" : "outline"}
                         size="sm"
                         onClick={() => goToPage(pageNum)}
-                        className="w-10 h-10"
+                        className="w-8 h-8 text-xs"
                       >
                         {pageNum}
                       </Button>
@@ -1492,21 +1494,23 @@ const FormDataEntry = () => {
                   size="sm"
                   onClick={nextPage}
                   disabled={currentPage === totalPages}
+                  className="h-8 w-8 p-0"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={lastPage}
                   disabled={currentPage === totalPages}
+                  className="h-8 w-8 p-0"
                 >
-                  <ChevronsRight className="h-4 w-4" />
+                  <ChevronsRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
               
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted-foreground">Baris per halaman:</span>
+              <div className="flex items-center space-x-1">
+                <span className="text-xs text-gray-600">Baris per halaman:</span>
                 <Select
                   value={itemsPerPage.toString()}
                   onValueChange={(value) => {
@@ -1514,7 +1518,7 @@ const FormDataEntry = () => {
                     setCurrentPage(1); // Reset to first page when changing items per page
                   }}
                 >
-                  <SelectTrigger className="w-20">
+                  <SelectTrigger className="h-8 text-xs w-16">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1564,7 +1568,7 @@ const FormDataEntry = () => {
             }
             
             return (
-              <div key={fullGroupName} className="mb-4">
+              <div key={fullGroupName} className="mb-3">
                 <div 
                   className={`flex justify-between items-center p-3 rounded-lg border-l-4 ${
                     hierarchyLevel === 0 ? 'border-blue-500 bg-blue-50' : 
@@ -1617,7 +1621,7 @@ const FormDataEntry = () => {
             const isExpanded = expandedGroups.has(fullGroupName);
             
             return (
-              <div key={fullGroupName} className="mb-4">
+              <div key={fullGroupName} className="mb-3">
                 <div 
                   className="flex justify-between items-center p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border-l-4 border-gray-400 shadow-sm transition-all duration-200 hover:shadow-md"
                   onClick={() => toggleGroup(fullGroupName)}
@@ -1653,7 +1657,7 @@ const FormDataEntry = () => {
 
       // Helper function to render deck entries
       const renderDeckEntries = (entries: any[], hierarchyLevel: number = 0) => (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+        <div className="space-y-3 mt-3">
           {entries.map((entry, index) => {
             // Use deck display fields from the form fields if they exist and are visible
             // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
@@ -1671,23 +1675,23 @@ const FormDataEntry = () => {
             return (
               <div 
                 key={entry.id} 
-                className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 flex flex-col h-full"
+                className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col sm:flex-row items-start"
               >
-                {headerFieldValue && (
-                  <div className={`
-                    p-4 border-b 
-                    ${headerField.deck_display_format === 'header' 
-                      ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white' 
-                      : 'bg-gray-50'}
-                  `}>
-                    <h3 className="font-semibold break-words text-lg">
+                {/* Content area - left side */}
+                <div className="flex-1 p-4 min-w-0">
+                  {headerFieldValue && (
+                    <div className={`
+                      mb-3 
+                      ${headerField.deck_display_format === 'header' 
+                        ? 'text-blue-600 font-semibold text-base' 
+                        : 'font-medium text-gray-800 text-sm'}
+                    `}>
                       {headerFieldValue}
-                    </h3>
-                  </div>
-                )}
-                <div className="p-5 flex-grow">
-                  <div className="space-y-3">
-                    {bodyFields.map(field => {
+                    </div>
+                  )}
+                  
+                  <div className="flex flex-wrap gap-3">
+                    {bodyFields.slice(0, 3).map((field, idx) => { // Show first 3 fields in a row
                       const value = getFieldValue(entry, field);
                       let displayValue;
                       
@@ -1717,13 +1721,9 @@ const FormDataEntry = () => {
                                 href={mapUrl} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline flex items-center gap-1 text-sm"
+                                className="text-blue-600 hover:underline text-xs"
                                 onClick={(e) => e.stopPropagation()} // Prevent card click from firing
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
-                                  <circle cx="12" cy="10" r="3"/>
-                                </svg>
                                 {value}
                               </a>
                             );
@@ -1734,58 +1734,62 @@ const FormDataEntry = () => {
                           displayValue = value;
                         }
                       } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
-                        // Handle image display in deck view
+                        // Handle image display
                         displayValue = (
                           <a 
                             href={value.url} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="block"
+                            className="inline-block"
                             onClick={(e) => e.stopPropagation()} // Prevent card click from firing
                           >
                             <img 
                               src={value.url} 
                               alt="Gambar" 
-                              className="max-h-32 object-cover rounded-lg border w-full"
+                              className="h-8 w-8 object-cover rounded border"
                               onError={(e) => {
                                 // If the image fails to load, show an error indicator
-                                e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
-                                e.currentTarget.className = 'max-h-32 object-cover rounded-lg border w-full text-gray-400';
+                                e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
+                                e.currentTarget.className = 'h-8 w-8 object-cover rounded border text-gray-400';
                               }}
                             />
                           </a>
                         );
                       } else {
-                        displayValue = <span className="text-gray-700">{value}</span>;
+                        displayValue = <span className="text-gray-700 text-xs">{value}</span>;
                       }
                       
                       return (
-                        <div key={field.id} className="flex flex-col">
-                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                        <div key={field.id} className="flex flex-col min-w-[120px]">
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                             {field.label_field}
                           </label>
-                          <div className={`text-sm ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>
+                          <div className="text-xs text-gray-700 truncate max-w-xs">
                             {displayValue}
                           </div>
                         </div>
                       );
                     })}
-                  </div>
-                  
-                  <div className="flex gap-2 mt-6 justify-end pt-4 border-t border-gray-100">
-                    {formDef.show_edit_button && (
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(entry)} className="h-9">
-                        <Pencil className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
-                    )}
-                    {formDef.show_delete_button && (
-                      <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)} className="h-9">
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Hapus
-                      </Button>
+                    {bodyFields.length > 3 && (
+                      <div className="text-xs text-gray-500 italic">
+                        +{bodyFields.length - 3} lainnya
+                      </div>
                     )}
                   </div>
+                </div>
+                
+                {/* Actions area - right side */}
+                <div className="flex items-center gap-1 p-3 border-t sm:border-t-0 sm:border-l border-gray-100">
+                  {formDef.show_edit_button && (
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(entry)} className="h-8 w-8 p-0">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  {formDef.show_delete_button && (
+                    <Button variant="outline" size="sm" onClick={() => openDeleteDialog(entry)} className="h-8 w-8 p-0">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
             );
@@ -1949,27 +1953,29 @@ const FormDataEntry = () => {
           
           {/* Pagination Controls for Deck View */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 p-4 bg-muted rounded-lg">
-              <div className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="text-xs text-gray-600">
                 Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedEntries.length)} dari {sortedEntries.length} data
               </div>
               
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={firstPage}
                   disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
                 >
-                  <ChevronsLeft className="h-4 w-4" />
+                  <ChevronsLeft className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={prevPage}
                   disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-3.5 w-3.5" />
                 </Button>
                 
                 <div className="flex items-center space-x-1">
@@ -1991,7 +1997,7 @@ const FormDataEntry = () => {
                         variant={pageNum === currentPage ? "default" : "outline"}
                         size="sm"
                         onClick={() => goToPage(pageNum)}
-                        className="w-10 h-10"
+                        className="w-8 h-8 text-xs"
                       >
                         {pageNum}
                       </Button>
@@ -2004,21 +2010,23 @@ const FormDataEntry = () => {
                   size="sm"
                   onClick={nextPage}
                   disabled={currentPage === totalPages}
+                  className="h-8 w-8 p-0"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={lastPage}
                   disabled={currentPage === totalPages}
+                  className="h-8 w-8 p-0"
                 >
-                  <ChevronsRight className="h-4 w-4" />
+                  <ChevronsRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
               
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted-foreground">Baris per halaman:</span>
+              <div className="flex items-center space-x-1">
+                <span className="text-xs text-gray-600">Baris per halaman:</span>
                 <Select
                   value={itemsPerPage.toString()}
                   onValueChange={(value) => {
@@ -2026,7 +2034,7 @@ const FormDataEntry = () => {
                     setCurrentPage(1); // Reset to first page when changing items per page
                   }}
                 >
-                  <SelectTrigger className="w-20">
+                  <SelectTrigger className="h-8 text-xs w-16">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -2092,9 +2100,9 @@ const FormDataEntry = () => {
         {/* View mode toggle - show if form has deck fields */}
         {/* Search box, field selector, group by selector and view toggles */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-          <div className="flex flex-col md:flex-row gap-2 w-full">
-            <div className="relative w-full md:w-1/2 mb-2 md:mb-0">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none z-10">
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-1/2">
+            <div className="relative w-full mb-2 md:mb-0">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 z-10">
                 <Search className="h-4 w-4 text-gray-400" />
               </div>
               <Input
@@ -2104,97 +2112,97 @@ const FormDataEntry = () => {
                 className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm"
               />
             </div>
-            <div className="flex flex-col md:flex-row gap-2 w-full md:w-1/2">
+          </div>
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-1/2">
+            <div className="w-full md:w-auto">
               {/* Field Selection Dropdown */}
-              <div className="w-full md:w-auto mb-2 md:mb-0">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-between text-sm bg-background hover:bg-background"
-                    >
-                      <span className="flex items-center">
-                        <Filter className="mr-2 h-4 w-4" />
-                        {searchFields.length === 0
-                          ? "Pilih field untuk pencarian"
-                          : searchFields.length === 1
-                          ? `1 field dipilih`
-                          : `${searchFields.length} field dipilih`}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-4" align="start">
-                    <div className="mb-2">
-                      <h4 className="font-medium">Pilih Field Pencarian</h4>
-                      <p className="text-xs text-muted-foreground">
-                        Pilih field yang akan dicari
-                      </p>
-                    </div>
-                    <div className="max-h-60 overflow-y-auto space-y-2">
-                      {formDef.fields.map((field) => (
-                        <div key={field.nama_field} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`field-${field.nama_field}`}
-                            checked={searchFields.includes(field.nama_field)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSearchFields(prev => [...prev, field.nama_field]);
-                              } else {
-                                setSearchFields(prev => prev.filter(f => f !== field.nama_field));
-                              }
-                            }}
-                          />
-                          <Label 
-                            htmlFor={`field-${field.nama_field}`} 
-                            className="text-sm font-normal cursor-pointer"
-                          >
-                            {field.label_field}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                    {searchFields.length > 0 && (
-                      <div className="mt-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSearchFields([])}
-                          className="text-sm"
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between text-sm bg-background hover:bg-background"
+                  >
+                    <span className="flex items-center">
+                      <Filter className="mr-2 h-4 w-4" />
+                      {searchFields.length === 0
+                        ? "Pilih field untuk pencarian"
+                        : searchFields.length === 1
+                        ? `1 field dipilih`
+                        : `${searchFields.length} field dipilih`}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-4" align="start">
+                  <div className="mb-2">
+                    <h4 className="font-medium">Pilih Field Pencarian</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Pilih field yang akan dicari
+                    </p>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {formDef.fields.map((field) => (
+                      <div key={field.nama_field} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`field-${field.nama_field}`}
+                          checked={searchFields.includes(field.nama_field)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSearchFields(prev => [...prev, field.nama_field]);
+                            } else {
+                              setSearchFields(prev => prev.filter(f => f !== field.nama_field));
+                            }
+                          }}
+                        />
+                        <Label 
+                          htmlFor={`field-${field.nama_field}`} 
+                          className="text-sm font-normal cursor-pointer"
                         >
-                          Hapus Semua Pilihan
-                        </Button>
+                          {field.label_field}
+                        </Label>
                       </div>
-                    )}
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="w-full md:w-auto">
-                {groupByHierarchy.length > 0 && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
-                    <div className="flex items-center">
-                      <div className="w-2.5 h-2.5 rounded-full bg-blue-500 mr-2"></div>
-                      <span className="text-xs text-blue-800 font-medium">Grup Bertingkat:</span>
-                    </div>
-                    <div className="text-xs text-blue-700 mt-1 ml-4">
-                      {groupByHierarchy.map((fieldId, index) => {
-                        const field = formDef.fields.find(f => f.nama_field === fieldId);
-                        const fieldName = field?.label_field || fieldId;
-                        return (
-                          <span key={index} className="inline-flex items-center">
-                            {index > 0 && <span className="mx-1 text-blue-400">›</span>}
-                            <span className="font-medium">{fieldName}</span>
-                          </span>
-                        );
-                      })}
-                    </div>
+                    ))}
                   </div>
-                )}
-                {groupByHierarchy.length === 0 && (
-                  <div className="text-xs text-gray-500 italic px-1 py-2">
-                    Tidak ada pengelompokan aktif
+                  {searchFields.length > 0 && (
+                    <div className="mt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSearchFields([])}
+                        className="text-sm"
+                      >
+                        Hapus Semua Pilihan
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="w-full md:w-auto">
+              {groupByHierarchy.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+                  <div className="flex items-center">
+                    <div className="w-2.5 h-2.5 rounded-full bg-blue-500 mr-2"></div>
+                    <span className="text-xs text-blue-800 font-medium">Grup Bertingkat:</span>
                   </div>
-                )}
-              </div>
+                  <div className="text-xs text-blue-700 mt-1 ml-4">
+                    {groupByHierarchy.map((fieldId, index) => {
+                      const field = formDef.fields.find(f => f.nama_field === fieldId);
+                      const fieldName = field?.label_field || fieldId;
+                      return (
+                        <span key={index} className="inline-flex items-center">
+                          {index > 0 && <span className="mx-1 text-blue-400">›</span>}
+                          <span className="font-medium">{fieldName}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {groupByHierarchy.length === 0 && (
+                <div className="text-xs text-gray-500 italic px-1 py-2">
+                  Tidak ada pengelompokan aktif
+                </div>
+              )}
             </div>
           </div>
           {formDef.display_type === 'deck' && (
