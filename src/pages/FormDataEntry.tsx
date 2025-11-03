@@ -148,7 +148,8 @@ const FormDataEntry = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
   const [searchTerm, setSearchTerm] = useState('');
   const [searchFields, setSearchFields] = useState<string[]>([]); // Array to store selected field names to search in
-  const [groupByField, setGroupByField] = useState<string | null>('none');
+  const [groupByField, setGroupByField] = useState<string | null>('none'); // Keep for backward compatibility
+  const [groupByHierarchy, setGroupByHierarchy] = useState<string[]>([]); // New state for nested groups
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'table' | 'deck'>('table');
@@ -397,23 +398,46 @@ const FormDataEntry = () => {
     }
   }, [data?.entries, data?.formDef.fields, searchTerm, searchFields]);
 
-  // Group entries by selected field
+  // Group entries by hierarchy (primary) with fallback to single-level grouping
   const groupedEntries = useMemo(() => {
-    if (!groupByField || groupByField === 'none' || !filteredEntries) return null;
+    if (!filteredEntries) return null;
     
-    const groupMap: Record<string, any[]> = {};
-    filteredEntries.forEach(entry => {
-      const fieldValue = getFieldValue(entry, data?.formDef.fields.find(f => f.nama_field === groupByField));
-      const groupKey = fieldValue ? String(fieldValue) : 'Belum Diisi';
-      
-      if (!groupMap[groupKey]) {
-        groupMap[groupKey] = [];
-      }
-      groupMap[groupKey].push(entry);
-    });
+    // Use nested grouping if hierarchy is defined
+    if (groupByHierarchy && groupByHierarchy.length > 0) {
+      // Create nested grouping based on hierarchy
+      // This will create a nested object structure: {level1: {level2: {level3: [entries...]}}}
+      const groupByLevel = (entries, hierarchy, level = 0) => {
+        if (level >= hierarchy.length) {
+          // We've reached the deepest level, return the entries as-is
+          return entries;
+        }
+
+        const currentFieldId = hierarchy[level];
+        const groupedResult = {};
+
+        entries.forEach(entry => {
+          const fieldValue = getFieldValue(entry, data?.formDef.fields.find(f => f.nama_field === currentFieldId));
+          const groupKey = fieldValue ? String(fieldValue) : 'Belum Diisi';
+          
+          if (!groupedResult[groupKey]) {
+            groupedResult[groupKey] = [];
+          }
+          groupedResult[groupKey].push(entry);
+        });
+
+        // Recursively apply grouping to each subgroup for the next level
+        for (const key in groupedResult) {
+          groupedResult[key] = groupByLevel(groupedResult[key], hierarchy, level + 1);
+        }
+
+        return groupedResult;
+      };
+
+      return groupByLevel(filteredEntries, groupByHierarchy);
+    }
     
-    return groupMap;
-  }, [filteredEntries, groupByField, data?.formDef.fields]);
+    return null;
+  }, [filteredEntries, groupByHierarchy, data?.formDef.fields]);
 
   const sortedEntries = useMemo(() => {
     if (!filteredEntries) return [];
@@ -467,9 +491,12 @@ const FormDataEntry = () => {
         }
       }
 
-      // Set default group by field
-      if (data.formDef.default_group_by) {
-        setGroupByField(data.formDef.default_group_by);
+      // Set group hierarchy if it exists (new feature)
+      if (data.formDef.group_by_hierarchy && Array.isArray(data.formDef.group_by_hierarchy) && data.formDef.group_by_hierarchy.length > 0) {
+        setGroupByHierarchy(data.formDef.group_by_hierarchy);
+      } else if (data.formDef.default_group_by) {
+        // Fallback: if there's no hierarchy but there's a default group by, use that as a single-level hierarchy
+        setGroupByHierarchy([data.formDef.default_group_by]);
       }
     }
   }, [data?.formDef, isLoading, formId]);
@@ -1029,134 +1056,269 @@ const FormDataEntry = () => {
   
   // Render table view with pagination
   const renderTableView = () => {
-    if (groupByField && groupByField !== 'none' && groupedEntries) {
-      // Grouped table view - only show group headers first
-      return Object.entries(groupedEntries).map(([groupKey, groupEntries]) => (
-        <div key={groupKey} className="mb-4">
-          <div 
-            className="flex justify-between items-center p-3 bg-muted rounded cursor-pointer hover:bg-muted/80"
-            onClick={() => toggleGroup(groupKey)}
-          >
-            <h3 className="text-lg font-semibold">Grup: {groupKey} ({groupEntries.length})</h3>
-            <Button variant="ghost" size="sm">
-              {expandedGroups.has(groupKey) ? 'Tutup' : 'Buka'}
-            </Button>
-          </div>
-          {expandedGroups.has(groupKey) && (
-            <div className="overflow-x-auto relative mt-2">
-              <Table className="min-w-full">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">No</TableHead>
-                    {formDef.fields.map(field => (
-                      <TableHead key={field.id} onClick={() => requestSort(field.nama_field)} className="cursor-pointer hover:bg-muted">
-                        <div className="flex items-center gap-2">
-                          {field.label_field}
-                          {sortConfig.key === field.nama_field && (
-                            <ArrowUpDown className="h-4 w-4" />
-                          )}
-                        </div>
-                      </TableHead>
-                    ))}
-                    <TableHead className="text-right sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {groupEntries.map((entry, index) => (
-                    <TableRow key={entry.id}>
-                      <TableCell>{index + 1}</TableCell>
-                      {formDef.fields.map(field => (
-                        <TableCell key={field.id}>
-                          {(() => {
-                            const value = getFieldValue(entry, field);
-                            
-                            if (field.tipe_field === 'coordinate') {
-                              if (value && value !== 'Koordinat tidak valid') {
-                                // Try to parse the coordinate value
-                                let coords = null;
-                                try {
-                                  // If it's already an object format from JSON.parse
-                                  if (typeof value === 'object') {
-                                    coords = value;
-                                  } else {
-                                    // If it's in "lat, lng" format, split it
-                                    const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
-                                    if (!isNaN(lat) && !isNaN(lng)) {
-                                      coords = { lat, lng };
-                                    }
-                                  }
-                                } catch (e) {
-                                  console.error("Error parsing coordinate for link:", e);
-                                }
-                                
-                                if (coords) {
-                                  const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
-                                  return (
-                                    <a 
-                                      href={mapUrl} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 hover:underline flex items-center gap-1"
-                                      onClick={(e) => e.stopPropagation()} // Prevent row click from firing
-                                    >
-                                      {value}
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
-                                        <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
-                                        <circle cx="12" cy="10" r="3"/>
-                                      </svg>
-                                    </a>
-                                  );
+    if (groupByHierarchy.length > 0 && groupedEntries) {
+      // Handle both single-level and nested grouping
+      const renderGroupedEntries = (entries: any, hierarchyLevel: number = 0, groupName: string = '') => {
+        // Check if entries is an array (leaf nodes with actual entries) or an object (internal group nodes)
+        const isLeafNode = Array.isArray(entries);
+        
+        if (!isLeafNode && hierarchyLevel < groupByHierarchy.length) {
+          // We're in nested grouping mode, processing an internal node
+          const currentFieldId = groupByHierarchy[hierarchyLevel];
+          const currentField = formDef.fields.find(f => f.nama_field === currentFieldId);
+          const currentFieldName = currentField ? currentField.label_field : currentFieldId;
+          
+          return Object.entries(entries).map(([groupKey, subEntries]) => {
+            const displayKey = groupKey;
+            const fullGroupName = groupName ? `${groupName} > ${displayKey}` : `${currentFieldName}: ${displayKey}`;
+            const isExpanded = expandedGroups.has(fullGroupName);
+            
+            // Determine if subEntries is a leaf node
+            const isSubEntriesLeaf = Array.isArray(subEntries);
+            
+            let subContent;
+            if (isSubEntriesLeaf) {
+              // If subEntries is an array, we're at the final level
+              subContent = renderEntriesTable(subEntries, hierarchyLevel + 1);
+            } else {
+              // If subEntries is an object, continue to next level
+              subContent = renderGroupedEntries(subEntries, hierarchyLevel + 1, fullGroupName);
+            }
+            
+            return (
+              <div key={fullGroupName} className="mb-6">
+                <div 
+                  className={`flex justify-between items-center p-4 rounded-lg border-l-4 ${
+                    hierarchyLevel === 0 ? 'border-blue-500 bg-blue-50' : 
+                    hierarchyLevel === 1 ? 'border-indigo-500 bg-indigo-50 ml-4' : 
+                    'border-purple-500 bg-purple-50 ml-8'
+                  } shadow-sm transition-all duration-200 hover:shadow-md`}
+                  onClick={() => toggleGroup(fullGroupName)}
+                >
+                  <div className="flex items-center">
+                    <div className={`w-3 h-3 rounded-full mr-3 ${
+                      hierarchyLevel === 0 ? 'bg-blue-500' : 
+                      hierarchyLevel === 1 ? 'bg-indigo-500' : 
+                      'bg-purple-500'
+                    }`}></div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        {hierarchyLevel === 0 ? 'Tingkat 1' : hierarchyLevel === 1 ? 'Tingkat 2' : 'Tingkat 3'}: {fullGroupName}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {isSubEntriesLeaf 
+                          ? `${subEntries.length} item` 
+                          : `${Object.keys(subEntries).reduce((sum, key) => sum + (Array.isArray(subEntries[key]) ? subEntries[key].length : 0), 0)} item`}
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" className="flex items-center">
+                    <span className="mr-1">{isExpanded ? 'Tutup' : 'Buka'}</span>
+                    <svg 
+                      className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </Button>
+                </div>
+                {isExpanded && (
+                  <div className={`mt-2 ${hierarchyLevel === 0 ? 'ml-0' : hierarchyLevel === 1 ? 'ml-4' : 'ml-8'}`}>
+                    {subContent}
+                  </div>
+                )}
+              </div>
+            );
+          });
+        } else if (isLeafNode) {
+          // Single-level grouping or final nested level with actual entries
+          return Object.entries(entries).map(([groupKey, groupEntries]) => {
+            const fullGroupName = groupName ? `${groupName} > ${groupKey}` : `Grup: ${groupKey}`;
+            const isExpanded = expandedGroups.has(fullGroupName);
+            
+            return (
+              <div key={fullGroupName} className="mb-6">
+                <div 
+                  className="flex justify-between items-center p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border-l-4 border-gray-400 shadow-sm transition-all duration-200 hover:shadow-md"
+                  onClick={() => toggleGroup(fullGroupName)}
+                >
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-gray-500 mr-3"></div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{fullGroupName}</h3>
+                      <p className="text-sm text-gray-600">{Array.isArray(groupEntries) ? groupEntries.length : 0} item</p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" className="flex items-center">
+                    <span className="mr-1">{isExpanded ? 'Tutup' : 'Buka'}</span>
+                    <svg 
+                      className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </Button>
+                </div>
+                {isExpanded && renderEntriesTable(groupEntries, 0)}
+              </div>
+            );
+          });
+        } else {
+          // This shouldn't happen if our logic is correct, but handle as fallback
+          return null;
+        }
+      };
+      
+      // Helper function to render entries in a table format
+      const renderEntriesTable = (entries: any[], hierarchyLevel: number = 0) => (
+        <div className="overflow-x-auto relative mt-3 rounded-lg border border-gray-200">
+          <Table className="min-w-full">
+            <TableHeader className="bg-gray-50">
+              <TableRow className="border-b border-gray-200">
+                <TableHead className="w-12 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</TableHead>
+                {formDef.fields.map(field => (
+                  <TableHead 
+                    key={field.id} 
+                    onClick={() => requestSort(field.nama_field)} 
+                    className="cursor-pointer hover:bg-gray-100 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider transition-colors duration-150"
+                  >
+                    <div className="flex items-center gap-2">
+                      {field.label_field}
+                      {sortConfig.key === field.nama_field && (
+                        <ArrowUpDown className="h-4 w-4 text-gray-700" />
+                      )}
+                    </div>
+                  </TableHead>
+                ))}
+                <TableHead className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 z-10 border-l border-gray-200 min-w-[100px]">
+                  Aksi
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="bg-white divide-y divide-gray-200">
+              {entries.map((entry, index) => (
+                <TableRow 
+                  key={entry.id} 
+                  className="hover:bg-gray-50 transition-colors duration-150"
+                >
+                  <TableCell className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                    {(currentPage - 1) * itemsPerPage + index + 1}
+                  </TableCell>
+                  {formDef.fields.map(field => (
+                    <TableCell key={field.id} className="px-4 py-3 text-sm text-gray-900">
+                      {(() => {
+                        const value = getFieldValue(entry, field);
+                        
+                        if (field.tipe_field === 'coordinate') {
+                          if (value && value !== 'Koordinat tidak valid') {
+                            // Try to parse the coordinate value
+                            let coords = null;
+                            try {
+                              // If it's already an object format from JSON.parse
+                              if (typeof value === 'object') {
+                                coords = value;
+                              } else {
+                                // If it's in "lat, lng" format, split it
+                                const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+                                if (!isNaN(lat) && !isNaN(lng)) {
+                                  coords = { lat, lng };
                                 }
                               }
-                              return value;
-                            } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
-                              // Handle image display in table view
+                            } catch (e) {
+                              console.error("Error parsing coordinate for link:", e);
+                            }
+                            
+                            if (coords) {
+                              const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
                               return (
                                 <a 
-                                  href={value.url} 
+                                  href={mapUrl} 
                                   target="_blank" 
                                   rel="noopener noreferrer"
-                                  className="block"
+                                  className="text-blue-600 hover:underline flex items-center gap-1"
                                   onClick={(e) => e.stopPropagation()} // Prevent row click from firing
                                 >
-                                  <img 
-                                    src={value.url} 
-                                    alt="Gambar" 
-                                    className="max-h-16 object-cover rounded border"
-                                    onError={(e) => {
-                                      // If the image fails to load, show an error indicator
-                                      e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
-                                      e.currentTarget.className = 'max-h-16 object-cover rounded border text-gray-400';
-                                    }}
-                                  />
+                                  {value}
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
+                                    <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                                    <circle cx="12" cy="10" r="3"/>
+                                  </svg>
                                 </a>
                               );
                             }
-                            
-                            return value;
-                          })()}
-                        </TableCell>
-                      ))}
-                      <TableCell className="flex gap-2 justify-end sticky right-0 bg-background z-10 border-l border-border min-w-[100px]">
-                        {formDef.show_edit_button && (
-                          <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {formDef.show_delete_button && (
-                          <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
+                          }
+                          return value;
+                        } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+                          // Handle image display in table view
+                          return (
+                            <a 
+                              href={value.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="block"
+                              onClick={(e) => e.stopPropagation()} // Prevent row click from firing
+                            >
+                              <img 
+                                src={value.url} 
+                                alt="Gambar" 
+                                className="max-h-16 object-cover rounded border"
+                                onError={(e) => {
+                                  // If the image fails to load, show an error indicator
+                                  e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
+                                  e.currentTarget.className = 'max-h-16 object-cover rounded border text-gray-400';
+                                }}
+                              />
+                            </a>
+                          );
+                        }
+                        
+                        return <span className="text-gray-700">{value}</span>;
+                      })()}
+                    </TableCell>
                   ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                  <TableCell className="flex gap-1 justify-end px-4 py-3 whitespace-nowrap text-sm sticky right-0 bg-white z-10 border-l border-gray-200 min-w-[100px]">
+                    {formDef.show_edit_button && (
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(entry)} className="h-8 w-8 p-0">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {formDef.show_delete_button && (
+                      <Button variant="outline" size="sm" onClick={() => openDeleteDialog(entry)} className="h-8 w-8 p-0">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
-      ));
+      );
+      
+      // Use nested grouping if hierarchy is defined, otherwise use the original single-level grouping
+      if (groupByHierarchy.length > 0) {
+        return renderGroupedEntries(groupedEntries, 0);
+      } else {
+        // Original single-level grouping logic
+        return Object.entries(groupedEntries).map(([groupKey, groupEntries]) => (
+          <div key={groupKey} className="mb-4">
+            <div 
+              className="flex justify-between items-center p-3 bg-muted rounded cursor-pointer hover:bg-muted/80"
+              onClick={() => toggleGroup(groupKey)}
+            >
+              <h3 className="text-lg font-semibold">Grup: {groupKey} ({groupEntries.length})</h3>
+              <Button variant="ghost" size="sm">
+                {expandedGroups.has(groupKey) ? 'Tutup' : 'Buka'}
+              </Button>
+            </div>
+            {expandedGroups.has(groupKey) && renderEntriesTable(groupEntries)}
+          </div>
+        ));
+      }
     } else {
       // Non-grouped table view with pagination
       return (
@@ -1372,150 +1534,290 @@ const FormDataEntry = () => {
   
   // Render deck view
   const renderDeckView = () => {
-    if (groupByField && groupByField !== 'none' && groupedEntries) {
-      // Grouped deck view - only show group headers first
-      return Object.entries(groupedEntries).map(([groupKey, groupEntries]) => {
-        const isExpanded = expandedGroups.has(groupKey);
+    if (groupByHierarchy.length > 0 && groupedEntries) {
+      // Handle both single-level and nested grouping
+      const renderGroupedDeckEntries = (entries: any, hierarchyLevel: number = 0, groupName: string = '') => {
+        // Check if entries is an array (leaf nodes with actual entries) or an object (internal group nodes)
+        const isLeafNode = Array.isArray(entries);
         
-        return (
-          <div key={groupKey} className="mb-4">
-            <div 
-              className="flex justify-between items-center p-3 bg-muted rounded cursor-pointer hover:bg-muted/80"
-              onClick={() => toggleGroup(groupKey)}
-            >
-              <h3 className="text-lg font-semibold">Grup: {groupKey} ({groupEntries.length})</h3>
-              <Button variant="ghost" size="sm">
-                {isExpanded ? 'Tutup' : 'Buka'}
-              </Button>
-            </div>
+        if (!isLeafNode && hierarchyLevel < groupByHierarchy.length) {
+          // We're in nested grouping mode, processing an internal node
+          const currentFieldId = groupByHierarchy[hierarchyLevel];
+          const currentField = formDef.fields.find(f => f.nama_field === currentFieldId);
+          const currentFieldName = currentField ? currentField.label_field : currentFieldId;
+          
+          return Object.entries(entries).map(([groupKey, subEntries]) => {
+            const displayKey = groupKey;
+            const fullGroupName = groupName ? `${groupName} > ${displayKey}` : `${currentFieldName}: ${displayKey}`;
+            const isExpanded = expandedGroups.has(fullGroupName);
             
-            {isExpanded && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
-                {groupEntries.map((entry, index) => {
-                  // Use deck display fields from the form fields if they exist and are visible
-                  // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
-                  const visibleDeckFields = formDef.fields
-                    .filter(field => field.deck_visible)
-                    .sort((a, b) => (a.deck_display_order || 0) - (b.deck_display_order || 0));
-                  
-                  // Find the header field if any
-                  const headerField = visibleDeckFields.find(f => f.deck_is_header);
-                  const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
-                  
-                  // Get non-header fields to display in body
-                  const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
-                  
-                  return (
-                    <Card key={entry.id} className="overflow-hidden flex flex-col">
-                      {headerFieldValue && (
-                        <CardHeader className={headerField.deck_display_format === 'header' ? 'bg-primary text-primary-foreground' : 'bg-muted'}>
-                          <CardTitle className="text-lg break-words">{headerFieldValue}</CardTitle>
-                        </CardHeader>
-                      )}
-                      <CardContent className="p-4 flex-grow">
-                        <div className="space-y-2">
-                          {bodyFields.map(field => {
-                            const value = getFieldValue(entry, field);
-                            let displayValue;
-                            
-                            if (field.tipe_field === 'coordinate') {
-                              if (value && value !== 'Koordinat tidak valid') {
-                                // Try to parse the coordinate value
-                                let coords = null;
-                                try {
-                                  // If it's already an object format from JSON.parse
-                                  if (typeof value === 'object') {
-                                    coords = value;
-                                  } else {
-                                    // If it's in "lat, lng" format, split it
-                                    const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
-                                    if (!isNaN(lat) && !isNaN(lng)) {
-                                      coords = { lat, lng };
-                                    }
-                                  }
-                                } catch (e) {
-                                  console.error("Error parsing coordinate for link:", e);
-                                }
-                                
-                                if (coords) {
-                                  const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
-                                  displayValue = (
-                                    <a 
-                                      href={mapUrl} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 hover:underline flex items-center gap-1"
-                                      onClick={(e) => e.stopPropagation()} // Prevent card click from firing
-                                    >
-                                      {value}
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
-                                        <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
-                                        <circle cx="12" cy="10" r="3"/>
-                                      </svg>
-                                    </a>
-                                  );
-                                } else {
-                                  displayValue = value;
-                                }
-                              } else {
-                                displayValue = value;
-                              }
-                            } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
-                              // Handle image display in deck view
-                              displayValue = (
-                                <a 
-                                  href={value.url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="block"
-                                  onClick={(e) => e.stopPropagation()} // Prevent card click from firing
-                                >
-                                  <img 
-                                    src={value.url} 
-                                    alt="Gambar" 
-                                    className="max-h-32 object-cover rounded border w-full"
-                                    onError={(e) => {
-                                      // If the image fails to load, show an error indicator
-                                      e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
-                                      e.currentTarget.className = 'max-h-32 object-cover rounded border w-full text-gray-400';
-                                    }}
-                                  />
-                                </a>
-                              );
-                            } else {
-                              displayValue = value;
-                            }
-                            
-                            return (
-                              <div key={field.id} className="flex flex-col">
-                                <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
-                                <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>{displayValue}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        
-                        <div className="flex gap-2 mt-4 justify-end">
-                          {formDef.show_edit_button && (
-                            <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {formDef.show_delete_button && (
-                            <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+            // Determine if subEntries is a leaf node
+            const isSubEntriesLeaf = Array.isArray(subEntries);
+            
+            let subContent;
+            if (isSubEntriesLeaf) {
+              // If subEntries is an array, we're at the final level
+              subContent = renderDeckEntries(subEntries, hierarchyLevel + 1);
+            } else {
+              // If subEntries is an object, continue to next level
+              subContent = renderGroupedDeckEntries(subEntries, hierarchyLevel + 1, fullGroupName);
+            }
+            
+            return (
+              <div key={fullGroupName} className="mb-6">
+                <div 
+                  className={`flex justify-between items-center p-4 rounded-lg border-l-4 ${
+                    hierarchyLevel === 0 ? 'border-blue-500 bg-blue-50' : 
+                    hierarchyLevel === 1 ? 'border-indigo-500 bg-indigo-50 ml-4' : 
+                    'border-purple-500 bg-purple-50 ml-8'
+                  } shadow-sm transition-all duration-200 hover:shadow-md`}
+                  onClick={() => toggleGroup(fullGroupName)}
+                >
+                  <div className="flex items-center">
+                    <div className={`w-3 h-3 rounded-full mr-3 ${
+                      hierarchyLevel === 0 ? 'bg-blue-500' : 
+                      hierarchyLevel === 1 ? 'bg-indigo-500' : 
+                      'bg-purple-500'
+                    }`}></div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        {hierarchyLevel === 0 ? 'Tingkat 1' : hierarchyLevel === 1 ? 'Tingkat 2' : 'Tingkat 3'}: {fullGroupName}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {isSubEntriesLeaf 
+                          ? `${subEntries.length} item` 
+                          : `${Object.keys(subEntries).reduce((sum, key) => sum + (Array.isArray(subEntries[key]) ? subEntries[key].length : 0), 0)} item`}
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" className="flex items-center">
+                    <span className="mr-1">{isExpanded ? 'Tutup' : 'Buka'}</span>
+                    <svg 
+                      className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </Button>
+                </div>
+                {isExpanded && (
+                  <div className={`mt-2 ${hierarchyLevel === 0 ? 'ml-0' : hierarchyLevel === 1 ? 'ml-4' : 'ml-8'}`}>
+                    {subContent}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        );
-      });
+            );
+          });
+        } else if (isLeafNode) {
+          // Single-level grouping or final nested level with actual entries
+          return Object.entries(entries).map(([groupKey, groupEntries]) => {
+            const fullGroupName = groupName ? `${groupName} > ${groupKey}` : `Grup: ${groupKey}`;
+            const isExpanded = expandedGroups.has(fullGroupName);
+            
+            return (
+              <div key={fullGroupName} className="mb-6">
+                <div 
+                  className="flex justify-between items-center p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border-l-4 border-gray-400 shadow-sm transition-all duration-200 hover:shadow-md"
+                  onClick={() => toggleGroup(fullGroupName)}
+                >
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-gray-500 mr-3"></div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{fullGroupName}</h3>
+                      <p className="text-sm text-gray-600">{Array.isArray(groupEntries) ? groupEntries.length : 0} item</p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" className="flex items-center">
+                    <span className="mr-1">{isExpanded ? 'Tutup' : 'Buka'}</span>
+                    <svg 
+                      className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </Button>
+                </div>
+                {isExpanded && renderDeckEntries(groupEntries)}
+              </div>
+            );
+          });
+        } else {
+          // This shouldn't happen if our logic is correct, but handle as fallback
+          return null;
+        }
+      };
+
+      // Helper function to render deck entries
+      const renderDeckEntries = (entries: any[], hierarchyLevel: number = 0) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+          {entries.map((entry, index) => {
+            // Use deck display fields from the form fields if they exist and are visible
+            // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
+            const visibleDeckFields = formDef.fields
+              .filter(field => field.deck_visible)
+              .sort((a, b) => (a.deck_display_order || 0) - (b.deck_display_order || 0));
+            
+            // Find the header field if any
+            const headerField = visibleDeckFields.find(f => f.deck_is_header);
+            const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
+            
+            // Get non-header fields to display in body
+            const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
+            
+            return (
+              <div 
+                key={entry.id} 
+                className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 flex flex-col h-full"
+              >
+                {headerFieldValue && (
+                  <div className={`
+                    p-4 border-b 
+                    ${headerField.deck_display_format === 'header' 
+                      ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white' 
+                      : 'bg-gray-50'}
+                  `}>
+                    <h3 className="font-semibold break-words text-lg">
+                      {headerFieldValue}
+                    </h3>
+                  </div>
+                )}
+                <div className="p-5 flex-grow">
+                  <div className="space-y-3">
+                    {bodyFields.map(field => {
+                      const value = getFieldValue(entry, field);
+                      let displayValue;
+                      
+                      if (field.tipe_field === 'coordinate') {
+                        if (value && value !== 'Koordinat tidak valid') {
+                          // Try to parse the coordinate value
+                          let coords = null;
+                          try {
+                            // If it's already an object format from JSON.parse
+                            if (typeof value === 'object') {
+                              coords = value;
+                            } else {
+                              // If it's in "lat, lng" format, split it
+                              const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+                              if (!isNaN(lat) && !isNaN(lng)) {
+                                coords = { lat, lng };
+                              }
+                            }
+                          } catch (e) {
+                            console.error("Error parsing coordinate for link:", e);
+                          }
+                          
+                          if (coords) {
+                            const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
+                            displayValue = (
+                              <a 
+                                href={mapUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline flex items-center gap-1 text-sm"
+                                onClick={(e) => e.stopPropagation()} // Prevent card click from firing
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                                  <circle cx="12" cy="10" r="3"/>
+                                </svg>
+                                {value}
+                              </a>
+                            );
+                          } else {
+                            displayValue = value;
+                          }
+                        } else {
+                          displayValue = value;
+                        }
+                      } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+                        // Handle image display in deck view
+                        displayValue = (
+                          <a 
+                            href={value.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="block"
+                            onClick={(e) => e.stopPropagation()} // Prevent card click from firing
+                          >
+                            <img 
+                              src={value.url} 
+                              alt="Gambar" 
+                              className="max-h-32 object-cover rounded-lg border w-full"
+                              onError={(e) => {
+                                // If the image fails to load, show an error indicator
+                                e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
+                                e.currentTarget.className = 'max-h-32 object-cover rounded-lg border w-full text-gray-400';
+                              }}
+                            />
+                          </a>
+                        );
+                      } else {
+                        displayValue = <span className="text-gray-700">{value}</span>;
+                      }
+                      
+                      return (
+                        <div key={field.id} className="flex flex-col">
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                            {field.label_field}
+                          </label>
+                          <div className={`text-sm ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>
+                            {displayValue}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="flex gap-2 mt-6 justify-end pt-4 border-t border-gray-100">
+                    {formDef.show_edit_button && (
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(entry)} className="h-9">
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                    )}
+                    {formDef.show_delete_button && (
+                      <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)} className="h-9">
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Hapus
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+
+      // Use nested grouping if hierarchy is defined, otherwise use the original single-level grouping
+      if (groupByHierarchy.length > 0) {
+        return renderGroupedDeckEntries(groupedEntries, 0);
+      } else {
+        // Original single-level grouping logic
+        return Object.entries(groupedEntries).map(([groupKey, groupEntries]) => {
+          const isExpanded = expandedGroups.has(groupKey);
+          
+          return (
+            <div key={groupKey} className="mb-4">
+              <div 
+                className="flex justify-between items-center p-3 bg-muted rounded cursor-pointer hover:bg-muted/80"
+                onClick={() => toggleGroup(groupKey)}
+              >
+                <h3 className="text-lg font-semibold">Grup: {groupKey} ({groupEntries.length})</h3>
+                <Button variant="ghost" size="sm">
+                  {isExpanded ? 'Tutup' : 'Buka'}
+                </Button>
+              </div>
+              
+              {isExpanded && renderDeckEntries(groupEntries)}
+            </div>
+          );
+        });
+      }
     } else {
       // Non-grouped deck view with pagination
       // Use deck display fields from the form fields if they exist and are visible
@@ -1792,12 +2094,14 @@ const FormDataEntry = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <div className="flex flex-col md:flex-row gap-2 w-full">
             <div className="relative w-full md:w-1/2 mb-2 md:mb-0">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <Search className="h-4 w-4 text-muted-foreground" />
+              </div>
               <Input
                 placeholder="Cari data..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 w-full"
+                className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm"
               />
             </div>
             <div className="flex flex-col md:flex-row gap-2 w-full md:w-1/2">
@@ -1865,19 +2169,33 @@ const FormDataEntry = () => {
                 </Popover>
               </div>
               <div className="w-full md:w-auto">
-                <Select value={groupByField || 'none'} onValueChange={(value) => setGroupByField(value === 'none' ? null : value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Grup berdasarkan..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Tidak Ada Grup</SelectItem>
-                    {formDef.fields.map(field => (
-                      <SelectItem key={field.nama_field} value={field.nama_field}>
-                        {field.label_field}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {groupByHierarchy.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-sm text-blue-800 font-medium">
+                      <span className="inline-flex items-center">
+                        <span className="mr-2">📊</span> 
+                        Mode Grup Bertingkat Aktif:
+                      </span>
+                    </p>
+                    <p className="text-xs text-blue-700 mt-1 ml-6">
+                      {groupByHierarchy.map((fieldId, index) => {
+                        const field = formDef.fields.find(f => f.nama_field === fieldId);
+                        const fieldName = field?.label_field || fieldId;
+                        return (
+                          <span key={index}>
+                            {index > 0 && <span className="mx-1">→</span>}
+                            <span className="font-medium">{fieldName}</span>
+                          </span>
+                        );
+                      })}
+                    </p>
+                  </div>
+                )}
+                {groupByHierarchy.length === 0 && (
+                  <div className="text-sm text-muted-foreground italic">
+                    Tidak ada pengelompokan aktif
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1893,14 +2211,29 @@ const FormDataEntry = () => {
           )}
         </div>
 
-        <div className="bg-card p-4 sm:p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Daftar Data Terisi</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Menampilkan {sortedEntries.length} dari {entries.length} data
-            {groupByField && groupByField !== 'none' && groupedEntries ? ` dalam ${Object.keys(groupedEntries).length} grup` : ''}
-          </p>
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Daftar Data Terisi</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Menampilkan {sortedEntries.length} dari {entries.length} data
+                {groupByHierarchy.length > 0 && groupedEntries ? ` dalam ${Object.keys(groupedEntries).length} grup` : ''}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                {actualViewMode === 'table' ? 'Tabel' : 'Kartu'} View
+              </span>
+            </div>
+          </div>
           {entries.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">Belum ada data yang diisi.</p>
+            <div className="text-center py-12">
+              <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <FileText className="h-8 w-8 text-gray-400" />
+              </div>
+              <p className="text-gray-600 font-medium">Belum ada data yang diisi</p>
+              <p className="text-gray-500 text-sm mt-1">Data yang diisi akan muncul di sini</p>
+            </div>
           ) : (
             actualViewMode === 'table' ? renderTableView() : renderDeckView()
           )}

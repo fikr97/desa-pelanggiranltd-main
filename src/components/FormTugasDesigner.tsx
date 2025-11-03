@@ -11,6 +11,7 @@ import { Settings, ListPlus } from 'lucide-react';
 import FormFieldManager from './FormFieldManager';
 import { useAuth } from '@/contexts/AuthContext';
 import { Switch } from '@/components/ui/switch';
+import NestedGroupSelector from './NestedGroupSelector';
 
 interface FormTugasDesignerProps {
   formTugas?: any; // Optional: for editing existing forms
@@ -27,6 +28,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
     show_edit_button: true,
     show_delete_button: true,
     default_group_by: '',
+    group_by_hierarchy: [],
   });
   const [fields, setFields] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'settings' | 'fields'>('settings');
@@ -66,6 +68,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         show_edit_button: formTugas.show_edit_button !== undefined ? formTugas.show_edit_button : true,
         show_delete_button: formTugas.show_delete_button !== undefined ? formTugas.show_delete_button : true,
         default_group_by: formTugas.default_group_by || '',
+        group_by_hierarchy: formTugas.group_by_hierarchy || [],
       });
       loadFields(formTugas.id);
     } else {
@@ -78,6 +81,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         show_edit_button: true,
         show_delete_button: true,
         default_group_by: '',
+        group_by_hierarchy: [],
       });
       setFields([]);
     }
@@ -110,6 +114,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
             show_edit_button: formData.show_edit_button,
             show_delete_button: formData.show_delete_button,
             default_group_by: formData.default_group_by,
+            group_by_hierarchy: formData.group_by_hierarchy,
             updated_at: new Date().toISOString() 
           })
           .eq('id', formId);
@@ -119,7 +124,14 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         const { data, error } = await supabase
           .from('form_tugas')
           .insert([{ 
-            ...formData, 
+            nama_tugas: formData.nama_tugas,
+            deskripsi: formData.deskripsi,
+            display_type: formData.display_type,
+            show_add_button: formData.show_add_button,
+            show_edit_button: formData.show_edit_button,
+            show_delete_button: formData.show_delete_button,
+            default_group_by: formData.default_group_by,
+            group_by_hierarchy: formData.group_by_hierarchy,
             created_by: user.id,
           }])
           .select('id')
@@ -270,27 +282,13 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
                 </p>
               </div>
 
-              <div>
-                <Label htmlFor="default_group_by">Grup Default Berdasarkan</Label>
-                <Select
-                  value={formData.default_group_by}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, default_group_by: value === 'none' ? '' : value }))}
-                >
-                  <SelectTrigger id="default_group_by">
-                    <SelectValue placeholder="Pilih field untuk grup..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Tidak Ada</SelectItem>
-                    {fields.map(field => (
-                      <SelectItem key={field.id} value={field.nama_field}>
-                        {field.label_field}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Pilih field yang akan digunakan untuk pengelompokan default pada tampilan data.
-                </p>
+              {/* Nested Group Selector - replacing the single-level group selector */}
+              <div className="pt-4 border-t">
+                <NestedGroupSelector
+                  fields={fields}
+                  groupByHierarchy={formData.group_by_hierarchy}
+                  onChange={(newHierarchy) => setFormData(prev => ({ ...prev, group_by_hierarchy: newHierarchy }))}
+                />
               </div>
 
 
