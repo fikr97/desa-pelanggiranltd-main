@@ -154,6 +154,8 @@ const FormDataEntry = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'table' | 'deck'>('table');
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  // State for hierarchical group navigation
+  const [currentGroupPath, setCurrentGroupPath] = useState<string[]>([]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['form_data_and_def', formId],
@@ -398,6 +400,26 @@ const FormDataEntry = () => {
     }
   }, [data?.entries, data?.formDef.fields, searchTerm, searchFields]);
 
+  // Get entries for the current group path in hierarchical navigation
+  const entriesForCurrentPath = useMemo(() => {
+    if (!filteredEntries || currentGroupPath.length === 0) return filteredEntries || [];
+    
+    // Navigate through the group hierarchy based on the current path
+    let currentLevelEntries = filteredEntries;
+    for (let i = 0; i < currentGroupPath.length; i++) {
+      const fieldName = groupByHierarchy[i];
+      const field = data?.formDef.fields.find(f => f.nama_field === fieldName);
+      if (!field) break;
+      
+      // Find the entries that match the current path segment
+      currentLevelEntries = currentLevelEntries.filter(entry => {
+        const fieldValue = getFieldValue(entry, field);
+        return String(fieldValue) === currentGroupPath[i] || (fieldValue === null && currentGroupPath[i] === 'Belum Diisi');
+      });
+    }
+    return currentLevelEntries;
+  }, [filteredEntries, currentGroupPath, groupByHierarchy, data?.formDef.fields]);
+
   // Group entries by hierarchy (primary) with fallback to single-level grouping
   const groupedEntries = useMemo(() => {
     if (!filteredEntries) return null;
@@ -439,9 +461,36 @@ const FormDataEntry = () => {
     return null;
   }, [filteredEntries, groupByHierarchy, data?.formDef.fields]);
 
+  // Get grouped entries for the current navigation level
+  const groupedEntriesForCurrentLevel = useMemo(() => {
+    if (!groupedEntries || currentGroupPath.length >= groupByHierarchy.length) return null;
+    
+    // Navigate to the current group level in the hierarchy
+    let currentGroup = groupedEntries;
+    for (let i = 0; i < currentGroupPath.length; i++) {
+      const groupKey = currentGroupPath[i];
+      if (currentGroup[groupKey]) {
+        currentGroup = currentGroup[groupKey];
+      } else {
+        // If the group doesn't exist in the hierarchy, return null
+        return null;
+      }
+    }
+    
+    // If we're at the final level, the currentGroup should be an array of entries
+    // If not, it means we're in the middle of the hierarchy and need to return the next level
+    if (Array.isArray(currentGroup)) {
+      // We're at the leaf level (entries), so return null since there are no more groups to show
+      return null;
+    } else {
+      // We're at an intermediate level with more groups to navigate
+      return currentGroup;
+    }
+  }, [groupedEntries, currentGroupPath, groupByHierarchy]);
+
   const sortedEntries = useMemo(() => {
-    if (!filteredEntries) return [];
-    const sortableEntries = [...filteredEntries];
+    if (!entriesForCurrentPath) return [];
+    const sortableEntries = [...entriesForCurrentPath];
     sortableEntries.sort((a, b) => {
       let aValue, bValue;
 
@@ -464,7 +513,7 @@ const FormDataEntry = () => {
       return 0;
     });
     return sortableEntries;
-  }, [filteredEntries, sortConfig, data?.formDef.fields]);
+  }, [entriesForCurrentPath, sortConfig, data?.formDef.fields]);
 
   // Pagination logic
   const paginatedEntries = useMemo(() => {
@@ -474,6 +523,11 @@ const FormDataEntry = () => {
   }, [sortedEntries, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(sortedEntries.length / itemsPerPage);
+
+  // Reset to first page when the current group path changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [currentGroupPath]);
 
   // This single useEffect will manage the viewMode and default grouping based on form config and user preference.
   useEffect(() => {
@@ -963,6 +1017,19 @@ const FormDataEntry = () => {
     });
   };
 
+  // Navigation functions for hierarchical groups
+  const navigateToGroup = (groupName: string) => {
+    setCurrentGroupPath(prev => [...prev, groupName]);
+  };
+
+  const navigateBack = () => {
+    setCurrentGroupPath(prev => prev.slice(0, -1));
+  };
+
+  const navigateToRoot = () => {
+    setCurrentGroupPath([]);
+  };
+
   // Pagination functions
   const goToPage = (page: number) => {
     setCurrentPage(page);
@@ -1057,267 +1124,341 @@ const FormDataEntry = () => {
   // Render table view with pagination
   const renderTableView = () => {
     if (groupByHierarchy.length > 0 && groupedEntries) {
-      // Handle both single-level and nested grouping
-      const renderGroupedEntries = (entries: any, hierarchyLevel: number = 0, groupName: string = '') => {
-        // Check if entries is an array (leaf nodes with actual entries) or an object (internal group nodes)
-        const isLeafNode = Array.isArray(entries);
+      // Show breadcrumbs for navigation
+      const renderBreadcrumbs = () => {
+        if (currentGroupPath.length === 0) return null;
         
-        if (!isLeafNode && hierarchyLevel < groupByHierarchy.length) {
-          // We're in nested grouping mode, processing an internal node
-          const currentFieldId = groupByHierarchy[hierarchyLevel];
-          const currentField = formDef.fields.find(f => f.nama_field === currentFieldId);
-          const currentFieldName = currentField ? currentField.label_field : currentFieldId;
-          
-          return Object.entries(entries).map(([groupKey, subEntries]) => {
-            const displayKey = groupKey;
-            const fullGroupName = groupName ? `${groupName} > ${displayKey}` : `${currentFieldName}: ${displayKey}`;
-            const isExpanded = expandedGroups.has(fullGroupName);
-            
-            // Determine if subEntries is a leaf node
-            const isSubEntriesLeaf = Array.isArray(subEntries);
-            
-            let subContent;
-            if (isSubEntriesLeaf) {
-              // If subEntries is an array, we're at the final level
-              subContent = renderEntriesTable(subEntries, hierarchyLevel + 1);
-            } else {
-              // If subEntries is an object, continue to next level
-              subContent = renderGroupedEntries(subEntries, hierarchyLevel + 1, fullGroupName);
-            }
-            
-            return (
-              <div key={fullGroupName} className="mb-4">
-                <div 
-                  className={`flex justify-between items-center p-3 rounded-lg border-l-4 ${
-                    hierarchyLevel === 0 ? 'border-blue-500 bg-blue-50' : 
-                    hierarchyLevel === 1 ? 'border-indigo-500 bg-indigo-50 ml-4' : 
-                    'border-purple-500 bg-purple-50 ml-8'
-                  } shadow-sm transition-all duration-200 hover:shadow-md`}
-                  onClick={() => toggleGroup(fullGroupName)}
-                >
-                  <div className="flex items-center">
-                    <div className={`w-2.5 h-2.5 rounded-full mr-2 ${
-                      hierarchyLevel === 0 ? 'bg-blue-500' : 
-                      hierarchyLevel === 1 ? 'bg-indigo-500' : 
-                      'bg-purple-500'
-                    }`}></div>
-                    <div>
-                      <h3 className="font-medium text-gray-800 text-sm">
-                        {hierarchyLevel === 0 ? 'Tingkat 1' : hierarchyLevel === 1 ? 'Tingkat 2' : 'Tingkat 3'}: {fullGroupName}
-                      </h3>
-                      <p className="text-xs text-gray-600">
-                        {isSubEntriesLeaf 
-                          ? `${subEntries.length} item` 
-                          : `${Object.keys(subEntries).reduce((sum, key) => sum + (Array.isArray(subEntries[key]) ? subEntries[key].length : 0), 0)} item`}
-                      </p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm" className="flex items-center h-8">
-                    <span className="text-xs mr-1">{isExpanded ? 'Tutup' : 'Buka'}</span>
-                    <svg 
-                      className={`h-3.5 w-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </Button>
-                </div>
-                {isExpanded && (
-                  <div className={`mt-2 ${hierarchyLevel === 0 ? 'ml-0' : hierarchyLevel === 1 ? 'ml-4' : 'ml-8'}`}>
-                    {subContent}
-                  </div>
-                )}
-              </div>
-            );
-          });
-        } else if (isLeafNode) {
-          // Single-level grouping or final nested level with actual entries
-          return Object.entries(entries).map(([groupKey, groupEntries]) => {
-            const fullGroupName = groupName ? `${groupName} > ${groupKey}` : `Grup: ${groupKey}`;
-            const isExpanded = expandedGroups.has(fullGroupName);
-            
-            return (
-              <div key={fullGroupName} className="mb-4">
-                <div 
-                  className="flex justify-between items-center p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border-l-4 border-gray-400 shadow-sm transition-all duration-200 hover:shadow-md"
-                  onClick={() => toggleGroup(fullGroupName)}
-                >
-                  <div className="flex items-center">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gray-500 mr-2"></div>
-                    <div>
-                      <h3 className="font-medium text-gray-800 text-sm">{fullGroupName}</h3>
-                      <p className="text-xs text-gray-600">{Array.isArray(groupEntries) ? groupEntries.length : 0} item</p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm" className="flex items-center h-8">
-                    <span className="text-xs mr-1">{isExpanded ? 'Tutup' : 'Buka'}</span>
-                    <svg 
-                      className={`h-3.5 w-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </Button>
-                </div>
-                {isExpanded && renderEntriesTable(groupEntries, 0)}
-              </div>
-            );
-          });
-        } else {
-          // This shouldn't happen if our logic is correct, but handle as fallback
-          return null;
-        }
-      };
-      
-      // Helper function to render entries in a table format
-      const renderEntriesTable = (entries: any[], hierarchyLevel: number = 0) => (
-        <div className="overflow-x-auto relative mt-3 rounded-lg border border-gray-200">
-          <Table className="min-w-full">
-            <TableHeader className="bg-gray-50">
-              <TableRow className="border-b border-gray-200">
-                <TableHead className="w-12 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</TableHead>
-                {formDef.fields.map(field => (
-                  <TableHead 
-                    key={field.id} 
-                    onClick={() => requestSort(field.nama_field)} 
-                    className="cursor-pointer hover:bg-gray-100 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider transition-colors duration-150"
+        return (
+          <div className="flex items-center flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={navigateToRoot}
+              className="flex items-center h-8"
+            >
+              <span>Home</span>
+            </Button>
+            {currentGroupPath.map((group, index) => {
+              const fieldId = groupByHierarchy[index];
+              const field = formDef.fields.find(f => f.nama_field === fieldId);
+              const fieldName = field ? field.label_field : fieldId;
+              
+              return (
+                <div key={index} className="flex items-center">
+                  <span className="mx-1 text-gray-400">›</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentGroupPath(prev => prev.slice(0, index + 1))}
+                    className="flex items-center h-8"
+                    disabled={index === currentGroupPath.length - 1}
                   >
-                    <div className="flex items-center gap-2">
-                      {field.label_field}
-                      {sortConfig.key === field.nama_field && (
-                        <ArrowUpDown className="h-4 w-4 text-gray-700" />
-                      )}
-                    </div>
-                  </TableHead>
-                ))}
-                <TableHead className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 z-10 border-l border-gray-200 min-w-[100px]">
-                  Aksi
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="bg-white divide-y divide-gray-200">
-              {entries.map((entry, index) => (
-                <TableRow 
-                  key={entry.id} 
-                  className="hover:bg-gray-50 transition-colors duration-150"
-                >
-                  <TableCell className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {(currentPage - 1) * itemsPerPage + index + 1}
-                  </TableCell>
-                  {formDef.fields.map(field => (
-                    <TableCell key={field.id} className="px-4 py-3 text-sm text-gray-900">
-                      {(() => {
-                        const value = getFieldValue(entry, field);
-                        
-                        if (field.tipe_field === 'coordinate') {
-                          if (value && value !== 'Koordinat tidak valid') {
-                            // Try to parse the coordinate value
-                            let coords = null;
-                            try {
-                              // If it's already an object format from JSON.parse
-                              if (typeof value === 'object') {
-                                coords = value;
-                              } else {
-                                // If it's in "lat, lng" format, split it
-                                const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
-                                if (!isNaN(lat) && !isNaN(lng)) {
-                                  coords = { lat, lng };
+                    <span>{fieldName}: {group}</span>
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        );
+      };
+
+      // If we're at a leaf level (showing entries), render the entries table
+      if (!groupedEntriesForCurrentLevel) {
+        // We're at the leaf level showing actual entries
+        return (
+          <div>
+            {renderBreadcrumbs()}
+            <div className="overflow-x-auto relative rounded-lg border border-gray-200">
+              <Table className="min-w-full">
+                <TableHeader className="bg-gray-50">
+                  <TableRow className="border-b border-gray-200">
+                    <TableHead className="w-12 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</TableHead>
+                    {formDef.fields.map(field => (
+                      <TableHead 
+                        key={field.id} 
+                        onClick={() => requestSort(field.nama_field)} 
+                        className="cursor-pointer hover:bg-gray-100 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider transition-colors duration-150"
+                      >
+                        <div className="flex items-center gap-2">
+                          {field.label_field}
+                          {sortConfig.key === field.nama_field && (
+                            <ArrowUpDown className="h-4 w-4 text-gray-700" />
+                          )}
+                        </div>
+                      </TableHead>
+                    ))}
+                    <TableHead className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 z-10 border-l border-gray-200 min-w-[100px]">
+                      Aksi
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="bg-white divide-y divide-gray-200">
+                  {paginatedEntries.map((entry, index) => (
+                    <TableRow 
+                      key={entry.id} 
+                      className="hover:bg-gray-50 transition-colors duration-150"
+                    >
+                      <TableCell className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                        {(currentPage - 1) * itemsPerPage + index + 1}
+                      </TableCell>
+                      {formDef.fields.map(field => (
+                        <TableCell key={field.id} className="px-4 py-3 text-sm text-gray-900">
+                          {(() => {
+                            const value = getFieldValue(entry, field);
+                            
+                            if (field.tipe_field === 'coordinate') {
+                              if (value && value !== 'Koordinat tidak valid') {
+                                // Try to parse the coordinate value
+                                let coords = null;
+                                try {
+                                  // If it's already an object format from JSON.parse
+                                  if (typeof value === 'object') {
+                                    coords = value;
+                                  } else {
+                                    // If it's in "lat, lng" format, split it
+                                    const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+                                    if (!isNaN(lat) && !isNaN(lng)) {
+                                      coords = { lat, lng };
+                                    }
+                                  }
+                                } catch (e) {
+                                  console.error("Error parsing coordinate for link:", e);
+                                }
+                                
+                                if (coords) {
+                                  const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
+                                  return (
+                                    <a 
+                                      href={mapUrl} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline flex items-center gap-1"
+                                      onClick={(e) => e.stopPropagation()} // Prevent row click from firing
+                                    >
+                                      {value}
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
+                                        <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                                        <circle cx="12" cy="10" r="3"/>
+                                      </svg>
+                                    </a>
+                                  );
                                 }
                               }
-                            } catch (e) {
-                              console.error("Error parsing coordinate for link:", e);
-                            }
-                            
-                            if (coords) {
-                              const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
+                              return value;
+                            } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+                              // Handle image display in table view
                               return (
                                 <a 
-                                  href={mapUrl} 
+                                  href={value.url} 
                                   target="_blank" 
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 hover:underline flex items-center gap-1"
+                                  className="block"
                                   onClick={(e) => e.stopPropagation()} // Prevent row click from firing
                                 >
-                                  {value}
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
-                                    <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
-                                    <circle cx="12" cy="10" r="3"/>
-                                  </svg>
+                                  <img 
+                                    src={value.url} 
+                                    alt="Gambar" 
+                                    className="max-h-16 object-cover rounded border"
+                                    onError={(e) => {
+                                      // If the image fails to load, show an error indicator
+                                      e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
+                                      e.currentTarget.className = 'max-h-16 object-cover rounded border text-gray-400';
+                                    }}
+                                  />
                                 </a>
                               );
                             }
-                          }
-                          return value;
-                        } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
-                          // Handle image display in table view
-                          return (
-                            <a 
-                              href={value.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="block"
-                              onClick={(e) => e.stopPropagation()} // Prevent row click from firing
-                            >
-                              <img 
-                                src={value.url} 
-                                alt="Gambar" 
-                                className="max-h-16 object-cover rounded border"
-                                onError={(e) => {
-                                  // If the image fails to load, show an error indicator
-                                  e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
-                                  e.currentTarget.className = 'max-h-16 object-cover rounded border text-gray-400';
-                                }}
-                              />
-                            </a>
-                          );
-                        }
-                        
-                        return <span className="text-gray-700">{value}</span>;
-                      })()}
-                    </TableCell>
+                            
+                            return <span className="text-gray-700">{value}</span>;
+                          })()}
+                        </TableCell>
+                      ))}
+                      <TableCell className="flex gap-1 justify-end px-4 py-3 whitespace-nowrap text-sm sticky right-0 bg-white z-10 border-l border-gray-200 min-w-[100px]">
+                        {formDef.show_edit_button && (
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(entry)} className="h-8 w-8 p-0">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {formDef.show_delete_button && (
+                          <Button variant="outline" size="sm" onClick={() => openDeleteDialog(entry)} className="h-8 w-8 p-0">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
                   ))}
-                  <TableCell className="flex gap-1 justify-end px-4 py-3 whitespace-nowrap text-sm sticky right-0 bg-white z-10 border-l border-gray-200 min-w-[100px]">
-                    {formDef.show_edit_button && (
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(entry)} className="h-8 w-8 p-0">
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {formDef.show_delete_button && (
-                      <Button variant="outline" size="sm" onClick={() => openDeleteDialog(entry)} className="h-8 w-8 p-0">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      );
-      
-      // Use nested grouping if hierarchy is defined, otherwise use the original single-level grouping
-      if (groupByHierarchy.length > 0) {
-        return renderGroupedEntries(groupedEntries, 0);
-      } else {
-        // Original single-level grouping logic
-        return Object.entries(groupedEntries).map(([groupKey, groupEntries]) => (
-          <div key={groupKey} className="mb-4">
-            <div 
-              className="flex justify-between items-center p-3 bg-muted rounded cursor-pointer hover:bg-muted/80"
-              onClick={() => toggleGroup(groupKey)}
-            >
-              <h3 className="text-lg font-semibold">Grup: {groupKey} ({groupEntries.length})</h3>
-              <Button variant="ghost" size="sm">
-                {expandedGroups.has(groupKey) ? 'Tutup' : 'Buka'}
-              </Button>
+                </TableBody>
+              </Table>
             </div>
-            {expandedGroups.has(groupKey) && renderEntriesTable(groupEntries)}
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="text-xs text-gray-600">
+                  Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedEntries.length)} dari {sortedEntries.length} data
+                </div>
+                
+                <div className="flex items-center space-x-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={firstPage}
+                    disabled={currentPage === 1}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronsLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={prevPage}
+                    disabled={currentPage === 1}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  
+                  <div className="flex items-center space-x-1">
+                    {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={pageNum === currentPage ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => goToPage(pageNum)}
+                          className="w-8 h-8 text-xs"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={nextPage}
+                    disabled={currentPage === totalPages}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={lastPage}
+                    disabled={currentPage === totalPages}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronsRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                
+                <div className="flex items-center space-x-1">
+                  <span className="text-xs text-gray-600">Baris per halaman:</span>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => {
+                      setItemsPerPage(Number(value));
+                      setCurrentPage(1); // Reset to first page when changing items per page
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs w-16">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
           </div>
-        ));
+        );
+      } else {
+        // We're at an intermediate level showing groups to navigate to
+        return (
+          <div>
+            {renderBreadcrumbs()}
+            <div className="space-y-3">
+              {Object.entries(groupedEntriesForCurrentLevel).map(([groupKey, subEntries]) => {
+                const currentLevelIndex = currentGroupPath.length;
+                const fieldId = groupByHierarchy[currentLevelIndex];
+                const field = formDef.fields.find(f => f.nama_field === fieldId);
+                const fieldName = field ? field.label_field : fieldId;
+                
+                const subEntryCount = Array.isArray(subEntries) 
+                  ? subEntries.length 
+                  : Object.keys(subEntries).reduce((sum, key) => sum + (Array.isArray(subEntries[key]) ? subEntries[key].length : 0), 0);
+                
+                return (
+                  <div 
+                    key={groupKey} 
+                    className={`flex justify-between items-center p-3 rounded-lg border-l-4 ${
+                      currentLevelIndex === 0 ? 'border-blue-500 bg-blue-50' : 
+                      currentLevelIndex === 1 ? 'border-indigo-500 bg-indigo-50 ml-4' : 
+                      'border-purple-500 bg-purple-50 ml-8'
+                    } shadow-sm transition-all duration-200 hover:shadow-md cursor-pointer`}
+                    onClick={() => navigateToGroup(groupKey)}
+                  >
+                    <div className="flex items-center">
+                      <div className={`w-2.5 h-2.5 rounded-full mr-2 ${
+                        currentLevelIndex === 0 ? 'bg-blue-500' : 
+                        currentLevelIndex === 1 ? 'bg-indigo-500' : 
+                        'bg-purple-500'
+                      }`}></div>
+                      <div>
+                        <h3 className="font-medium text-gray-800 text-sm">
+                          {fieldName}: {groupKey}
+                        </h3>
+                        <p className="text-xs text-gray-600">
+                          {subEntryCount} item
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" className="flex items-center h-8">
+                      <span className="text-xs mr-1">Masuk</span>
+                      <svg 
+                        className="h-3.5 w-3.5" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Button>
+                  </div>
+                );
+              })}
+              {currentGroupPath.length > 0 && (
+                <div className="mt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={navigateBack}
+                    className="flex items-center"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Kembali
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
       }
     } else {
       // Non-grouped table view with pagination
@@ -1539,288 +1680,343 @@ const FormDataEntry = () => {
   // Render deck view
   const renderDeckView = () => {
     if (groupByHierarchy.length > 0 && groupedEntries) {
-      // Handle both single-level and nested grouping
-      const renderGroupedDeckEntries = (entries: any, hierarchyLevel: number = 0, groupName: string = '') => {
-        // Check if entries is an array (leaf nodes with actual entries) or an object (internal group nodes)
-        const isLeafNode = Array.isArray(entries);
+      // Show breadcrumbs for navigation
+      const renderBreadcrumbs = () => {
+        if (currentGroupPath.length === 0) return null;
         
-        if (!isLeafNode && hierarchyLevel < groupByHierarchy.length) {
-          // We're in nested grouping mode, processing an internal node
-          const currentFieldId = groupByHierarchy[hierarchyLevel];
-          const currentField = formDef.fields.find(f => f.nama_field === currentFieldId);
-          const currentFieldName = currentField ? currentField.label_field : currentFieldId;
-          
-          return Object.entries(entries).map(([groupKey, subEntries]) => {
-            const displayKey = groupKey;
-            const fullGroupName = groupName ? `${groupName} > ${displayKey}` : `${currentFieldName}: ${displayKey}`;
-            const isExpanded = expandedGroups.has(fullGroupName);
-            
-            // Determine if subEntries is a leaf node
-            const isSubEntriesLeaf = Array.isArray(subEntries);
-            
-            let subContent;
-            if (isSubEntriesLeaf) {
-              // If subEntries is an array, we're at the final level
-              subContent = renderDeckEntries(subEntries, hierarchyLevel + 1);
-            } else {
-              // If subEntries is an object, continue to next level
-              subContent = renderGroupedDeckEntries(subEntries, hierarchyLevel + 1, fullGroupName);
-            }
-            
-            return (
-              <div key={fullGroupName} className="mb-3">
-                <div 
-                  className={`flex justify-between items-center p-3 rounded-lg border-l-4 ${
-                    hierarchyLevel === 0 ? 'border-blue-500 bg-blue-50' : 
-                    hierarchyLevel === 1 ? 'border-indigo-500 bg-indigo-50 ml-4' : 
-                    'border-purple-500 bg-purple-50 ml-8'
-                  } shadow-sm transition-all duration-200 hover:shadow-md`}
-                  onClick={() => toggleGroup(fullGroupName)}
-                >
-                  <div className="flex items-center">
-                    <div className={`w-2.5 h-2.5 rounded-full mr-2 ${
-                      hierarchyLevel === 0 ? 'bg-blue-500' : 
-                      hierarchyLevel === 1 ? 'bg-indigo-500' : 
-                      'bg-purple-500'
-                    }`}></div>
-                    <div>
-                      <h3 className="font-medium text-gray-800 text-sm">
-                        {hierarchyLevel === 0 ? 'Tingkat 1' : hierarchyLevel === 1 ? 'Tingkat 2' : 'Tingkat 3'}: {fullGroupName}
-                      </h3>
-                      <p className="text-xs text-gray-600">
-                        {isSubEntriesLeaf 
-                          ? `${subEntries.length} item` 
-                          : `${Object.keys(subEntries).reduce((sum, key) => sum + (Array.isArray(subEntries[key]) ? subEntries[key].length : 0), 0)} item`}
-                      </p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm" className="flex items-center h-8">
-                    <span className="text-xs mr-1">{isExpanded ? 'Tutup' : 'Buka'}</span>
-                    <svg 
-                      className={`h-3.5 w-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+        return (
+          <div className="flex items-center flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={navigateToRoot}
+              className="flex items-center h-8"
+            >
+              <span>Home</span>
+            </Button>
+            {currentGroupPath.map((group, index) => {
+              const fieldId = groupByHierarchy[index];
+              const field = formDef.fields.find(f => f.nama_field === fieldId);
+              const fieldName = field ? field.label_field : fieldId;
+              
+              return (
+                <div key={index} className="flex items-center">
+                  <span className="mx-1 text-gray-400">›</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentGroupPath(prev => prev.slice(0, index + 1))}
+                    className="flex items-center h-8"
+                    disabled={index === currentGroupPath.length - 1}
+                  >
+                    <span>{fieldName}: {group}</span>
                   </Button>
                 </div>
-                {isExpanded && (
-                  <div className={`mt-2 ${hierarchyLevel === 0 ? 'ml-0' : hierarchyLevel === 1 ? 'ml-4' : 'ml-8'}`}>
-                    {subContent}
-                  </div>
-                )}
-              </div>
-            );
-          });
-        } else if (isLeafNode) {
-          // Single-level grouping or final nested level with actual entries
-          return Object.entries(entries).map(([groupKey, groupEntries]) => {
-            const fullGroupName = groupName ? `${groupName} > ${groupKey}` : `Grup: ${groupKey}`;
-            const isExpanded = expandedGroups.has(fullGroupName);
-            
-            return (
-              <div key={fullGroupName} className="mb-3">
-                <div 
-                  className="flex justify-between items-center p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border-l-4 border-gray-400 shadow-sm transition-all duration-200 hover:shadow-md"
-                  onClick={() => toggleGroup(fullGroupName)}
-                >
-                  <div className="flex items-center">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gray-500 mr-2"></div>
-                    <div>
-                      <h3 className="font-medium text-gray-800 text-sm">{fullGroupName}</h3>
-                      <p className="text-xs text-gray-600">{Array.isArray(groupEntries) ? groupEntries.length : 0} item</p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm" className="flex items-center h-8">
-                    <span className="text-xs mr-1">{isExpanded ? 'Tutup' : 'Buka'}</span>
-                    <svg 
-                      className={`h-3.5 w-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </Button>
-                </div>
-                {isExpanded && renderDeckEntries(groupEntries)}
-              </div>
-            );
-          });
-        } else {
-          // This shouldn't happen if our logic is correct, but handle as fallback
-          return null;
-        }
+              );
+            })}
+          </div>
+        );
       };
 
-      // Helper function to render deck entries
-      const renderDeckEntries = (entries: any[], hierarchyLevel: number = 0) => (
-        <div className="space-y-3 mt-3">
-          {entries.map((entry, index) => {
-            // Use deck display fields from the form fields if they exist and are visible
-            // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
-            const visibleDeckFields = formDef.fields
-              .filter(field => field.deck_visible)
-              .sort((a, b) => (a.deck_display_order || 0) - (b.deck_display_order || 0));
-            
-            // Find the header field if any
-            const headerField = visibleDeckFields.find(f => f.deck_is_header);
-            const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
-            
-            // Get non-header fields to display in body
-            const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
-            
-            return (
-              <div 
-                key={entry.id} 
-                className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col sm:flex-row items-start"
-              >
-                {/* Content area - left side */}
-                <div className="flex-1 p-4 min-w-0">
-                  {headerFieldValue && (
-                    <div className={`
-                      mb-3 
-                      ${headerField.deck_display_format === 'header' 
-                        ? 'text-blue-600 font-semibold text-base' 
-                        : 'font-medium text-gray-800 text-sm'}
-                    `}>
-                      {headerFieldValue}
-                    </div>
-                  )}
-                  
-                  <div className="flex flex-wrap gap-3">
-                    {bodyFields.slice(0, 3).map((field, idx) => { // Show first 3 fields in a row
-                      const value = getFieldValue(entry, field);
-                      let displayValue;
-                      
-                      if (field.tipe_field === 'coordinate') {
-                        if (value && value !== 'Koordinat tidak valid') {
-                          // Try to parse the coordinate value
-                          let coords = null;
-                          try {
-                            // If it's already an object format from JSON.parse
-                            if (typeof value === 'object') {
-                              coords = value;
-                            } else {
-                              // If it's in "lat, lng" format, split it
-                              const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
-                              if (!isNaN(lat) && !isNaN(lng)) {
-                                coords = { lat, lng };
-                              }
-                            }
-                          } catch (e) {
-                            console.error("Error parsing coordinate for link:", e);
-                          }
+      // If we're at a leaf level (showing entries), render the deck entries
+      if (!groupedEntriesForCurrentLevel) {
+        // We're at the leaf level showing actual entries
+        return (
+          <div>
+            {renderBreadcrumbs()}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {paginatedEntries.map((entry, index) => {
+                // Use deck display fields from the form fields if they exist and are visible
+                // Filter out fields that have missing deck columns (to prevent errors if columns don't exist in DB yet)
+                const visibleDeckFields = formDef.fields
+                  .filter(field => field.deck_visible)
+                  .sort((a, b) => (a.deck_display_order || 0) - (b.deck_display_order || 0));
+                
+                // Find the header field if any
+                const headerField = visibleDeckFields.find(f => f.deck_is_header);
+                const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
+                
+                // Get non-header fields to display in body
+                const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
+                
+                return (
+                  <Card key={entry.id} className="overflow-hidden flex flex-col">
+                    {headerFieldValue && (
+                      <CardHeader className={headerField.deck_display_format === 'header' ? 'bg-primary text-primary-foreground' : 'bg-muted'}>
+                        <CardTitle className="text-lg break-words">{headerFieldValue}</CardTitle>
+                      </CardHeader>
+                    )}
+                    <CardContent className="p-4 flex-grow">
+                      <div className="space-y-2">
+                        {bodyFields.map(field => {
+                          const value = getFieldValue(entry, field);
                           
-                          if (coords) {
-                            const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
-                            displayValue = (
+                          let displayElement;
+                          if (field.tipe_field === 'coordinate') {
+                            if (value && value !== 'Koordinat tidak valid') {
+                              // Try to parse the coordinate value
+                              let coords = null;
+                              try {
+                                // If it's already an object format from JSON.parse
+                                if (typeof value === 'object') {
+                                  coords = value;
+                                } else {
+                                  // If it's in "lat, lng" format, split it
+                                  const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+                                  if (!isNaN(lat) && !isNaN(lng)) {
+                                    coords = { lat, lng };
+                                  }
+                                }
+                              } catch (e) {
+                                console.error("Error parsing coordinate for link:", e);
+                              }
+                              
+                              if (coords) {
+                                const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
+                                displayElement = (
+                                  <a 
+                                    href={mapUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline flex items-center gap-1"
+                                    onClick={(e) => e.stopPropagation()} // Prevent card click from firing
+                                  >
+                                    {value}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin">
+                                      <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                                      <circle cx="12" cy="10" r="3"/>
+                                    </svg>
+                                  </a>
+                                );
+                              } else {
+                                displayElement = value;
+                              }
+                            } else {
+                              displayElement = value;
+                            }
+                          } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+                            // Handle image display in deck view
+                            displayElement = (
                               <a 
-                                href={mapUrl} 
+                                href={value.url} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline text-xs"
+                                className="block"
                                 onClick={(e) => e.stopPropagation()} // Prevent card click from firing
                               >
-                                {value}
+                                <img 
+                                  src={value.url} 
+                                  alt="Gambar" 
+                                  className="max-h-32 object-cover rounded border w-full mt-1"
+                                  onError={(e) => {
+                                    // If the image fails to load, show an error indicator
+                                    e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
+                                    e.currentTarget.className = 'max-h-32 object-cover rounded border w-full mt-1 text-gray-400';
+                                  }}
+                                />
                               </a>
                             );
                           } else {
-                            displayValue = value;
+                            displayElement = value;
                           }
-                        } else {
-                          displayValue = value;
-                        }
-                      } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
-                        // Handle image display
-                        displayValue = (
-                          <a 
-                            href={value.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-block"
-                            onClick={(e) => e.stopPropagation()} // Prevent card click from firing
-                          >
-                            <img 
-                              src={value.url} 
-                              alt="Gambar" 
-                              className="h-8 w-8 object-cover rounded border"
-                              onError={(e) => {
-                                // If the image fails to load, show an error indicator
-                                e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
-                                e.currentTarget.className = 'h-8 w-8 object-cover rounded border text-gray-400';
-                              }}
-                            />
-                          </a>
-                        );
+                          
+                          return (
+                            <div key={field.id} className="flex flex-col">
+                              <Label className="text-xs font-medium text-muted-foreground">{field.label_field}</Label>
+                              <span className={`text-sm break-words ${field.deck_display_format === 'full-width' ? 'col-span-2' : ''}`}>
+                                {displayElement}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      <div className="flex gap-2 mt-4 justify-end">
+                        {formDef.show_edit_button && (
+                          <Button variant="secondary" size="sm" onClick={() => handleEdit(entry)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {formDef.show_delete_button && (
+                          <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(entry)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="text-xs text-gray-600">
+                  Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedEntries.length)} dari {sortedEntries.length} data
+                </div>
+                
+                <div className="flex items-center space-x-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={firstPage}
+                    disabled={currentPage === 1}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronsLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={prevPage}
+                    disabled={currentPage === 1}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  
+                  <div className="flex items-center space-x-1">
+                    {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
                       } else {
-                        displayValue = <span className="text-gray-700 text-xs">{value}</span>;
+                        pageNum = currentPage - 2 + i;
                       }
                       
                       return (
-                        <div key={field.id} className="flex flex-col min-w-[120px]">
-                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            {field.label_field}
-                          </label>
-                          <div className="text-xs text-gray-700 truncate max-w-xs">
-                            {displayValue}
-                          </div>
-                        </div>
+                        <Button
+                          key={pageNum}
+                          variant={pageNum === currentPage ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => goToPage(pageNum)}
+                          className="w-8 h-8 text-xs"
+                        >
+                          {pageNum}
+                        </Button>
                       );
                     })}
-                    {bodyFields.length > 3 && (
-                      <div className="text-xs text-gray-500 italic">
-                        +{bodyFields.length - 3} lainnya
-                      </div>
-                    )}
                   </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={nextPage}
+                    disabled={currentPage === totalPages}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={lastPage}
+                    disabled={currentPage === totalPages}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronsRight className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
                 
-                {/* Actions area - right side */}
-                <div className="flex items-center gap-1 p-3 border-t sm:border-t-0 sm:border-l border-gray-100">
-                  {formDef.show_edit_button && (
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(entry)} className="h-8 w-8 p-0">
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  {formDef.show_delete_button && (
-                    <Button variant="outline" size="sm" onClick={() => openDeleteDialog(entry)} className="h-8 w-8 p-0">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
+                <div className="flex items-center space-x-1">
+                  <span className="text-xs text-gray-600">Baris per halaman:</span>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => {
+                      setItemsPerPage(Number(value));
+                      setCurrentPage(1); // Reset to first page when changing items per page
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs w-16">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      );
-
-      // Use nested grouping if hierarchy is defined, otherwise use the original single-level grouping
-      if (groupByHierarchy.length > 0) {
-        return renderGroupedDeckEntries(groupedEntries, 0);
+            )}
+          </div>
+        );
       } else {
-        // Original single-level grouping logic
-        return Object.entries(groupedEntries).map(([groupKey, groupEntries]) => {
-          const isExpanded = expandedGroups.has(groupKey);
-          
-          return (
-            <div key={groupKey} className="mb-4">
-              <div 
-                className="flex justify-between items-center p-3 bg-muted rounded cursor-pointer hover:bg-muted/80"
-                onClick={() => toggleGroup(groupKey)}
-              >
-                <h3 className="text-lg font-semibold">Grup: {groupKey} ({groupEntries.length})</h3>
-                <Button variant="ghost" size="sm">
-                  {isExpanded ? 'Tutup' : 'Buka'}
-                </Button>
-              </div>
-              
-              {isExpanded && renderDeckEntries(groupEntries)}
+        // We're at an intermediate level showing groups to navigate to
+        return (
+          <div>
+            {renderBreadcrumbs()}
+            <div className="space-y-3">
+              {Object.entries(groupedEntriesForCurrentLevel).map(([groupKey, subEntries]) => {
+                const currentLevelIndex = currentGroupPath.length;
+                const fieldId = groupByHierarchy[currentLevelIndex];
+                const field = formDef.fields.find(f => f.nama_field === fieldId);
+                const fieldName = field ? field.label_field : fieldId;
+                
+                const subEntryCount = Array.isArray(subEntries) 
+                  ? subEntries.length 
+                  : Object.keys(subEntries).reduce((sum, key) => sum + (Array.isArray(subEntries[key]) ? subEntries[key].length : 0), 0);
+                
+                return (
+                  <div 
+                    key={groupKey} 
+                    className={`flex justify-between items-center p-3 rounded-lg border-l-4 ${
+                      currentLevelIndex === 0 ? 'border-blue-500 bg-blue-50' : 
+                      currentLevelIndex === 1 ? 'border-indigo-500 bg-indigo-50 ml-4' : 
+                      'border-purple-500 bg-purple-50 ml-8'
+                    } shadow-sm transition-all duration-200 hover:shadow-md cursor-pointer`}
+                    onClick={() => navigateToGroup(groupKey)}
+                  >
+                    <div className="flex items-center">
+                      <div className={`w-2.5 h-2.5 rounded-full mr-2 ${
+                        currentLevelIndex === 0 ? 'bg-blue-500' : 
+                        currentLevelIndex === 1 ? 'bg-indigo-500' : 
+                        'bg-purple-500'
+                      }`}></div>
+                      <div>
+                        <h3 className="font-medium text-gray-800 text-sm">
+                          {fieldName}: {groupKey}
+                        </h3>
+                        <p className="text-xs text-gray-600">
+                          {subEntryCount} item
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" className="flex items-center h-8">
+                      <span className="text-xs mr-1">Masuk</span>
+                      <svg 
+                        className="h-3.5 w-3.5" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Button>
+                  </div>
+                );
+              })}
+              {currentGroupPath.length > 0 && (
+                <div className="mt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={navigateBack}
+                    className="flex items-center"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Kembali
+                  </Button>
+                </div>
+              )}
             </div>
-          );
-        });
+          </div>
+        );
       }
     } else {
       // Non-grouped deck view with pagination
