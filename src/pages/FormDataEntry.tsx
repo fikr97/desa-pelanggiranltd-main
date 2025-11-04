@@ -1814,17 +1814,17 @@ const FormDataEntry = () => {
                 
                 return (
                   <Card key={entry.id} className="overflow-hidden border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full bg-white">
-                    <div className="p-4 flex-grow flex flex-col">
+                    <div className="p-3 flex-grow flex flex-col">
                       {headerFieldValue && (
-                        <div className="mb-3 pb-2 border-b border-gray-100">
-                          <h3 className={`font-semibold text-gray-900 break-words ${headerField.deck_display_format === 'header' ? 'text-lg' : 'text-base'}`}>
+                        <div className="mb-2 pb-1 border-b border-gray-100">
+                          <h3 className={`font-semibold text-gray-900 break-words text-sm ${headerField.deck_display_format === 'header' ? 'text-base' : ''}`}>
                             {headerFieldValue}
                           </h3>
                         </div>
                       )}
                       
-                      {/* List-like layout for deck fields */}
-                      <div className="flex-grow space-y-2">
+                      {/* Horizontal layout for deck fields - creates list-like appearance */}
+                      <div className="flex-grow flex flex-wrap gap-3">
                         {bodyFields.map(field => {
                           const value = getFieldValue(entry, field);
                           
@@ -1855,10 +1855,10 @@ const FormDataEntry = () => {
                                     href={mapUrl} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline text-sm break-words inline-flex items-center"
+                                    className="text-blue-600 hover:underline text-xs break-words inline-flex items-center"
                                     onClick={(e) => e.stopPropagation()} // Prevent card click from firing
                                   >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
                                       <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
                                       <circle cx="12" cy="10" r="3"/>
                                     </svg>
@@ -1866,10 +1866,10 @@ const FormDataEntry = () => {
                                   </a>
                                 );
                               } else {
-                                displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                                displayElement = <span className="text-xs text-gray-700 break-words">{value}</span>;
                               }
                             } else {
-                              displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                              displayElement = <span className="text-xs text-gray-700 break-words">{value}</span>;
                             }
                           } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
                             // Handle image display in deck view
@@ -1884,27 +1884,27 @@ const FormDataEntry = () => {
                                 <img 
                                   src={value.url} 
                                   alt="Gambar" 
-                                  className="h-16 w-16 object-cover rounded shadow-sm mx-auto border border-gray-200"
+                                  className="h-12 w-12 object-cover rounded shadow-sm border border-gray-200"
                                 onError={(e) => {
                                   // If the image fails to load, show an error indicator
-                                  e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><line x1='3' y1='9' x2='21' y2='9'/><line x1='9' y1='21' x2='9' y2='9'/></svg>";
-                                  e.currentTarget.className = 'h-16 w-16 object-cover rounded shadow-sm mx-auto border border-gray-200 text-gray-400';
+                                  e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><line x1='3' y1='9' x2='21' y2='9'/><line x1='9' y1='21' x2='9' y2='9'/></svg>";
+                                  e.currentTarget.className = 'h-12 w-12 object-cover rounded shadow-sm border border-gray-200 text-gray-400';
                                 }}
                                 ></img>
                               </a>
                             );
                           } else if (field.tipe_field === 'dropdown' || field.tipe_field === 'textarea' || field.tipe_field === 'number' || field.tipe_field === 'text') {
                             // Explicitly handle common text-based field types
-                            displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                            displayElement = <span className="text-xs text-gray-700 break-words">{value}</span>;
                           } else {
                             // For all other field types (predefined, date, etc.), use default text display
-                            displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                            displayElement = <span className="text-xs text-gray-700 break-words">{value}</span>;
                           }
                           
                           return (
-                            <div key={field.id} className="flex flex-col py-0.5">
-                              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide truncate">{field.label_field}</Label>
-                              <div className="mt-0.5 min-h-[1rem]">
+                            <div key={field.id} className="flex flex-col min-w-[120px]">
+                              <Label className="text-[0.6rem] font-medium text-gray-500 uppercase tracking-wide truncate">{field.label_field}</Label>
+                              <div className="text-xs min-h-[1rem]">
                                 {displayElement}
                               </div>
                             </div>
@@ -2113,17 +2113,17 @@ const FormDataEntry = () => {
               
               return (
                 <Card key={entry.id} className="overflow-hidden border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full bg-white">
-                  <div className="p-4 flex-grow flex flex-col">
+                  <div className="p-3 flex-grow flex flex-col">
                     {headerFieldValue && (
-                      <div className="mb-3 pb-2 border-b border-gray-100">
-                        <h3 className={`font-semibold text-gray-900 break-words ${headerField.deck_display_format === 'header' ? 'text-lg' : 'text-base'}`}>
+                      <div className="mb-2 pb-1 border-b border-gray-100">
+                        <h3 className={`font-semibold text-gray-900 break-words text-sm ${headerField.deck_display_format === 'header' ? 'text-base' : ''}`}>
                           {headerFieldValue}
                         </h3>
                       </div>
                     )}
                     
-                    {/* List-like layout for deck fields */}
-                    <div className="flex-grow space-y-2">
+                    {/* Horizontal layout for deck fields - creates list-like appearance */}
+                    <div className="flex-grow flex flex-wrap gap-3">
                       {bodyFields.map(field => {
                         const value = getFieldValue(entry, field);
                         
@@ -2154,10 +2154,10 @@ const FormDataEntry = () => {
                                   href={mapUrl} 
                                   target="_blank" 
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 hover:underline text-sm break-words inline-flex items-center"
+                                  className="text-blue-600 hover:underline text-xs break-words inline-flex items-center"
                                   onClick={(e) => e.stopPropagation()} // Prevent card click from firing
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
                                     <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
                                     <circle cx="12" cy="10" r="3"/>
                                   </svg>
@@ -2165,10 +2165,10 @@ const FormDataEntry = () => {
                                 </a>
                               );
                             } else {
-                              displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                              displayElement = <span className="text-xs text-gray-700 break-words">{value}</span>;
                             }
                           } else {
-                            displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                            displayElement = <span className="text-xs text-gray-700 break-words">{value}</span>;
                           }
                         } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
                           // Handle image display in deck view
@@ -2183,27 +2183,27 @@ const FormDataEntry = () => {
                               <img 
                                 src={value.url} 
                                 alt="Gambar" 
-                                className="h-16 w-16 object-cover rounded shadow-sm mx-auto border border-gray-200"
+                                className="h-12 w-12 object-cover rounded shadow-sm border border-gray-200"
                             onError={(e) => {
                               // If the image fails to load, show an error indicator
-                              e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><line x1='3' y1='9' x2='21' y2='9'/><line x1='9' y1='21' x2='9' y2='9'/></svg>";
-                              e.currentTarget.className = 'h-16 w-16 object-cover rounded shadow-sm mx-auto border border-gray-200 text-gray-400';
+                              e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><line x1='3' y1='9' x2='21' y2='9'/><line x1='9' y1='21' x2='9' y2='9'/></svg>";
+                              e.currentTarget.className = 'h-12 w-12 object-cover rounded shadow-sm border border-gray-200 text-gray-400';
                             }}
                             ></img>
                             </a>
                           );
                         } else if (field.tipe_field === 'dropdown' || field.tipe_field === 'textarea' || field.tipe_field === 'number' || field.tipe_field === 'text') {
                           // Explicitly handle common text-based field types
-                          displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                          displayElement = <span className="text-xs text-gray-700 break-words">{value}</span>;
                         } else {
                           // For all other field types (predefined, date, etc.), use default text display
-                          displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                          displayElement = <span className="text-xs text-gray-700 break-words">{value}</span>;
                         }
                         
                         return (
-                          <div key={field.id} className="flex flex-col py-0.5">
-                            <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide truncate">{field.label_field}</Label>
-                            <div className="mt-0.5 min-h-[1rem]">
+                          <div key={field.id} className="flex flex-col min-w-[120px]">
+                            <Label className="text-[0.6rem] font-medium text-gray-500 uppercase tracking-wide truncate">{field.label_field}</Label>
+                            <div className="text-xs min-h-[1rem]">
                               {displayElement}
                             </div>
                           </div>
