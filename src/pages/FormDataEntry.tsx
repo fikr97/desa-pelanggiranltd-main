@@ -54,6 +54,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import AdvancedFormFilter from '@/components/AdvancedFormFilter';
 
 const getFieldValue = (entry, field) => {
   let value;
@@ -156,6 +157,9 @@ const FormDataEntry = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   // State for hierarchical group navigation
   const [currentGroupPath, setCurrentGroupPath] = useState<string[]>([]);
+  // Advanced filter state
+  const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState({});
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['form_data_and_def', formId],
@@ -373,32 +377,67 @@ const FormDataEntry = () => {
     }
   }, [data, profile]);
 
-  // Filter entries based on search term and selected fields
+  // Filter entries based on search term, selected fields, and advanced filters
   const filteredEntries = useMemo(() => {
-    if (!data?.entries || !searchTerm) return data?.entries || [];
+    if (!data?.entries) return data?.entries || [];
     
-    if (searchFields.length === 0) {
-      // If no specific fields are selected, search in all fields
-      return data.entries.filter(entry => {
-        return data.formDef.fields.some(field => {
-          const fieldValue = getFieldValue(entry, field);
-          return fieldValue && String(fieldValue).toLowerCase().includes(searchTerm.toLowerCase());
+    let result = data.entries;
+    
+    // Apply basic search if there's a search term
+    if (searchTerm) {
+      if (searchFields.length === 0) {
+        // If no specific fields are selected, search in all fields
+        result = result.filter(entry => {
+          return data.formDef.fields.some(field => {
+            const fieldValue = getFieldValue(entry, field);
+            return fieldValue && String(fieldValue).toLowerCase().includes(searchTerm.toLowerCase());
+          });
         });
-      });
-    } else {
-      // If specific fields are selected, only search in those fields
-      return data.entries.filter(entry => {
-        return data.formDef.fields.some(field => {
-          // Only consider fields that are in the selected searchFields array
-          if (!searchFields.includes(field.nama_field)) {
-            return false;
+      } else {
+        // If specific fields are selected, only search in those fields
+        result = result.filter(entry => {
+          return data.formDef.fields.some(field => {
+            // Only consider fields that are in the selected searchFields array
+            if (!searchFields.includes(field.nama_field)) {
+              return false;
+            }
+            const fieldValue = getFieldValue(entry, field);
+            return fieldValue && String(fieldValue).toLowerCase().includes(searchTerm.toLowerCase());
+          });
+        });
+      }
+    }
+    
+    // Apply advanced filters
+    if (advancedFilters && Object.keys(advancedFilters).length > 0) {
+      result = result.filter(entry => {
+        return Object.entries(advancedFilters).every(([fieldName, filterValue]) => {
+          if (!filterValue || !filterValue.value) return true;
+          
+          const fieldValue = entry.data_custom?.[fieldName] || entry.penduduk?.[fieldName] || 'N/A';
+          
+          if (filterValue.type === 'string') {
+            const filterStr = String(filterValue.value).toLowerCase();
+            return String(fieldValue).toLowerCase().includes(filterStr);
+          } else if (filterValue.type === 'number') {
+            const filterNum = Number(filterValue.value);
+            const fieldNum = Number(fieldValue);
+            return !isNaN(fieldNum) && fieldNum === filterNum;
+          } else if (filterValue.type === 'date') {
+            return String(fieldValue).split('T')[0] === String(filterValue.value);
+          } else if (filterValue.type === 'boolean') {
+            return Boolean(fieldValue) === Boolean(filterValue.value);
+          } else if (filterValue.type === 'dropdown' && Array.isArray(filterValue.value)) {
+            return filterValue.value.includes(String(fieldValue));
           }
-          const fieldValue = getFieldValue(entry, field);
-          return fieldValue && String(fieldValue).toLowerCase().includes(searchTerm.toLowerCase());
+          
+          return true;
         });
       });
     }
-  }, [data?.entries, data?.formDef.fields, searchTerm, searchFields]);
+    
+    return result;
+  }, [data?.entries, data?.formDef.fields, searchTerm, searchFields, advancedFilters]);
 
   // Get entries for the current group path in hierarchical navigation
   const entriesForCurrentPath = useMemo(() => {
@@ -1005,6 +1044,28 @@ const FormDataEntry = () => {
     XLSX.writeFile(workbook, `${data.formDef.nama_tugas.replace(/\s+/g, '_')}.xlsx`);
   };
 
+  const handleExportFiltered = () => {
+    const headers = data.formDef.fields.map(f => f.label_field);
+    const dataForSheet = filteredEntries.map(entry => {
+      const row = {};
+      data.formDef.fields.forEach(field => {
+        let value = getFieldValue(entry, field);
+        
+        // Handle image fields for export - extract URL if it's an image object
+        if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+          value = value.url;  // Use the URL directly for export
+        }
+        
+        row[field.label_field] = value;
+      });
+      return row;
+    });
+    const worksheet = XLSX.utils.json_to_sheet(dataForSheet, { header: headers });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Terfilter');
+    XLSX.writeFile(workbook, `${data.formDef.nama_tugas.replace(/\s+/g, '_')}_terfilter.xlsx`);
+  };
+
   const toggleGroup = (groupName: string) => {
     setExpandedGroups(prev => {
       const newSet = new Set(prev);
@@ -1054,6 +1115,10 @@ const FormDataEntry = () => {
 
   const lastPage = () => {
     goToPage(totalPages);
+  };
+
+  const handleApplyAdvancedFilter = (filters) => {
+    setAdvancedFilters(filters);
   };
 
   if (isLoading) return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -2297,7 +2362,7 @@ const FormDataEntry = () => {
         </div>
 
         {/* View mode toggle - show if form has deck fields */}
-        {/* Search box, field selector, group by selector and view toggles */}
+        {/* Search box, field selector and advanced filter */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <div className="flex flex-col md:flex-row gap-2 w-full md:w-1/2">
             <div className="relative w-full mb-2 md:mb-0">
@@ -2377,31 +2442,16 @@ const FormDataEntry = () => {
               </Popover>
             </div>
             <div className="w-full md:w-auto">
-              {groupByHierarchy.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
-                  <div className="flex items-center">
-                    <div className="w-2.5 h-2.5 rounded-full bg-blue-500 mr-2"></div>
-                    <span className="text-xs text-blue-800 font-medium">Grup Bertingkat:</span>
-                  </div>
-                  <div className="text-xs text-blue-700 mt-1 ml-4">
-                    {groupByHierarchy.map((fieldId, index) => {
-                      const field = formDef.fields.find(f => f.nama_field === fieldId);
-                      const fieldName = field?.label_field || fieldId;
-                      return (
-                        <span key={index} className="inline-flex items-center">
-                          {index > 0 && <span className="mx-1 text-blue-400">›</span>}
-                          <span className="font-medium">{fieldName}</span>
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {groupByHierarchy.length === 0 && (
-                <div className="text-xs text-gray-500 italic px-1 py-2">
-                  Tidak ada pengelompokan aktif
-                </div>
-              )}
+              {/* Advanced Filter Button */}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsAdvancedFilterOpen(true)}
+                className="flex items-center gap-2 relative w-full md:w-auto"
+                size="sm"
+              >
+                <Filter className="h-4 w-4" />
+                <span>Filter Lanjutan</span>
+              </Button>
             </div>
           </div>
           {formDef.display_type === 'deck' && (
@@ -2490,6 +2540,17 @@ const FormDataEntry = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Advanced Form Filter Dialog */}
+      <AdvancedFormFilter
+        open={isAdvancedFilterOpen}
+        onOpenChange={setIsAdvancedFilterOpen}
+        onApplyFilter={handleApplyAdvancedFilter}
+        filteredCount={filteredEntries.length}
+        totalCount={entries.length}
+        formDef={formDef}
+        onDownloadFiltered={handleExportFiltered}
+      />
     </>
   );
 };
