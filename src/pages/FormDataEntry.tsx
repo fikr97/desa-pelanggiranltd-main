@@ -147,6 +147,7 @@ const FormDataEntry = () => {
   const [editingEntry, setEditingEntry] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
+  const [groupSortConfig, setGroupSortConfig] = useState({ direction: 'ascending' }); // Sort config for grouped entries
   const [searchTerm, setSearchTerm] = useState('');
   const [searchFields, setSearchFields] = useState<string[]>([]); // Array to store selected field names to search in
   const [groupByField, setGroupByField] = useState<string | null>('none'); // Keep for backward compatibility
@@ -1480,7 +1481,13 @@ const FormDataEntry = () => {
           <div>
             {renderBreadcrumbs()}
             <div className="space-y-3">
-              {Object.entries(groupedEntriesForCurrentLevel).map(([groupKey, subEntries]) => {
+              {Object.entries(groupedEntriesForCurrentLevel)
+                .sort(([a], [b]) => {
+                  // Sort based on the groupSortConfig
+                  const comparison = a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+                  return groupSortConfig.direction === 'ascending' ? comparison : -comparison;
+                })
+                .map(([groupKey, subEntries]) => {
                 const currentLevelIndex = currentGroupPath.length;
                 const fieldId = groupByHierarchy[currentLevelIndex];
                 const field = formDef.fields.find(f => f.nama_field === fieldId);
@@ -1529,6 +1536,21 @@ const FormDataEntry = () => {
                   </div>
                 );
               })}
+            </div>
+            
+            {/* Group Sorting Controls */}
+            <div className="mt-4 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setGroupSortConfig({
+                  direction: groupSortConfig.direction === 'ascending' ? 'descending' : 'ascending'
+                })}
+                className="text-xs"
+              >
+                <ArrowUpDown className="h-3 w-3 mr-1" />
+                {groupSortConfig.direction === 'ascending' ? 'A-Z' : 'Z-A'}
+              </Button>
             </div>
           </div>
         );
@@ -2033,7 +2055,13 @@ const FormDataEntry = () => {
           <div>
             {renderBreadcrumbs()}
             <div className="space-y-3">
-              {Object.entries(groupedEntriesForCurrentLevel).map(([groupKey, subEntries]) => {
+              {Object.entries(groupedEntriesForCurrentLevel)
+                .sort(([a], [b]) => {
+                  // Sort based on the groupSortConfig
+                  const comparison = a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+                  return groupSortConfig.direction === 'ascending' ? comparison : -comparison;
+                })
+                .map(([groupKey, subEntries]) => {
                 const currentLevelIndex = currentGroupPath.length;
                 const fieldId = groupByHierarchy[currentLevelIndex];
                 const field = formDef.fields.find(f => f.nama_field === fieldId);
@@ -2082,6 +2110,21 @@ const FormDataEntry = () => {
                   </div>
                 );
               })}
+            </div>
+            
+            {/* Group Sorting Controls */}
+            <div className="mt-4 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setGroupSortConfig({
+                  direction: groupSortConfig.direction === 'ascending' ? 'descending' : 'ascending'
+                })}
+                className="text-xs"
+              >
+                <ArrowUpDown className="h-3 w-3 mr-1" />
+                {groupSortConfig.direction === 'ascending' ? 'A-Z' : 'Z-A'}
+              </Button>
             </div>
           </div>
         );
