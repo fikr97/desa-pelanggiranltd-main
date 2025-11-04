@@ -48,14 +48,23 @@ const AdvancedFormFilter = ({
     const uniqueValues = new Set();
     
     formDef.entries.forEach(entry => {
-      // Look for the value in the data_custom object first
-      const customValue = entry.data_custom?.[fieldName];
-      const pendudukValue = entry.penduduk?.[fieldName];
-      const value = customValue !== undefined && customValue !== null && customValue !== '' 
-        ? customValue 
-        : (pendudukValue !== undefined && pendudukValue !== null ? pendudukValue : 'N/A');
-        
-      if (value && value !== 'N/A') {
+      let value;
+      
+      // First check if it's a predefined field (uses penduduk data)
+      const field = formDef.fields.find((f: any) => f.nama_field === fieldName);
+      if (field && field.tipe_field === 'predefined') {
+        value = entry.penduduk?.[fieldName];
+      } else {
+        // For custom fields, check data_custom
+        value = entry.data_custom?.[fieldName];
+      }
+      
+      // If we still don't have a value in data_custom, check if it's in penduduk data
+      if (value === undefined || value === null || value === '') {
+        value = entry.penduduk?.[fieldName];
+      }
+      
+      if (value !== undefined && value !== null && value !== 'N/A' && value !== '') {
         uniqueValues.add(String(value));
       }
     });
@@ -160,19 +169,19 @@ const AdvancedFormFilter = ({
 
   // Filter form fields by their type for appropriate UI components
   const stringFields = formDef?.fields?.filter((field: any) => 
-    ['text', 'textarea', 'email', 'phone', 'custom'].includes(field.tipe_field)
+    ['text', 'textarea', 'email', 'phone', 'url', 'select', 'dropdown', 'custom'].includes(field.tipe_field)
   ) || [];
 
   const numberFields = formDef?.fields?.filter((field: any) => 
-    ['number', 'custom'].includes(field.tipe_field)
+    ['number', 'range', 'custom'].includes(field.tipe_field)
   ) || [];
 
   const dateFields = formDef?.fields?.filter((field: any) => 
-    field.tipe_field === 'date'
+    ['date', 'datetime', 'time', 'custom'].includes(field.tipe_field)
   ) || [];
 
   const dropdownFields = formDef?.fields?.filter((field: any) => 
-    ['dropdown', 'predefined', 'custom'].includes(field.tipe_field)
+    ['dropdown', 'select', 'predefined', 'radio', 'checkbox'].includes(field.tipe_field)
   ) || [];
 
   return (
@@ -212,7 +221,8 @@ const AdvancedFormFilter = ({
 
         <Separator />
         
-        <div className="space-y-6">
+        <div className="max-h-[60vh] overflow-y-auto pr-2">
+          <div className="space-y-6">
           {/* String/Text Fields */}
           {stringFields.length > 0 && (
             <div className="space-y-4">
@@ -284,27 +294,33 @@ const AdvancedFormFilter = ({
           {dropdownFields.length > 0 && (
             <div className="space-y-4">
               <h4 className="text-sm font-semibold text-foreground">Filter Pilihan</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {dropdownFields.map((field: any) => {
-                  const uniqueValues = getUniqueFieldValues(field.nama_field);
-                  const currentValue = filters[field.nama_field]?.value as string[] || [];
-                  
-                  return (
-                    <div key={field.nama_field} className="space-y-2">
-                      <Label>{field.label_field}</Label>
-                      <MultiSelectFilter
-                        options={uniqueValues}
-                        value={currentValue}
-                        onChange={(value) => handleMultiFilterChange(field.nama_field, value)}
-                        label={field.label_field}
-                        placeholder={`Pilih ${field.label_field}...`}
-                      />
-                    </div>
-                  );
-                })}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+                {dropdownFields
+                  .filter((field: any) => {
+                    const uniqueValues = getUniqueFieldValues(field.nama_field);
+                    return uniqueValues.length > 0;
+                  })
+                  .map((field: any) => {
+                    const uniqueValues = getUniqueFieldValues(field.nama_field);
+                    const currentValue = filters[field.nama_field]?.value as string[] || [];
+                    
+                    return (
+                      <div key={field.nama_field} className="space-y-2">
+                        <Label>{field.label_field}</Label>
+                        <MultiSelectFilter
+                          options={uniqueValues}
+                          value={currentValue}
+                          onChange={(value) => handleMultiFilterChange(field.nama_field, value)}
+                          label={field.label_field}
+                          placeholder={`Pilih ${field.label_field}...`}
+                        />
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           )}
+          </div>
         </div>
 
         <Separator />

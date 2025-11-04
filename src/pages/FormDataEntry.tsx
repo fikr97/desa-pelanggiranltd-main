@@ -414,7 +414,27 @@ const FormDataEntry = () => {
         return Object.entries(advancedFilters).every(([fieldName, filterValue]) => {
           if (!filterValue || !filterValue.value) return true;
           
-          const fieldValue = entry.data_custom?.[fieldName] || entry.penduduk?.[fieldName] || 'N/A';
+          // Find the field definition to determine if it's a predefined field
+          const fieldDef = data.formDef.fields.find((f: any) => f.nama_field === fieldName);
+          let fieldValue;
+          
+          if (fieldDef && fieldDef.tipe_field === 'predefined') {
+            // For predefined fields, use penduduk data
+            fieldValue = entry.penduduk?.[fieldName];
+          } else {
+            // For custom fields, use data_custom
+            fieldValue = entry.data_custom?.[fieldName];
+          }
+          
+          // Fallback to penduduk data if field value is not found in data_custom
+          if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
+            fieldValue = entry.penduduk?.[fieldName];
+          }
+          
+          // If field value is still not found, return false (doesn't match filter)
+          if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
+            return false; // Field doesn't exist or is empty, so doesn't match filter
+          }
           
           if (filterValue.type === 'string') {
             const filterStr = String(filterValue.value).toLowerCase();
