@@ -1809,125 +1809,123 @@ const FormDataEntry = () => {
                 const headerField = visibleDeckFields.find(f => f.deck_is_header);
                 const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
                 
-                // Get non-header fields to display in body
+                // Get non-header fields to display in body (show all, no limit)
                 const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
                 
                 return (
-                  <Card key={entry.id} className="overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div className="flex flex-col sm:flex-row">
-                      {/* Left side - Header and primary info */}
-                      <div className="flex-1 p-4 min-w-0">
-                        {headerFieldValue && (
-                          <div className="mb-3">
-                            <h3 className={`font-semibold text-gray-900 ${headerField.deck_display_format === 'header' ? 'text-lg' : 'text-base'}`}>
-                              {headerFieldValue}
-                            </h3>
-                          </div>
-                        )}
-                        
-                        {/* Horizontal layout for deck fields - show only first 3-4 fields, with 'lainnya' indicator for additional fields */}
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            {bodyFields.slice(0, 3).map(field => {
-                              const value = getFieldValue(entry, field);
-                              
-                              let displayElement;
-                              if (field.tipe_field === 'coordinate') {
-                                if (value && value !== 'Koordinat tidak valid') {
-                                  // Try to parse the coordinate value
-                                  let coords = null;
-                                  try {
-                                    // If it's already an object format from JSON.parse
-                                    if (typeof value === 'object') {
-                                      coords = value;
-                                    } else {
-                                      // If it's in "lat, lng" format, split it
-                                      const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
-                                      if (!isNaN(lat) && !isNaN(lng)) {
-                                        coords = { lat, lng };
-                                      }
-                                    }
-                                  } catch (e) {
-                                    console.error("Error parsing coordinate for link:", e);
-                                  }
-                                  
-                                  if (coords) {
-                                    const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
-                                    displayElement = (
-                                      <a 
-                                        href={mapUrl} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:underline text-xs"
-                                        onClick={(e) => e.stopPropagation()} // Prevent card click from firing
-                                      >
-                                        {value}
-                                      </a>
-                                    );
-                                  } else {
-                                    displayElement = <span className="text-xs text-gray-700">{value}</span>;
-                                  }
+                  <Card key={entry.id} className="overflow-hidden border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full bg-white">
+                    <div className="p-4 flex-grow flex flex-col">
+                      {headerFieldValue && (
+                        <div className="mb-3 pb-2 border-b border-gray-100">
+                          <h3 className={`font-semibold text-gray-900 break-words ${headerField.deck_display_format === 'header' ? 'text-lg' : 'text-base'}`}>
+                            {headerFieldValue}
+                          </h3>
+                        </div>
+                      )}
+                      
+                      {/* List-like layout for deck fields */}
+                      <div className="flex-grow space-y-2">
+                        {bodyFields.map(field => {
+                          const value = getFieldValue(entry, field);
+                          
+                          let displayElement;
+                          if (field.tipe_field === 'coordinate') {
+                            if (value && value !== 'Koordinat tidak valid') {
+                              // Try to parse the coordinate value
+                              let coords = null;
+                              try {
+                                // If it's already an object format from JSON.parse
+                                if (typeof value === 'object') {
+                                  coords = value;
                                 } else {
-                                  displayElement = <span className="text-xs text-gray-700">{value}</span>;
+                                  // If it's in "lat, lng" format, split it
+                                  const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+                                  if (!isNaN(lat) && !isNaN(lng)) {
+                                    coords = { lat, lng };
+                                  }
                                 }
-                              } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
-                                // Handle image display in deck view
+                              } catch (e) {
+                                console.error("Error parsing coordinate for link:", e);
+                              }
+                              
+                              if (coords) {
+                                const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
                                 displayElement = (
                                   <a 
-                                    href={value.url} 
+                                    href={mapUrl} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="inline-block"
+                                    className="text-blue-600 hover:underline text-sm break-words inline-flex items-center"
                                     onClick={(e) => e.stopPropagation()} // Prevent card click from firing
                                   >
-                                    <img 
-                                      src={value.url} 
-                                      alt="Gambar" 
-                                      className="h-10 w-10 object-cover rounded border"
-                                      onError={(e) => {
-                                        // If the image fails to load, show an error indicator
-                                        e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><line x1='3' y1='9' x2='21' y2='9'/><line x1='9' y1='21' x2='9' y2='9'/></svg>";
-                                        e.currentTarget.className = 'h-10 w-10 object-cover rounded border text-gray-400';
-                                      }}
-                                    />
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                                      <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                                      <circle cx="12" cy="10" r="3"/>
+                                    </svg>
+                                    {value}
                                   </a>
                                 );
                               } else {
-                                displayElement = <span className="text-xs text-gray-700">{value}</span>;
+                                displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
                               }
-                              
-                              return (
-                                <div key={field.id} className="flex flex-col">
-                                  <Label className="text-xs font-medium text-muted-foreground truncate">{field.label_field}</Label>
-                                  <div className="mt-1">
-                                    {displayElement}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          {bodyFields.length > 3 && (
-                            <div className="pt-1">
-                              <span className="text-xs text-gray-500">+{bodyFields.length - 3} field lainnya</span>
+                            } else {
+                              displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                            }
+                          } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+                            // Handle image display in deck view
+                            displayElement = (
+                              <a 
+                                href={value.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-block"
+                                onClick={(e) => e.stopPropagation()} // Prevent card click from firing
+                              >
+                                <img 
+                                  src={value.url} 
+                                  alt="Gambar" 
+                                  className="h-16 w-16 object-cover rounded shadow-sm mx-auto border border-gray-200"
+                                onError={(e) => {
+                                  // If the image fails to load, show an error indicator
+                                  e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><line x1='3' y1='9' x2='21' y2='9'/><line x1='9' y1='21' x2='9' y2='9'/></svg>";
+                                  e.currentTarget.className = 'h-16 w-16 object-cover rounded shadow-sm mx-auto border border-gray-200 text-gray-400';
+                                }}
+                                ></img>
+                              </a>
+                            );
+                          } else if (field.tipe_field === 'dropdown' || field.tipe_field === 'textarea' || field.tipe_field === 'number' || field.tipe_field === 'text') {
+                            // Explicitly handle common text-based field types
+                            displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                          } else {
+                            // For all other field types (predefined, date, etc.), use default text display
+                            displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                          }
+                          
+                          return (
+                            <div key={field.id} className="flex flex-col py-0.5">
+                              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide truncate">{field.label_field}</Label>
+                              <div className="mt-0.5 min-h-[1rem]">
+                                {displayElement}
+                              </div>
                             </div>
-                          )}
-                        </div>
+                          );
+                        })}
                       </div>
-                      
-                      {/* Right side - Actions */}
-                      <div className="flex items-center justify-center p-4 border-t sm:border-t-0 sm:border-l border-gray-100 bg-gray-50">
-                        <div className="flex gap-2">
-                          {formDef.show_edit_button && (
-                            <Button variant="outline" size="sm" onClick={() => handleEdit(entry)} className="h-8 w-8 p-0">
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {formDef.show_delete_button && (
-                            <Button variant="outline" size="sm" onClick={() => openDeleteDialog(entry)} className="h-8 w-8 p-0">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                    </div>
+                    
+                    {/* Card footer with actions - updated styling for elegant look */}
+                    <div className="p-4 border-t border-gray-100 bg-gray-50">
+                      <div className="flex gap-2 justify-end">
+                        {formDef.show_edit_button && (
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(entry)} className="h-9 w-9 p-0 rounded-full">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {formDef.show_delete_button && (
+                          <Button variant="outline" size="sm" onClick={() => openDeleteDialog(entry)} className="h-9 w-9 p-0 rounded-full">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </Card>
@@ -1937,7 +1935,7 @@ const FormDataEntry = () => {
             
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-6 p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="text-xs text-gray-600">
                   Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedEntries.length)} dari {sortedEntries.length} data
                 </div>
@@ -2103,131 +2101,130 @@ const FormDataEntry = () => {
       
       return (
         <div>
-          <div className="space-y-3">
+          {/* Responsive grid layout for deck view */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {paginatedEntries.map((entry, index) => {
               // Find the header field if any
               const headerField = visibleDeckFields.find(f => f.deck_is_header);
               const headerFieldValue = headerField ? getFieldValue(entry, headerField) : null;
               
-              // Get non-header fields to display in body
+              // Get non-header fields to display in body (show all, no limit)
               const bodyFields = visibleDeckFields.filter(f => !f.deck_is_header);
               
               return (
-                <Card key={entry.id} className="overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                  <div className="flex flex-col sm:flex-row">
-                    {/* Left side - Header and primary info */}
-                    <div className="flex-1 p-4 min-w-0">
-                      {headerFieldValue && (
-                        <div className="mb-3">
-                          <h3 className={`font-semibold text-gray-900 ${headerField.deck_display_format === 'header' ? 'text-lg' : 'text-base'}`}>
-                            {headerFieldValue}
-                          </h3>
-                        </div>
-                      )}
-                      
-                      {/* Horizontal layout for deck fields - show only first 3-4 fields, with 'lainnya' indicator for additional fields */}
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {bodyFields.slice(0, 3).map(field => {
-                            const value = getFieldValue(entry, field);
-                            
-                            let displayElement;
-                            if (field.tipe_field === 'coordinate') {
-                              if (value && value !== 'Koordinat tidak valid') {
-                                // Try to parse the coordinate value
-                                let coords = null;
-                                try {
-                                  // If it's already an object format from JSON.parse
-                                  if (typeof value === 'object') {
-                                    coords = value;
-                                  } else {
-                                    // If it's in "lat, lng" format, split it
-                                    const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
-                                    if (!isNaN(lat) && !isNaN(lng)) {
-                                      coords = { lat, lng };
-                                    }
-                                  }
-                                } catch (e) {
-                                  console.error("Error parsing coordinate for link:", e);
-                                }
-                                
-                                if (coords) {
-                                  const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
-                                  displayElement = (
-                                    <a 
-                                      href={mapUrl} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 hover:underline text-xs"
-                                      onClick={(e) => e.stopPropagation()} // Prevent card click from firing
-                                    >
-                                      {value}
-                                    </a>
-                                  );
-                                } else {
-                                  displayElement = <span className="text-xs text-gray-700">{value}</span>;
-                                }
+                <Card key={entry.id} className="overflow-hidden border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full bg-white">
+                  <div className="p-4 flex-grow flex flex-col">
+                    {headerFieldValue && (
+                      <div className="mb-3 pb-2 border-b border-gray-100">
+                        <h3 className={`font-semibold text-gray-900 break-words ${headerField.deck_display_format === 'header' ? 'text-lg' : 'text-base'}`}>
+                          {headerFieldValue}
+                        </h3>
+                      </div>
+                    )}
+                    
+                    {/* List-like layout for deck fields */}
+                    <div className="flex-grow space-y-2">
+                      {bodyFields.map(field => {
+                        const value = getFieldValue(entry, field);
+                        
+                        let displayElement;
+                        if (field.tipe_field === 'coordinate') {
+                          if (value && value !== 'Koordinat tidak valid') {
+                            // Try to parse the coordinate value
+                            let coords = null;
+                            try {
+                              // If it's already an object format from JSON.parse
+                              if (typeof value === 'object') {
+                                coords = value;
                               } else {
-                                displayElement = <span className="text-xs text-gray-700">{value}</span>;
+                                // If it's in "lat, lng" format, split it
+                                const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+                                if (!isNaN(lat) && !isNaN(lng)) {
+                                  coords = { lat, lng };
+                                }
                               }
-                            } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
-                              // Handle image display in deck view
+                            } catch (e) {
+                              console.error("Error parsing coordinate for link:", e);
+                            }
+                            
+                            if (coords) {
+                              const mapUrl = `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=15/${coords.lat}/${coords.lng}`;
                               displayElement = (
                                 <a 
-                                  href={value.url} 
+                                  href={mapUrl} 
                                   target="_blank" 
                                   rel="noopener noreferrer"
-                                  className="inline-block"
+                                  className="text-blue-600 hover:underline text-sm break-words inline-flex items-center"
                                   onClick={(e) => e.stopPropagation()} // Prevent card click from firing
                                 >
-                                  <img 
-                                    src={value.url} 
-                                    alt="Gambar" 
-                                    className="h-10 w-10 object-cover rounded border"
-                                  onError={(e) => {
-                                    // If the image fails to load, show an error indicator
-                                    e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><line x1='3' y1='9' x2='21' y2='9'/><line x1='9' y1='21' x2='9' y2='9'/></svg>";
-                                    e.currentTarget.className = 'h-10 w-10 object-cover rounded border text-gray-400';
-                                  }}
-                                  ></img>
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                                    <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                                    <circle cx="12" cy="10" r="3"/>
+                                  </svg>
+                                  {value}
                                 </a>
                               );
                             } else {
-                              displayElement = <span className="text-xs text-gray-700">{value}</span>;
+                              displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
                             }
-                            
-                            return (
-                              <div key={field.id} className="flex flex-col">
-                                <Label className="text-xs font-medium text-muted-foreground truncate">{field.label_field}</Label>
-                                <div className="mt-1">
-                                  {displayElement}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {bodyFields.length > 3 && (
-                          <div className="pt-1">
-                            <span className="text-xs text-gray-500">+{bodyFields.length - 3} field lainnya</span>
+                          } else {
+                            displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                          }
+                        } else if (field.tipe_field === 'image' && typeof value === 'object' && value.type === 'image' && value.url) {
+                          // Handle image display in deck view
+                          displayElement = (
+                            <a 
+                              href={value.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="inline-block"
+                              onClick={(e) => e.stopPropagation()} // Prevent card click from firing
+                            >
+                              <img 
+                                src={value.url} 
+                                alt="Gambar" 
+                                className="h-16 w-16 object-cover rounded shadow-sm mx-auto border border-gray-200"
+                            onError={(e) => {
+                              // If the image fails to load, show an error indicator
+                              e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><line x1='3' y1='9' x2='21' y2='9'/><line x1='9' y1='21' x2='9' y2='9'/></svg>";
+                              e.currentTarget.className = 'h-16 w-16 object-cover rounded shadow-sm mx-auto border border-gray-200 text-gray-400';
+                            }}
+                            ></img>
+                            </a>
+                          );
+                        } else if (field.tipe_field === 'dropdown' || field.tipe_field === 'textarea' || field.tipe_field === 'number' || field.tipe_field === 'text') {
+                          // Explicitly handle common text-based field types
+                          displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                        } else {
+                          // For all other field types (predefined, date, etc.), use default text display
+                          displayElement = <span className="text-sm text-gray-700 break-words">{value}</span>;
+                        }
+                        
+                        return (
+                          <div key={field.id} className="flex flex-col py-0.5">
+                            <Label className="text-xs font-medium text-gray-500 uppercase tracking-wide truncate">{field.label_field}</Label>
+                            <div className="mt-0.5 min-h-[1rem]">
+                              {displayElement}
+                            </div>
                           </div>
-                        )}
-                      </div>
+                        );
+                      })}
                     </div>
-                    
-                    {/* Right side - Actions */}
-                    <div className="flex items-center justify-center p-4 border-t sm:border-t-0 sm:border-l border-gray-100 bg-gray-50">
-                      <div className="flex gap-2">
-                        {formDef.show_edit_button && (
-                          <Button variant="outline" size="sm" onClick={() => handleEdit(entry)} className="h-8 w-8 p-0">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {formDef.show_delete_button && (
-                          <Button variant="outline" size="sm" onClick={() => openDeleteDialog(entry)} className="h-8 w-8 p-0">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+                  </div>
+                  
+                  {/* Card footer with actions - updated styling for elegant look */}
+                  <div className="p-4 border-t border-gray-100 bg-gray-50">
+                    <div className="flex gap-2 justify-end">
+                      {formDef.show_edit_button && (
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(entry)} className="h-9 w-9 p-0 rounded-full">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {formDef.show_delete_button && (
+                        <Button variant="outline" size="sm" onClick={() => openDeleteDialog(entry)} className="h-9 w-9 p-0 rounded-full">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -2237,7 +2234,7 @@ const FormDataEntry = () => {
           
           {/* Pagination Controls for Deck View */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-6 p-3 bg-gray-50 rounded-lg border border-gray-200">
               <div className="text-xs text-gray-600">
                 Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedEntries.length)} dari {sortedEntries.length} data
               </div>
