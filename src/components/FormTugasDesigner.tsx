@@ -60,19 +60,39 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
     };
 
     if (formTugas) {
-      setFormData({
-        nama_tugas: formTugas.nama_tugas || '',
-        deskripsi: formTugas.deskripsi || '',
-        display_type: formTugas.display_type || 'table',
-        show_add_button: formTugas.show_add_button !== undefined ? formTugas.show_add_button : true,
-        show_edit_button: formTugas.show_edit_button !== undefined ? formTugas.show_edit_button : true,
-        show_delete_button: formTugas.show_delete_button !== undefined ? formTugas.show_delete_button : true,
-        default_group_by: formTugas.default_group_by || '',
-        group_by_hierarchy: formTugas.group_by_hierarchy || [],
-      });
-      loadFields(formTugas.id);
+      // Check if we're duplicating by seeing if we're passed a form with an ID but with (Copy) in the name
+      // This indicates we're not editing the original form but duplicating it
+      const isDuplicating = formTugas.id && formTugas.nama_tugas.includes('(Copy)');
+      
+      if (formTugas.id && !isDuplicating) {
+        // Editing existing form
+        setFormData({
+          nama_tugas: formTugas.nama_tugas || '',
+          deskripsi: formTugas.deskripsi || '',
+          display_type: formTugas.display_type || 'table',
+          show_add_button: formTugas.show_add_button !== undefined ? formTugas.show_add_button : true,
+          show_edit_button: formTugas.show_edit_button !== undefined ? formTugas.show_edit_button : true,
+          show_delete_button: formTugas.show_delete_button !== undefined ? formTugas.show_delete_button : true,
+          default_group_by: formTugas.default_group_by || '',
+          group_by_hierarchy: formTugas.group_by_hierarchy || [],
+        });
+        loadFields(formTugas.id);
+      } else {
+        // Duplicating form - load fields but keep the new form name/description
+        setFormData({
+          nama_tugas: formTugas.nama_tugas || '',
+          deskripsi: formTugas.deskripsi || '',
+          display_type: formTugas.display_type || 'table',
+          show_add_button: formTugas.show_add_button !== undefined ? formTugas.show_add_button : true,
+          show_edit_button: formTugas.show_edit_button !== undefined ? formTugas.show_edit_button : true,
+          show_delete_button: formTugas.show_delete_button !== undefined ? formTugas.show_delete_button : true,
+          default_group_by: formTugas.default_group_by || '',
+          group_by_hierarchy: formTugas.group_by_hierarchy || [],
+        });
+        loadFields(formTugas.id);
+      }
     } else {
-      // Reset fields when creating a new form
+      // Creating a completely new form
       setFormData({
         nama_tugas: '',
         deskripsi: '',
@@ -99,11 +119,12 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
 
     setIsLoading(true);
     try {
-      let formId = formTugas?.id;
+      // Determine if we're duplicating by checking if the form name contains "(Copy)"
+      const isDuplicating = formTugas && formTugas.nama_tugas.includes('(Copy)');
 
-      // 1. Save the main form data (form_tugas table)
-      if (formId) {
-        // Update existing form
+      let formId;
+      if (!isDuplicating && formTugas?.id) {
+        // Update existing form (normal edit)
         const { error } = await supabase
           .from('form_tugas')
           .update({ 
@@ -117,10 +138,11 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
             group_by_hierarchy: formData.group_by_hierarchy,
             updated_at: new Date().toISOString() 
           })
-          .eq('id', formId);
+          .eq('id', formTugas.id);
         if (error) throw error;
+        formId = formTugas.id;
       } else {
-        // Create new form
+        // Create new form (either completely new or duplicate)
         const { data, error } = await supabase
           .from('form_tugas')
           .insert([{ 
@@ -180,14 +202,14 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
 
       toast({
         title: 'Berhasil!',
-        description: 'Form tugas telah berhasil disimpan.',
+        description: isDuplicating ? 'Form tugas telah berhasil di-duplicate.' : (formTugas ? 'Form tugas telah berhasil diperbarui.' : 'Form tugas telah berhasil dibuat.'),
       });
 
       // Notify kadus
-      const message = formId
-        ? `Form tugas "${formData.nama_tugas}" telah diperbarui.`
-        : `Form tugas baru "${formData.nama_tugas}" telah dibuat.`;
-      const link = formId ? `/form-tugas/${formId}/data` : '/form-tugas';
+      const message = isDuplicating || !formTugas
+        ? `Form tugas baru "${formData.nama_tugas}" telah dibuat.`
+        : `Form tugas "${formData.nama_tugas}" telah diperbarui.`;
+      const link = `/form-tugas/${formId}/data`;
 
       const { error: rpcError } = await supabase.rpc('notify_kadus', {
         p_message: message,

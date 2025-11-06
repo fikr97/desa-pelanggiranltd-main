@@ -15,6 +15,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,6 +32,7 @@ const FormTugas = () => {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [formToDelete, setFormToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { profile } = useAuth();
@@ -52,9 +59,29 @@ const FormTugas = () => {
     });
   }, [formTugasList, searchTerm]);
 
+  const handleOpenCreateModal = () => {
+    setIsCreateModalOpen(true);
+  };
+
   const handleCreateNew = () => {
     setSelectedForm(null);
     setIsDesignerOpen(true);
+    setIsCreateModalOpen(false);
+  };
+
+  const handleDuplicateForm = (form) => {
+    // Create a copy of the form data with a flag to indicate duplication
+    const formForDuplication = {
+      ...form,
+      nama_tugas: `${form.nama_tugas} (Copy)`, // Prepend "Copy" to the name
+    };
+    setSelectedForm(formForDuplication);
+    setIsDesignerOpen(true);
+    setIsCreateModalOpen(false);
+  };
+
+  const handleModalClose = () => {
+    setIsCreateModalOpen(false);
   };
 
   const handleEdit = (form) => {
@@ -121,7 +148,7 @@ const FormTugas = () => {
           </div>
           {(profile?.role === 'admin' || canCreate) && (
             <div className="w-full md:w-auto mt-2 md:mt-0">
-              <Button onClick={handleCreateNew} className="w-full">
+              <Button onClick={handleOpenCreateModal} className="w-full">
                 <PlusCircle className="h-4 w-4 mr-2" />
                 Buat Form Baru
               </Button>
@@ -193,7 +220,7 @@ const FormTugas = () => {
       {/* Fixed Add button for mobile */}
       {(profile?.role === 'admin' || canCreate) && (
         <Button 
-          onClick={handleCreateNew} 
+          onClick={handleOpenCreateModal} 
           className="fixed bottom-6 right-6 rounded-full w-14 h-14 p-0 shadow-lg md:hidden z-50"
           aria-label="Buat Form Baru"
         >
@@ -215,6 +242,57 @@ const FormTugas = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dual-choice modal for creating new form */}
+      <Dialog open={isCreateModalOpen} onOpenChange={handleModalClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pilih Opsi Pembuatan Form</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Button 
+              onClick={handleCreateNew} 
+              className="w-full text-left justify-start"
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Buat Form Baru
+            </Button>
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  atau
+                </span>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Pilih form yang akan di-duplicate:</p>
+              {formTugasList && formTugasList.length > 0 ? (
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {formTugasList.map((form) => (
+                    <Button
+                      key={form.id}
+                      variant="outline"
+                      className="w-full text-left justify-start"
+                      onClick={() => handleDuplicateForm(form)}
+                    >
+                      {form.nama_tugas}
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  Belum ada form yang tersedia untuk di-duplicate.
+                </p>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
