@@ -43,6 +43,24 @@ const AdvancedFormFilter = ({
 
   // Get unique values for dropdown fields from form data
   const getUniqueFieldValues = (fieldName: string) => {
+    // First, find the field definition
+    const field = formDef?.fields?.find((f: any) => f.nama_field === fieldName);
+    
+    // For custom fields that have predefined options (like dropdown, radio, checkbox), 
+    // return the available options from the field definition
+    if (field && ['dropdown', 'select', 'radio', 'checkbox'].includes(field.tipe_field) && field.opsi_pilihan && Array.isArray(field.opsi_pilihan)) {
+      // Return the options from the field definition
+      return field.opsi_pilihan.map((opt: any) => {
+        // If options are objects with value/label format
+        if (opt && typeof opt === 'object' && opt.value !== undefined) {
+          return opt.value;
+        }
+        // If options are simple values
+        return String(opt);
+      }).sort();
+    }
+    
+    // For other fields or if no predefined options, get values from actual entries
     if (!formDef?.entries || !Array.isArray(formDef.entries)) return [];
     
     const uniqueValues = new Set();
@@ -51,7 +69,6 @@ const AdvancedFormFilter = ({
       let value;
       
       // First check if it's a predefined field (uses penduduk data)
-      const field = formDef.fields.find((f: any) => f.nama_field === fieldName);
       if (field && field.tipe_field === 'predefined') {
         value = entry.penduduk?.[fieldName];
       } else {
@@ -169,7 +186,8 @@ const AdvancedFormFilter = ({
 
   // Filter form fields by their type for appropriate UI components
   const stringFields = formDef?.fields?.filter((field: any) => 
-    ['text', 'textarea', 'email', 'phone', 'url', 'select', 'dropdown', 'custom'].includes(field.tipe_field)
+    ['text', 'textarea', 'email', 'phone', 'url', 'custom'].includes(field.tipe_field)
+    && !['select', 'dropdown', 'predefined', 'radio', 'checkbox'].includes(field.tipe_field) // Exclude option fields
   ) || [];
 
   const numberFields = formDef?.fields?.filter((field: any) => 
@@ -180,7 +198,8 @@ const AdvancedFormFilter = ({
     ['date', 'datetime', 'time', 'custom'].includes(field.tipe_field)
   ) || [];
 
-  const dropdownFields = formDef?.fields?.filter((field: any) => 
+  // Group all fields that can have multiple options for advanced filtering
+  const optionFields = formDef?.fields?.filter((field: any) => 
     ['dropdown', 'select', 'predefined', 'radio', 'checkbox'].includes(field.tipe_field)
   ) || [];
 
@@ -290,12 +309,12 @@ const AdvancedFormFilter = ({
             </div>
           )}
 
-          {/* Dropdown/Select Fields */}
-          {dropdownFields.length > 0 && (
+          {/* Option Fields (dropdown, select, radio, checkbox) */}
+          {optionFields.length > 0 && (
             <div className="space-y-4">
               <h4 className="text-sm font-semibold text-foreground">Filter Pilihan</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-                {dropdownFields
+                {optionFields
                   .filter((field: any) => {
                     const uniqueValues = getUniqueFieldValues(field.nama_field);
                     return uniqueValues.length > 0;

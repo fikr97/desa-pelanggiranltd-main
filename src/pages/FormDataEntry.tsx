@@ -458,7 +458,19 @@ const FormDataEntry = () => {
           } else if (filterValue.type === 'boolean') {
             return Boolean(fieldValue) === Boolean(filterValue.value);
           } else if (filterValue.type === 'dropdown' && Array.isArray(filterValue.value)) {
-            return filterValue.value.includes(String(fieldValue));
+            // Handle both normal dropdown fields and checkbox fields
+            const fieldStrValue = String(fieldValue);
+            if (fieldDef.tipe_field === 'checkbox') {
+              // For checkbox fields, the value is stored as a comma-separated string
+              // So we need to check if any of the selected filter values match any of the field values
+              const fieldValuesArray = fieldStrValue.split(',').map(v => v.trim()).filter(v => v !== '');
+              return filterValue.value.some(selectedValue => 
+                fieldValuesArray.includes(selectedValue)
+              );
+            } else {
+              // For normal dropdown fields
+              return filterValue.value.includes(fieldStrValue);
+            }
           }
           
           return true;
