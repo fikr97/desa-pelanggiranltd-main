@@ -245,47 +245,46 @@ const FormTugas = () => {
 
       {/* Dual-choice modal for creating new form */}
       <Dialog open={isCreateModalOpen} onOpenChange={handleModalClose}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-hidden">
           <DialogHeader>
-            <DialogTitle>Pilih Opsi Pembuatan Form</DialogTitle>
+            <DialogTitle className="text-lg font-semibold text-center">
+              Pilih Opsi Pembuatan Form
+            </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="flex flex-col gap-4 py-2">
             <Button 
               onClick={handleCreateNew} 
-              className="w-full text-left justify-start"
+              className="w-full flex items-center justify-center"
             >
               <PlusCircle className="h-4 w-4 mr-2" />
               Buat Form Baru
             </Button>
             
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  atau
-                </span>
-              </div>
+            <div className="flex items-center my-1">
+              <div className="flex-grow border-t border-gray-300"></div>
+              <span className="mx-4 text-sm text-gray-500 flex-shrink-0">atau</span>
+              <div className="flex-grow border-t border-gray-300"></div>
             </div>
             
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Pilih form yang akan di-duplicate:</p>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground text-center">
+                Pilih form yang akan di-duplicate:
+              </p>
               {formTugasList && formTugasList.length > 0 ? (
                 <div className="max-h-60 overflow-y-auto space-y-2">
                   {formTugasList.map((form) => (
                     <Button
                       key={form.id}
                       variant="outline"
-                      className="w-full text-left justify-start"
+                      className="w-full text-left justify-start h-auto py-3"
                       onClick={() => handleDuplicateForm(form)}
                     >
-                      {form.nama_tugas}
+                      <span className="whitespace-normal break-words" title={form.nama_tugas}>{form.nama_tugas}</span>
                     </Button>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-2">
+                <p className="text-sm text-muted-foreground text-center py-3">
                   Belum ada form yang tersedia untuk di-duplicate.
                 </p>
               )}

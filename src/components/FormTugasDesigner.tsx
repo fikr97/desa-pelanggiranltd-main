@@ -119,8 +119,9 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
 
     setIsLoading(true);
     try {
-      // Determine if we're duplicating by checking if the form name contains "(Copy)"
-      const isDuplicating = formTugas && formTugas.nama_tugas.includes('(Copy)');
+      // Determine if we're duplicating by checking if the form name contains "(Copy)" and has an ID
+      // This indicates we're duplicating an existing form, not editing it
+      const isDuplicating = formTugas && formTugas.id && formTugas.nama_tugas.includes('(Copy)');
 
       let formId;
       if (!isDuplicating && formTugas?.id) {
