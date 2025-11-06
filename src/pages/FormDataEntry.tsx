@@ -102,6 +102,15 @@ const getFieldValue = (entry, field) => {
     return 'Koordinat tidak valid';
   }
 
+  // Special handling for checkbox values (stored as comma-separated string)
+  if (field.tipe_field === 'checkbox') {
+    if (typeof value === 'string' && value) {
+      // Split comma-separated values and join with commas for display
+      return value.split(',').map(v => v.trim()).filter(v => v !== '').join(', ');
+    }
+    return value || 'N/A';
+  }
+
   // Apply date format transformation first
   if ((field.tipe_field === 'date' || field.sumber_data === 'penduduk.tanggal_lahir') && value && value !== 'N/A' && field.format_tanggal) {
     try {

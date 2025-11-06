@@ -7,6 +7,7 @@ import { Textarea } from './ui/textarea';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -268,6 +269,40 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        );
+      case 'checkbox':
+        // Handle checkbox values which can be an array or string
+        const checkboxValues = Array.isArray(value) ? value : (typeof value === 'string' && value) ? value.split(',').map(item => item.trim()) : [];
+        
+        const handleCheckboxChange = (option) => {
+          let newValues;
+          if (checkboxValues.includes(option)) {
+            newValues = checkboxValues.filter(v => v !== option);
+          } else {
+            newValues = [...checkboxValues, option];
+          }
+          handleInputChange(field.nama_field, newValues.join(','));
+        };
+        
+        return (
+          <div key={field.id} className="space-y-2">
+            <Label>{field.label_field}{requiredIndicator}</Label>
+            <div className="space-y-2">
+              {(field.opsi_pilihan || []).map((option) => (
+                <div key={option} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`${field.nama_field}-${option}`}
+                    checked={checkboxValues.includes(option)}
+                    onCheckedChange={() => handleCheckboxChange(option)}
+                    disabled={field.is_editable === false}
+                  />
+                  <Label htmlFor={`${field.nama_field}-${option}`} className="text-sm font-normal">
+                    {option}
+                  </Label>
+                </div>
+              ))}
+            </div>
           </div>
         );
       case 'coordinate': {

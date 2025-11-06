@@ -180,7 +180,7 @@ const CustomFieldDialog = ({ onSave }) => {
       label_field: label, 
       nama_field: name,
       tipe_field: type,
-      opsi_pilihan: type === 'dropdown' ? options.split('\n').filter(o => o.trim() !== '') : null
+      opsi_pilihan: (type === 'dropdown' || type === 'checkbox') ? options.split('\n').filter(o => o.trim() !== '') : null
     };
     onSave(fieldData);
   };
@@ -208,19 +208,20 @@ const CustomFieldDialog = ({ onSave }) => {
               <SelectItem value="number">Angka</SelectItem>
               <SelectItem value="date">Tanggal</SelectItem>
               <SelectItem value="dropdown">Dropdown (Pilihan)</SelectItem>
+              <SelectItem value="checkbox">Checkbox (Pilihan Ganda)</SelectItem>
               <SelectItem value="coordinate">Koordinat/Geo-tagging</SelectItem>
               <SelectItem value="image">Unggah Gambar</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        {type === 'dropdown' && (
+        {(type === 'dropdown' || type === 'checkbox') && (
           <div>
             <Label htmlFor="field-options">Pilihan (satu per baris)</Label>
             <Textarea
               id="field-options"
               value={options}
               onChange={(e) => setOptions(e.target.value)}
-              placeholder="Contoh:\nYa\nTidak"
+              placeholder="Contoh:\nYa\nTidak\nMungkin"
             />
           </div>
         )}
@@ -275,7 +276,7 @@ const SectionNameDialog = ({ onSave, onCancel, existingNames }) => {
 };
 
 const isFormattableField = (field) => {
-  if (field.tipe_field === 'date' || field.tipe_field === 'number' || field.tipe_field === 'coordinate') {
+  if (field.tipe_field === 'date' || field.tipe_field === 'number' || field.tipe_field === 'coordinate' || field.tipe_field === 'checkbox') {
     return false;
   }
   if (field.sumber_data === 'penduduk.tanggal_lahir') {
