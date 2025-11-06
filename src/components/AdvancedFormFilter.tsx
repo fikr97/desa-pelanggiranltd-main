@@ -90,13 +90,19 @@ const AdvancedFormFilter = ({
   };
 
   const handleStringFilterChange = (fieldName: string, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [fieldName]: {
-        type: 'string',
-        value: value || null
-      }
-    }));
+    setFilters(prev => (value || value === '') // Accept empty string as valid value
+      ? {
+          ...prev,
+          [fieldName]: {
+            type: 'string',
+            value: value || null
+          }
+        }
+      : { 
+          ...prev, 
+          [fieldName]: undefined // Remove the filter if empty
+        }
+    );
   };
 
   const handleNumberFilterChange = (fieldName: string, value: string) => {
@@ -184,24 +190,7 @@ const AdvancedFormFilter = ({
     return activeFilters;
   };
 
-  // Filter form fields by their type for appropriate UI components
-  const stringFields = formDef?.fields?.filter((field: any) => 
-    ['text', 'textarea', 'email', 'phone', 'url', 'custom'].includes(field.tipe_field)
-    && !['select', 'dropdown', 'predefined', 'radio', 'checkbox'].includes(field.tipe_field) // Exclude option fields
-  ) || [];
-
-  const numberFields = formDef?.fields?.filter((field: any) => 
-    ['number', 'range', 'custom'].includes(field.tipe_field)
-  ) || [];
-
-  const dateFields = formDef?.fields?.filter((field: any) => 
-    ['date', 'datetime', 'time', 'custom'].includes(field.tipe_field)
-  ) || [];
-
-  // Group all fields that can have multiple options for advanced filtering
-  const optionFields = formDef?.fields?.filter((field: any) => 
-    ['dropdown', 'select', 'predefined', 'radio', 'checkbox'].includes(field.tipe_field)
-  ) || [];
+  // No more field type classifications - we'll handle all fields in one place
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -240,105 +229,49 @@ const AdvancedFormFilter = ({
 
         <Separator />
         
-        <div className="max-h-[60vh] overflow-y-auto pr-2">
-          <div className="space-y-6">
-          {/* String/Text Fields */}
-          {stringFields.length > 0 && (
-            <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-foreground">Filter Teks</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {stringFields.map((field: any) => {
-                  const currentValue = filters[field.nama_field]?.value || '';
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-foreground">Filter Field</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {formDef?.fields && formDef.fields.map((field: any) => {
+                // Determine if this field has options (dropdown, select, radio, checkbox)
+                const isOptionField = ['dropdown', 'select', 'predefined', 'radio', 'checkbox'].includes(field.tipe_field);
+                
+                if (isOptionField) {
+                  // For option fields, get unique values
+                  const uniqueValues = getUniqueFieldValues(field.nama_field);
+                  if (uniqueValues.length === 0) return null; // Skip if no values available
+                  
+                  const currentValue = filters[field.nama_field]?.value as string[] || [];
+                  
+                  return (
+                    <div key={field.nama_field} className="space-y-2">
+                      <Label>{field.label_field}</Label>
+                      <MultiSelectFilter
+                        options={uniqueValues}
+                        value={currentValue}
+                        onChange={(value) => handleMultiFilterChange(field.nama_field, value)}
+                        label={field.label_field}
+                        placeholder={`Pilih ${field.label_field}...`}
+                      />
+                    </div>
+                  );
+                } else {
+                  // For non-option fields, use text input
+                  const currentValue = filters[field.nama_field]?.value as string || '';
                   return (
                     <div key={field.nama_field} className="space-y-2">
                       <Label>{field.label_field}</Label>
                       <Input
                         placeholder={`Cari ${field.label_field}...`}
-                        value={currentValue as string || ''}
+                        value={currentValue || ''}
                         onChange={(e) => handleStringFilterChange(field.nama_field, e.target.value)}
                       />
                     </div>
                   );
-                })}
-              </div>
+                }
+              })}
             </div>
-          )}
-
-          {/* Number Fields */}
-          {numberFields.length > 0 && (
-            <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-foreground">Filter Angka</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {numberFields.map((field: any) => {
-                  const currentValue = filters[field.nama_field]?.value || '';
-                  return (
-                    <div key={field.nama_field} className="space-y-2">
-                      <Label>{field.label_field}</Label>
-                      <Input
-                        type="number"
-                        placeholder={`Masukkan ${field.label_field}...`}
-                        value={currentValue as string || ''}
-                        onChange={(e) => handleNumberFilterChange(field.nama_field, e.target.value)}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Date Fields */}
-          {dateFields.length > 0 && (
-            <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-foreground">Filter Tanggal</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {dateFields.map((field: any) => {
-                  const currentValue = filters[field.nama_field]?.value || '';
-                  return (
-                    <div key={field.nama_field} className="space-y-2">
-                      <Label>{field.label_field}</Label>
-                      <Input
-                        type="date"
-                        value={currentValue as string || ''}
-                        onChange={(e) => handleDateFilterChange(field.nama_field, e.target.value)}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Option Fields (dropdown, select, radio, checkbox) */}
-          {optionFields.length > 0 && (
-            <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-foreground">Filter Pilihan</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-                {optionFields
-                  .filter((field: any) => {
-                    const uniqueValues = getUniqueFieldValues(field.nama_field);
-                    return uniqueValues.length > 0;
-                  })
-                  .map((field: any) => {
-                    const uniqueValues = getUniqueFieldValues(field.nama_field);
-                    const currentValue = filters[field.nama_field]?.value as string[] || [];
-                    
-                    return (
-                      <div key={field.nama_field} className="space-y-2">
-                        <Label>{field.label_field}</Label>
-                        <MultiSelectFilter
-                          options={uniqueValues}
-                          value={currentValue}
-                          onChange={(value) => handleMultiFilterChange(field.nama_field, value)}
-                          label={field.label_field}
-                          placeholder={`Pilih ${field.label_field}...`}
-                        />
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
           </div>
         </div>
 
