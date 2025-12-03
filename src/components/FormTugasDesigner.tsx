@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase, deleteImage } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, ListPlus, Trash2 } from 'lucide-react';
+import { Settings, ListPlus, Trash2, Loader2 } from 'lucide-react';
 import FormFieldManager from './FormFieldManager';
 import { useAuth } from '@/contexts/AuthContext';
 import { Switch } from '@/components/ui/switch';
@@ -35,6 +35,8 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
   const [activeTab, setActiveTab] = useState<'settings' | 'fields'>('settings');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFieldsToClear, setSelectedFieldsToClear] = useState<string[]>([]);
+  const [isClearingFields, setIsClearingFields] = useState(false);
+  const [isClearingAll, setIsClearingAll] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -248,6 +250,8 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
     if (!formTugas?.id) return;
 
     try {
+      setIsClearingAll(true);
+
       // First, get all form entries to check for image files that need cleanup
       let allFormData = [];
       let from = 0;
@@ -330,6 +334,8 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         description: `Terjadi kesalahan saat menghapus data form: ${error.message}`,
         variant: 'destructive'
       });
+    } finally {
+      setIsClearingAll(false);
     }
   };
 
@@ -337,6 +343,8 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
     if (!formTugas?.id || !fieldName) return;
 
     try {
+      setIsClearingFields(true);
+
       // Get form entries that have the specific field populated
       const { data: formData, error } = await supabase
         .from('form_tugas_data')
@@ -410,6 +418,8 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         description: `Terjadi kesalahan saat mengosongkan field: ${error.message}`,
         variant: 'destructive'
       });
+    } finally {
+      setIsClearingFields(false);
     }
   };
 
@@ -427,6 +437,8 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
     }
 
     try {
+      setIsClearingFields(true);
+
       // Get all form entries
       const { data: formData, error } = await supabase
         .from('form_tugas_data')
@@ -497,6 +509,8 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         description: `Terjadi kesalahan saat mengosongkan field: ${error.message}`,
         variant: 'destructive'
       });
+    } finally {
+      setIsClearingFields(false);
     }
   };
 
@@ -660,9 +674,19 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
                             handleDeleteAllFormData();
                           }
                         }}
+                        disabled={isClearingAll}
                       >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Hapus Semua Data
+                        {isClearingAll ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Menghapus...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Hapus Semua Data
+                          </>
+                        )}
                       </Button>
                     </div>
 
@@ -703,10 +727,19 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
                           variant="outline"
                           size="sm"
                           onClick={handleClearMultipleFields}
-                          disabled={selectedFieldsToClear.length === 0}
+                          disabled={selectedFieldsToClear.length === 0 || isClearingFields}
                         >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Kosongkan {selectedFieldsToClear.length} Field Terpilih
+                          {isClearingFields ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Mengosongkan...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Kosongkan {selectedFieldsToClear.length} Field Terpilih
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>
