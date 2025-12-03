@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Loader2, Download, Upload, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown, Grid3X3, List, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Check, FileText } from 'lucide-react';
+import { Loader2, Download, Upload, PlusCircle, Pencil, Trash2, ArrowLeft, ArrowUpDown, Grid3X3, List, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Check, FileText, ListPlus } from 'lucide-react';
 import DataEntryForm from '@/components/DataEntryForm';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -54,6 +54,14 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import AdvancedFormFilter from '@/components/AdvancedFormFilter';
 
 const getFieldValue = (entry, field) => {
@@ -1161,6 +1169,162 @@ const FormDataEntry = () => {
 
   const handleApplyAdvancedFilter = (filters) => {
     setAdvancedFilters(filters);
+  };
+
+  const handleDeleteAllEntries = async () => {
+    if (!entries || entries.length === 0) return;
+
+    try {
+      // Delete all image files associated with entries before removing entries
+      for (const entry of entries) {
+        if (entry.data_custom) {
+          // Find all image fields in the current form
+          const imageFields = formDef.fields.filter(field => field.tipe_field === 'image');
+
+          // Delete all images associated with this entry
+          for (const field of imageFields) {
+            const imageUrl = entry.data_custom[field.nama_field];
+            if (imageUrl && typeof imageUrl === 'string' && imageUrl.includes('supabase.co')) {
+              try {
+                const deleteResult = await deleteImage(imageUrl);
+                if (!deleteResult) {
+                  console.warn(`Failed to delete image: ${imageUrl}`);
+                } else {
+                  console.log(`Deleted image: ${imageUrl}`);
+                }
+              } catch (deleteError) {
+                console.error(`Error deleting image ${imageUrl}:`, deleteError);
+              }
+            }
+          }
+        }
+      }
+
+      // Delete all entries in batches to avoid timeout
+      const batchSize = 100; // Adjust as needed
+      for (let i = 0; i < entries.length; i += batchSize) {
+        const batch = entries.slice(i, i + batchSize);
+        const ids = batch.map(entry => entry.id);
+
+        const { error } = await supabase
+          .from('form_tugas_data')
+          .delete()
+          .in('id', ids);
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: 'Berhasil',
+        description: `Semua ${entries.length} data telah dihapus.`
+      });
+      queryClient.invalidateQueries({ queryKey: ['form_data_and_def', formId] });
+    } catch (err) {
+      console.error('Error deleting all entries:', err);
+      toast({
+        title: 'Gagal',
+        description: `Terjadi kesalahan saat menghapus semua data: ${err.message}`,
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleClearSpecificField = async (fieldName) => {
+    if (!entries || entries.length === 0) return;
+
+    try {
+      // Get entries that have the specific field populated
+      const entriesWithField = entries.filter(entry => {
+        const currentData = entry.data_custom || {};
+        return currentData[fieldName] !== undefined && currentData[fieldName] !== null && currentData[fieldName] !== '';
+      });
+
+      if (entriesWithField.length === 0) {
+        toast({
+          title: 'Tidak Ada Data',
+          description: `Tidak ditemukan data dengan field "${fieldName}" yang perlu dikosongkan.`
+        });
+        return;
+      }
+
+      // Check if the form is in 'semua_data' mode
+      const isAllDataMode = formDef?.visibilitas_dusun === 'semua_data';
+
+      // Check if the field has image type to handle image deletion
+      const fieldDef = formDef.fields.find(f => f.nama_field === fieldName);
+      const isImageField = fieldDef && fieldDef.tipe_field === 'image';
+
+      // Process entries with the field in batches
+      const batchSize = 100; // Adjust as needed
+      for (let i = 0; i < entriesWithField.length; i += batchSize) {
+        const batch = entriesWithField.slice(i, i + batchSize);
+
+        for (const entry of batch) {
+          const currentData = entry.data_custom || {};
+
+          // If it's an image field, delete the image before clearing the field
+          if (isImageField) {
+            const imageUrl = currentData[fieldName];
+            if (imageUrl && typeof imageUrl === 'string' && imageUrl.includes('supabase.co')) {
+              try {
+                const deleteResult = await deleteImage(imageUrl);
+                if (!deleteResult) {
+                  console.warn(`Failed to delete image: ${imageUrl}`);
+                } else {
+                  console.log(`Deleted image: ${imageUrl}`);
+                }
+              } catch (deleteError) {
+                console.error(`Error deleting image ${imageUrl}:`, deleteError);
+              }
+            }
+          }
+
+          // Update the data_custom JSONB column to clear the specific field value
+          const updatedData = { ...currentData };
+          updatedData[fieldName] = ''; // Set to empty string instead of null
+
+          let result;
+          if (isAllDataMode) {
+            // Use RPC function for 'semua_data' mode to update the form data
+            result = await supabase.rpc('update_form_data_for_all_dusun', {
+              p_form_data_id: entry.id,
+              p_form_id: formId,
+              p_penduduk_id: entry.penduduk_id || null,
+              p_data_custom: updatedData
+            });
+
+            if (result.error) {
+              console.error('Error updating form data in all data mode:', result.error);
+              throw result.error;
+            }
+          } else {
+            // For normal mode, use direct update
+            const { error } = await supabase
+              .from('form_tugas_data')
+              .update({ data_custom: updatedData })
+              .eq('id', entry.id);
+
+            if (error) throw error;
+          }
+        }
+
+        // Add a small delay between batches to prevent overwhelming the server
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      toast({
+        title: 'Berhasil',
+        description: `Data field "${fieldDef?.label_field || fieldName}" pada ${entriesWithField.length} entri telah dikosongkan.`
+      });
+      queryClient.invalidateQueries({ queryKey: ['form_data_and_def', formId] });
+    } catch (err) {
+      console.error('Error clearing specific field:', err);
+      toast({
+        title: 'Gagal',
+        description: `Terjadi kesalahan saat mengosongkan field: ${err.message}`,
+        variant: 'destructive'
+      });
+    }
   };
 
   if (isLoading) return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -2409,28 +2573,75 @@ const FormDataEntry = () => {
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full">
             {formDef.show_add_button && (
-              <Button 
-                onClick={handleAddNew} 
+              <Button
+                onClick={handleAddNew}
                 className="flex-1 py-2 px-3 sm:py-3 sm:px-4 text-sm min-w-[100px]"
               >
                 <PlusCircle className="h-4 w-4 mr-1 sm:mr-2" />
                 <span>Tambah</span>
               </Button>
             )}
-            <ImportDataButton 
-              formDef={formDef} 
-              residents={residents} 
+            <ImportDataButton
+              formDef={formDef}
+              residents={residents}
               className="flex-1 py-2 px-3 sm:py-3 sm:px-4 text-sm min-w-[100px]"
             />
-            <Button 
-              variant="outline" 
-              onClick={handleExport} 
-              disabled={!entries.length} 
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={!entries.length}
               className="flex-1 py-2 px-3 sm:py-3 sm:px-4 text-sm min-w-[100px]"
             >
               <Download className="h-4 w-4 mr-1 sm:mr-2" />
               <span>Ekspor</span>
             </Button>
+            {/* Bulk Operations Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between text-sm bg-background hover:bg-background"
+                >
+                  <span className="flex items-center">
+                    <ListPlus className="mr-2 h-4 w-4" />
+                    Operasi Massal
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end">
+                <DropdownMenuLabel>Operasi Massal</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => {
+                  // Clear all entries functionality will be implemented here
+                  if (entries.length > 0) {
+                    if (window.confirm(`Apakah Anda yakin ingin menghapus semua ${entries.length} data? Tindakan ini tidak dapat dibatalkan.`)) {
+                      handleDeleteAllEntries();
+                    }
+                  }
+                }}>
+                  Hapus Semua Data
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Per Field</DropdownMenuLabel>
+                {formDef.fields.map((field) => (
+                  <DropdownMenuItem
+                    key={field.id}
+                    onSelect={() => {
+                      if (entries.length > 0) {
+                        const count = entries.filter(entry => entry.data_custom?.[field.nama_field]).length;
+                        if (count > 0) {
+                          if (window.confirm(`Apakah Anda yakin ingin menghapus semua data untuk field "${field.label_field}" pada ${count} entri? Tindakan ini tidak dapat dibatalkan.`)) {
+                            handleClearSpecificField(field.nama_field);
+                          }
+                        }
+                      }
+                    }}
+                  >
+                    Hapus Data "{field.label_field}"
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
