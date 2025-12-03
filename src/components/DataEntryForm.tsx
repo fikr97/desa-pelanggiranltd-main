@@ -188,47 +188,20 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
     switch (field.tipe_field) {
       case 'textarea':
         return (
-          <div key={field.id} className="relative">
-            <div className="flex justify-between items-center mb-1">
-              <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
-              {value && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0.5 ml-2"
-                  onClick={() => handleInputChange(field.nama_field, '')}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+          <div key={field.id}>
+            <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
             <Textarea
               id={field.nama_field}
               value={value}
               onChange={e => handleInputChange(field.nama_field, e.target.value)}
               disabled={field.is_editable === false}
-              className="pr-8"
             />
           </div>
         );
       case 'number':
         return (
-          <div key={field.id} className="relative">
-            <div className="flex justify-between items-center mb-1">
-              <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
-              {value && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0.5 ml-2"
-                  onClick={() => handleInputChange(field.nama_field, '')}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+          <div key={field.id}>
+            <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
             <Input
               id={field.nama_field}
               type="number"
@@ -243,7 +216,6 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
                 }
               }}
               disabled={field.is_editable === false}
-              className="pr-8"
             />
           </div>
         );
@@ -266,21 +238,8 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
         }
 
         return (
-          <div key={field.id} className="relative">
-            <div className="flex justify-between items-center mb-1">
-              <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
-              {value && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0.5 ml-2"
-                  onClick={() => handleInputChange(field.nama_field, '')}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+          <div key={field.id}>
+            <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
             <div className="flex items-center gap-2">
                <Input
                 type="text"
@@ -303,21 +262,8 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       }
       case 'dropdown':
         return (
-          <div key={field.id} className="relative">
-            <div className="flex justify-between items-center mb-1">
-              <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
-              {value && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0.5 ml-2"
-                  onClick={() => handleInputChange(field.nama_field, '')}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+          <div key={field.id}>
+            <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
             <Select value={value} onValueChange={(newValue) => handleInputChange(field.nama_field, newValue)} disabled={field.is_editable === false}>
               <SelectTrigger id={field.nama_field}>
                 <SelectValue placeholder={`Pilih ${field.label_field}...`} />
@@ -346,20 +292,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
 
         return (
           <div key={field.id} className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label>{field.label_field}{requiredIndicator}</Label>
-              {value && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0.5 ml-2"
-                  onClick={() => handleInputChange(field.nama_field, '')}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+            <Label>{field.label_field}{requiredIndicator}</Label>
             <div className="space-y-2">
               {(field.opsi_pilihan || []).map((option) => (
                 <div key={option} className="flex items-center space-x-2">
@@ -393,20 +326,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
 
         return (
           <div key={field.id}>
-            <div className="flex justify-between items-center mb-1">
-              <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
-              {value && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0.5 ml-2"
-                  onClick={() => handleInputChange(field.nama_field, '')}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+            <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
             <CoordinateSelector
               value={coordValue}
               onChange={handleCoordinateChange}
@@ -419,20 +339,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       case 'image':
         return (
           <div key={field.id}>
-            <div className="flex justify-between items-center mb-1">
-              <Label>{field.label_field}{requiredIndicator}</Label>
-              {value && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0.5 ml-2"
-                  onClick={() => handleInputChange(field.nama_field, '')}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+            <Label>{field.label_field}{requiredIndicator}</Label>
             <ImageUploadField
               label={field.label_field}
               value={value}
@@ -445,21 +352,8 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
         );
       default: // 'text', 'predefined', etc.
         return (
-          <div key={field.id} className="relative">
-            <div className="flex justify-between items-center mb-1">
-              <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
-              {value && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0.5 ml-2"
-                  onClick={() => handleInputChange(field.nama_field, '')}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+          <div key={field.id}>
+            <Label htmlFor={field.nama_field}>{field.label_field}{requiredIndicator}</Label>
             <Input
               id={field.nama_field}
               value={value}
@@ -476,7 +370,6 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
               type={isNIKorNoKKField ? "text" : undefined} // Use text type to allow maxLength, but filter input
               inputMode={isNIKorNoKKField ? "numeric" : undefined} // Improve mobile keyboard experience
               disabled={field.is_editable === false}
-              className="pr-8"
             />
           </div>
         );
@@ -576,17 +469,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
         ))}
       </div>
 
-      <div className="flex justify-between pt-4 gap-2">
-        <div className="space-x-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={clearAllData}
-            disabled={isLoading}
-          >
-            Kosongkan Form
-          </Button>
-        </div>
+      <div className="flex justify-end pt-4 gap-2">
         <div className="space-x-2">
           <Button variant="ghost" onClick={onCancel}>Batal</Button>
           <Button onClick={() => {
