@@ -186,15 +186,27 @@ const FormTugas = () => {
               {filteredForms?.map((form) => (
                 <div key={form.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border rounded-lg">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{form.nama_tugas}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-lg">{form.nama_tugas}</h3>
+                      {!form.is_active && (
+                        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                          Tidak Aktif
+                        </span>
+                      )}
+                    </div>
                     <p className="text-muted-foreground text-sm">{form.deskripsi}</p>
                   </div>
                   <div className="flex items-center flex-wrap gap-2">
                     {(profile?.role === 'admin' || canFill) && (
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to={`/form-tugas/${form.id}/data`}>
+                      <Button variant={form.is_active ? "outline" : "outline"} size="sm" asChild disabled={!form.is_active}>
+                        <Link to={form.is_active ? `/form-tugas/${form.id}/data` : "#"} onClick={(e) => {
+                          if (!form.is_active) {
+                            e.preventDefault();
+                            alert("Form ini tidak aktif dan tidak dapat diisi.");
+                          }
+                        }}>
                           <FileText className="h-4 w-4 mr-2" />
-                          Isi Data
+                          Isi Data {form.is_active ? "" : " (Non Aktif)"}
                         </Link>
                       </Button>
                     )}

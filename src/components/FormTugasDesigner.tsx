@@ -27,6 +27,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
     show_add_button: true,
     show_edit_button: true,
     show_delete_button: true,
+    is_active: true, // Add is_active field
     default_group_by: '',
     group_by_hierarchy: [],
   });
@@ -64,7 +65,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
       // Check if we're duplicating by seeing if we're passed a form with an ID but with (Copy) in the name
       // This indicates we're not editing the original form but duplicating it
       const isDuplicating = formTugas.id && formTugas.nama_tugas.includes('(Copy)');
-      
+
       if (formTugas.id && !isDuplicating) {
         // Editing existing form
         setFormData({
@@ -74,6 +75,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
           show_add_button: formTugas.show_add_button !== undefined ? formTugas.show_add_button : true,
           show_edit_button: formTugas.show_edit_button !== undefined ? formTugas.show_edit_button : true,
           show_delete_button: formTugas.show_delete_button !== undefined ? formTugas.show_delete_button : true,
+          is_active: formTugas.is_active !== undefined ? formTugas.is_active : true,
           default_group_by: formTugas.default_group_by || '',
           group_by_hierarchy: formTugas.group_by_hierarchy || [],
         });
@@ -87,6 +89,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
           show_add_button: formTugas.show_add_button !== undefined ? formTugas.show_add_button : true,
           show_edit_button: formTugas.show_edit_button !== undefined ? formTugas.show_edit_button : true,
           show_delete_button: formTugas.show_delete_button !== undefined ? formTugas.show_delete_button : true,
+          is_active: formTugas.is_active !== undefined ? formTugas.is_active : true,
           default_group_by: formTugas.default_group_by || '',
           group_by_hierarchy: formTugas.group_by_hierarchy || [],
         });
@@ -101,6 +104,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         show_add_button: true,
         show_edit_button: true,
         show_delete_button: true,
+        is_active: true,
         default_group_by: '',
         group_by_hierarchy: [],
       });
@@ -129,16 +133,17 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         // Update existing form (normal edit)
         const { error } = await supabase
           .from('form_tugas')
-          .update({ 
+          .update({
             nama_tugas: formData.nama_tugas,
             deskripsi: formData.deskripsi,
             display_type: formData.display_type,
             show_add_button: formData.show_add_button,
             show_edit_button: formData.show_edit_button,
             show_delete_button: formData.show_delete_button,
+            is_active: formData.is_active, // Add is_active to update
             default_group_by: formData.default_group_by,
             group_by_hierarchy: formData.group_by_hierarchy,
-            updated_at: new Date().toISOString() 
+            updated_at: new Date().toISOString()
           })
           .eq('id', formTugas.id);
         if (error) throw error;
@@ -147,13 +152,14 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
         // Create new form (either completely new or duplicate)
         const { data, error } = await supabase
           .from('form_tugas')
-          .insert([{ 
+          .insert([{
             nama_tugas: formData.nama_tugas,
             deskripsi: formData.deskripsi,
             display_type: formData.display_type,
             show_add_button: formData.show_add_button,
             show_edit_button: formData.show_edit_button,
             show_delete_button: formData.show_delete_button,
+            is_active: formData.is_active, // Add is_active to insert
             default_group_by: formData.default_group_by,
             group_by_hierarchy: formData.group_by_hierarchy,
             created_by: user.id,
@@ -609,6 +615,22 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
                       checked={formData.show_delete_button}
                       onCheckedChange={(checked) => setFormData(prev => ({ ...prev, show_delete_button: checked }))}
                     />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="is_active">Status Form</Label>
+                      <p className="text-xs text-muted-foreground">Status aktif/non-aktif form</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className={`text-xs ${formData.is_active ? 'text-green-600' : 'text-red-600'}`}>
+                        {formData.is_active ? 'Aktif' : 'Tidak Aktif'}
+                      </span>
+                      <Switch
+                        id="is_active"
+                        checked={formData.is_active}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

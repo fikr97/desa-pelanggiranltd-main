@@ -192,7 +192,7 @@ const FormDataEntry = () => {
       // First, check if user can access the form itself
       const formQuery = supabase.from('form_tugas').select('*').eq('id', formId).single();
       const [formRes] = await Promise.all([formQuery]);
-      
+
       if (formRes.error) {
         console.error('Error fetching form:', formRes.error);
         // Jika error karena permission, lempar error spesifik
@@ -202,11 +202,16 @@ const FormDataEntry = () => {
         throw formRes.error;
       }
 
+      // Check if the form is active
+      if (formRes.data && formRes.data.is_active === false) {
+        throw new Error('form_not_active');
+      }
+
       const fieldsQuery = supabase.from('form_tugas_fields').select('*').eq('form_tugas_id', formId).order('urutan');
-      
+
       // Execute form and fields queries first to determine form mode
       const [formResult, fieldsResult] = await Promise.all([
-        formQuery, 
+        formQuery,
         fieldsQuery
       ]);
 
@@ -1191,8 +1196,35 @@ const FormDataEntry = () => {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">
-              Anda tidak memiliki izin untuk mengakses formulir ini. 
+              Anda tidak memiliki izin untuk mengakses formulir ini.
               Formulir ini mungkin hanya tersedia untuk dusun tertentu.
+            </p>
+            <div>
+              <Link to="/form-tugas">
+                <Button variant="outline">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Kembali ke Daftar Form
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Handle form not active error
+  if (error && error.message.includes('form_not_active')) {
+    return (
+      <div className="container mx-auto py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Form Tidak Aktif</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Formulir ini saat ini tidak aktif dan tidak dapat diisi.
+              Silakan hubungi administrator untuk mengaktifkan formulir kembali.
             </p>
             <div>
               <Link to="/form-tugas">
