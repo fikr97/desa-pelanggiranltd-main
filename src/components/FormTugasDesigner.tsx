@@ -5,9 +5,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, deleteImage } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, ListPlus } from 'lucide-react';
+import { Settings, ListPlus, Trash2 } from 'lucide-react';
 import FormFieldManager from './FormFieldManager';
 import { useAuth } from '@/contexts/AuthContext';
 import { Switch } from '@/components/ui/switch';
@@ -236,6 +236,176 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
     }
   };
 
+  // Bulk operations for form data
+  const handleDeleteAllFormData = async () => {
+    if (!formTugas?.id) return;
+
+    try {
+      // First, get all form entries to check for image files that need cleanup
+      let allFormData = [];
+      let from = 0;
+      const limit = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data: formData, error, count } = await supabase
+          .from('form_tugas_data')
+          .select('id, data_custom', { count: 'exact' })
+          .eq('form_tugas_id', formTugas.id)
+          .range(from, from + limit - 1);
+
+        if (error) throw error;
+
+        if (formData && formData.length > 0) {
+          allFormData = [...allFormData, ...formData];
+          if (formData.length < limit) hasMore = false;
+          else from += limit;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      if (allFormData.length === 0) {
+        toast({
+          title: 'Tidak Ada Data',
+          description: `Form "${formData.nama_tugas}" tidak memiliki data entry untuk dihapus.`
+        });
+        return;
+      }
+
+      // Delete all image files associated with form entries before removing entries
+      for (const entry of allFormData) {
+        if (entry.data_custom) {
+          // Find all image fields in the current form
+          const imageFields = fields.filter(field => field.tipe_field === 'image');
+
+          // Delete all images associated with this entry
+          for (const field of imageFields) {
+            const imageUrl = entry.data_custom[field.nama_field];
+            if (imageUrl && typeof imageUrl === 'string' && imageUrl.includes('supabase.co')) {
+              try {
+                const deleteResult = await deleteImage(imageUrl);
+                if (!deleteResult) {
+                  console.warn(`Failed to delete image: ${imageUrl}`);
+                } else {
+                  console.log(`Deleted image: ${imageUrl}`);
+                }
+              } catch (deleteError) {
+                console.error(`Error deleting image ${imageUrl}:`, deleteError);
+              }
+            }
+          }
+        }
+      }
+
+      // Now delete all form data entries
+      const batchSize = 100;
+      for (let i = 0; i < allFormData.length; i += batchSize) {
+        const batch = allFormData.slice(i, i + batchSize);
+        const ids = batch.map(entry => entry.id);
+
+        const { error } = await supabase
+          .from('form_tugas_data')
+          .delete()
+          .in('id', ids);
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: 'Berhasil',
+        description: `Semua ${allFormData.length} data entry untuk form "${formData.nama_tugas}" telah dihapus.`
+      });
+    } catch (error) {
+      console.error('Error deleting form data:', error);
+      toast({
+        title: 'Gagal',
+        description: `Terjadi kesalahan saat menghapus data form: ${error.message}`,
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleClearSpecificFieldData = async (fieldName, fieldLabel) => {
+    if (!formTugas?.id || !fieldName) return;
+
+    try {
+      // Get form entries that have the specific field populated
+      const { data: formData, error } = await supabase
+        .from('form_tugas_data')
+        .select('id, data_custom')
+        .eq('form_tugas_id', formTugas.id);
+
+      if (error) throw error;
+
+      const entriesWithField = formData.filter(entry => {
+        const currentData = entry.data_custom || {};
+        return currentData[fieldName] !== undefined && currentData[fieldName] !== null && currentData[fieldName] !== '';
+      });
+
+      if (entriesWithField.length === 0) {
+        toast({
+          title: 'Tidak Ada Data',
+          description: `Tidak ditemukan entry dengan field "${fieldLabel}" untuk dikosongkan.`
+        });
+        return;
+      }
+
+      const fieldDef = fields.find(f => f.nama_field === fieldName);
+      const isImageField = fieldDef && fieldDef.tipe_field === 'image';
+
+      // Process entries with the field in batches
+      const batchSize = 100;
+      for (let i = 0; i < entriesWithField.length; i += batchSize) {
+        const batch = entriesWithField.slice(i, i + batchSize);
+
+        for (const entry of batch) {
+          const currentData = entry.data_custom || {};
+
+          // If it's an image field, delete the image before clearing the field
+          if (isImageField) {
+            const imageUrl = currentData[fieldName];
+            if (imageUrl && typeof imageUrl === 'string' && imageUrl.includes('supabase.co')) {
+              try {
+                const deleteResult = await deleteImage(imageUrl);
+                if (!deleteResult) {
+                  console.warn(`Failed to delete image: ${imageUrl}`);
+                } else {
+                  console.log(`Deleted image: ${imageUrl}`);
+                }
+              } catch (deleteError) {
+                console.error(`Error deleting image ${imageUrl}:`, deleteError);
+              }
+            }
+          }
+
+          // Update the data_custom JSONB column to clear the specific field value
+          const updatedData = { ...currentData };
+          updatedData[fieldName] = '';
+
+          const { error: updateError } = await supabase
+            .from('form_tugas_data')
+            .update({ data_custom: updatedData })
+            .eq('id', entry.id);
+
+          if (updateError) throw updateError;
+        }
+      }
+
+      toast({
+        title: 'Berhasil',
+        description: `Data field "${fieldLabel}" pada ${entriesWithField.length} entry untuk form "${formData.nama_tugas}" telah dikosongkan.`
+      });
+    } catch (error) {
+      console.error('Error clearing specific field data:', error);
+      toast({
+        title: 'Gagal',
+        description: `Terjadi kesalahan saat mengosongkan field: ${error.message}`,
+        variant: 'destructive'
+      });
+    }
+  };
+
   // Filter fields that have deck display settings
   const deckFields = fields.filter(field => field.deck_visible);
 
@@ -354,6 +524,68 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
                   </div>
                 </div>
               </div>
+
+              {/* Bulk Operations Section - only show when editing existing form */}
+              {formTugas?.id && (
+                <div className="pt-6 border-t">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center">
+                    <ListPlus className="h-5 w-5 mr-2 text-blue-500" />
+                    Operasi Massal Data
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Lakukan operasi pada seluruh data form ini
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <h4 className="font-medium">Hapus Semua Data</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Hapus semua entri data yang telah diisi untuk form ini
+                      </p>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          if (window.confirm(`Apakah Anda yakin ingin menghapus semua data untuk form "${formData.nama_tugas}"? Tindakan ini tidak dapat dibatalkan.`)) {
+                            handleDeleteAllFormData();
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Hapus Semua Data
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h4 className="font-medium">Kosongkan Field Tertentu</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Kosongkan nilai field tertentu di semua entri data
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Select
+                          onValueChange={(value) => {
+                            const selectedField = fields.find(f => f.nama_field === value);
+                            if (selectedField && window.confirm(`Apakah Anda yakin ingin menghapus semua data untuk field "${selectedField.label_field}" pada form "${formData.nama_tugas}"? Tindakan ini tidak dapat dibatalkan.`)) {
+                              handleClearSpecificFieldData(selectedField.nama_field, selectedField.label_field);
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih field..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {fields.map((field) => (
+                              <SelectItem key={field.id} value={field.nama_field}>
+                                {field.label_field}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
