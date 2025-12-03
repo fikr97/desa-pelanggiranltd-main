@@ -68,8 +68,13 @@ const getFieldValue = (entry, field) => {
   let value;
   const customValue = entry.data_custom?.[field.nama_field];
 
-  if (customValue !== undefined && customValue !== null && customValue !== '') {
-    value = customValue;
+  if (customValue !== undefined && customValue !== null) {
+    // If customValue exists (even if it's an empty string), use it
+    if (customValue === '') {
+      value = ''; // Return empty string instead of 'N/A' when field is cleared
+    } else {
+      value = customValue;
+    }
   } else if (field.tipe_field === 'predefined') {
     value = entry.penduduk?.[field.nama_field] || 'N/A';
   } else {
@@ -82,7 +87,8 @@ const getFieldValue = (entry, field) => {
       // Return a special indicator that this is an image
       return { type: 'image', url: value };
     }
-    return value || 'N/A';
+    // If value is an empty string, return empty string instead of 'N/A'
+    return value === '' ? '' : value || 'N/A';
   }
 
   // Special handling for coordinate values
@@ -116,7 +122,8 @@ const getFieldValue = (entry, field) => {
       // Split comma-separated values and join with commas for display
       return value.split(',').map(v => v.trim()).filter(v => v !== '').join(', ');
     }
-    return value || 'N/A';
+    // If value is an empty string, return empty string instead of 'N/A'
+    return value === '' ? '' : value || 'N/A';
   }
 
   // Apply date format transformation first
