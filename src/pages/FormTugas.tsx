@@ -197,16 +197,11 @@ const FormTugas = () => {
                     <p className="text-muted-foreground text-sm">{form.deskripsi}</p>
                   </div>
                   <div className="flex items-center flex-wrap gap-2">
-                    {(profile?.role === 'admin' || canFill) && (
-                      <Button variant={form.is_active ? "outline" : "outline"} size="sm" asChild disabled={!form.is_active}>
-                        <Link to={form.is_active ? `/form-tugas/${form.id}/data` : "#"} onClick={(e) => {
-                          if (!form.is_active) {
-                            e.preventDefault();
-                            alert("Form ini tidak aktif dan tidak dapat diisi.");
-                          }
-                        }}>
+                    {(profile?.role === 'admin' || canFill) && form.is_active && (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/form-tugas/${form.id}/data`}>
                           <FileText className="h-4 w-4 mr-2" />
-                          Isi Data {form.is_active ? "" : " (Non Aktif)"}
+                          Isi Data
                         </Link>
                       </Button>
                     )}
