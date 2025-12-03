@@ -33,6 +33,7 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
   const [fields, setFields] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'settings' | 'fields'>('settings');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedFieldsToClear, setSelectedFieldsToClear] = useState<string[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -406,6 +407,93 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
     }
   };
 
+  // Function to handle clearing multiple field data at once
+  const handleClearMultipleFields = async () => {
+    if (!formTugas?.id || selectedFieldsToClear.length === 0) return;
+
+    const fieldLabels = selectedFieldsToClear.map(fieldName => {
+      const field = fields.find(f => f.nama_field === fieldName);
+      return field ? field.label_field : fieldName;
+    }).join(', ');
+
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus data untuk field-field berikut pada form "${formData.nama_tugas}"?\n\n${fieldLabels}\n\nTindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+
+    try {
+      // Get all form entries
+      const { data: formData, error } = await supabase
+        .from('form_tugas_data')
+        .select('id, data_custom')
+        .eq('form_tugas_id', formTugas.id);
+
+      if (error) throw error;
+
+      // Get fields that are image type for proper cleanup
+      const imageFieldNames = fields
+        .filter(field => selectedFieldsToClear.includes(field.nama_field) && field.tipe_field === 'image')
+        .map(field => field.nama_field);
+
+      // Process entries in batches
+      const batchSize = 100;
+      for (let i = 0; i < formData.length; i += batchSize) {
+        const batch = formData.slice(i, i + batchSize);
+
+        for (const entry of batch) {
+          const currentData = entry.data_custom || {};
+
+          // Process each field to clear
+          for (const fieldName of selectedFieldsToClear) {
+            // If it's an image field, delete the image before clearing the field
+            if (imageFieldNames.includes(fieldName)) {
+              const imageUrl = currentData[fieldName];
+              if (imageUrl && typeof imageUrl === 'string' && imageUrl.includes('supabase.co')) {
+                try {
+                  const deleteResult = await deleteImage(imageUrl);
+                  if (!deleteResult) {
+                    console.warn(`Failed to delete image: ${imageUrl}`);
+                  } else {
+                    console.log(`Deleted image: ${imageUrl}`);
+                  }
+                } catch (deleteError) {
+                  console.error(`Error deleting image ${imageUrl}:`, deleteError);
+                }
+              }
+            }
+          }
+
+          // Update the data_custom JSONB column to clear the selected field values
+          const updatedData = { ...currentData };
+          for (const fieldName of selectedFieldsToClear) {
+            updatedData[fieldName] = '';
+          }
+
+          const { error: updateError } = await supabase
+            .from('form_tugas_data')
+            .update({ data_custom: updatedData })
+            .eq('id', entry.id);
+
+          if (updateError) throw updateError;
+        }
+      }
+
+      toast({
+        title: 'Berhasil',
+        description: `Data untuk ${selectedFieldsToClear.length} field telah dikosongkan pada form "${formData.nama_tugas}".`
+      });
+
+      // Reset the selection after successful operation
+      setSelectedFieldsToClear([]);
+    } catch (error) {
+      console.error('Error clearing multiple fields data:', error);
+      toast({
+        title: 'Gagal',
+        description: `Terjadi kesalahan saat mengosongkan field: ${error.message}`,
+        variant: 'destructive'
+      });
+    }
+  };
+
   // Filter fields that have deck display settings
   const deckFields = fields.filter(field => field.deck_visible);
 
@@ -561,26 +649,43 @@ const FormTugasDesigner = ({ formTugas, onSave, onCancel }: FormTugasDesignerPro
                       <p className="text-xs text-muted-foreground">
                         Kosongkan nilai field tertentu di semua entri data
                       </p>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Select
-                          onValueChange={(value) => {
-                            const selectedField = fields.find(f => f.nama_field === value);
-                            if (selectedField && window.confirm(`Apakah Anda yakin ingin menghapus semua data untuk field "${selectedField.label_field}" pada form "${formData.nama_tugas}"? Tindakan ini tidak dapat dibatalkan.`)) {
-                              handleClearSpecificFieldData(selectedField.nama_field, selectedField.label_field);
-                            }
-                          }}
+                      <div className="space-y-3">
+                        <div className="max-h-40 overflow-y-auto p-2 border rounded-md">
+                          {fields.length > 0 ? (
+                            fields.map((field) => (
+                              <div key={field.id} className="flex items-center space-x-2 mb-2">
+                                <input
+                                  type="checkbox"
+                                  id={`field-${field.id}`}
+                                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedFieldsToClear(prev => [...prev, field.nama_field]);
+                                    } else {
+                                      setSelectedFieldsToClear(prev =>
+                                        prev.filter(f => f !== field.nama_field)
+                                      );
+                                    }
+                                  }}
+                                />
+                                <label htmlFor={`field-${field.id}`} className="text-sm text-gray-700">
+                                  {field.label_field}
+                                </label>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500">Tidak ada field tersedia</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleClearMultipleFields}
+                          disabled={selectedFieldsToClear.length === 0}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Pilih field..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {fields.map((field) => (
-                              <SelectItem key={field.id} value={field.nama_field}>
-                                {field.label_field}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Kosongkan {selectedFieldsToClear.length} Field Terpilih
+                        </Button>
                       </div>
                     </div>
                   </div>
