@@ -437,27 +437,7 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
           }, {})
         ).map(([sectionName, sectionFields]) => (
           <div key={sectionName} className="p-4 border rounded-lg">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold mb-4">{sectionName}</h3>
-              {sectionName !== 'Lainnya' && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    // Clear all fields in this section
-                    const fieldsInSection = sectionFields;
-                    const newFormData = { ...formData };
-                    fieldsInSection.forEach(field => {
-                      newFormData[field.nama_field] = '';
-                    });
-                    setFormData(newFormData);
-                  }}
-                >
-                  Kosongkan {sectionName}
-                </Button>
-              )}
-            </div>
+            <h3 className="text-lg font-semibold mb-4">{sectionName}</h3>
             <div className="space-y-4">
               {(sectionFields as any[]).map(field => (
                 <div key={field.id} className="relative">
