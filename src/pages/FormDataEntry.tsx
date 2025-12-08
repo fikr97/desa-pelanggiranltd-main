@@ -410,9 +410,9 @@ const FormDataEntry = () => {
   // Filter entries based on search term, selected fields, and advanced filters
   const filteredEntries = useMemo(() => {
     if (!data?.entries) return data?.entries || [];
-    
+
     let result = data.entries;
-    
+
     // Apply basic search if there's a search term
     if (searchTerm) {
       if (searchFields.length === 0) {
@@ -437,17 +437,23 @@ const FormDataEntry = () => {
         });
       }
     }
-    
+
     // Apply advanced filters
     if (advancedFilters && Object.keys(advancedFilters).length > 0) {
       result = result.filter(entry => {
         return Object.entries(advancedFilters).every(([fieldName, filterValue]) => {
           if (!filterValue || !filterValue.value) return true;
-          
+
+          // Check if this is a field_status filter
+          if (filterValue.type === 'field_status') {
+            // The field_status filter should affect all fields based on their fill status
+            return true; // This filter is handled separately below
+          }
+
           // Find the field definition to determine if it's a predefined field
           const fieldDef = data.formDef.fields.find((f: any) => f.nama_field === fieldName);
           let fieldValue;
-          
+
           if (fieldDef && fieldDef.tipe_field === 'predefined') {
             // For predefined fields, use penduduk data
             fieldValue = entry.penduduk?.[fieldName];
@@ -455,17 +461,17 @@ const FormDataEntry = () => {
             // For custom fields, use data_custom
             fieldValue = entry.data_custom?.[fieldName];
           }
-          
+
           // Fallback to penduduk data if field value is not found in data_custom
           if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
             fieldValue = entry.penduduk?.[fieldName];
           }
-          
+
           // If field value is still not found, return false (doesn't match filter)
           if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
             return false; // Field doesn't exist or is empty, so doesn't match filter
           }
-          
+
           if (filterValue.type === 'string') {
             const filterStr = String(filterValue.value).toLowerCase();
             return String(fieldValue).toLowerCase().includes(filterStr);
@@ -484,7 +490,7 @@ const FormDataEntry = () => {
               // For checkbox fields, the value is stored as a comma-separated string
               // So we need to check if any of the selected filter values match any of the field values
               const fieldValuesArray = fieldStrValue.split(',').map(v => v.trim()).filter(v => v !== '');
-              return filterValue.value.some(selectedValue => 
+              return filterValue.value.some(selectedValue =>
                 fieldValuesArray.includes(selectedValue)
               );
             } else {
@@ -492,12 +498,58 @@ const FormDataEntry = () => {
               return filterValue.value.includes(fieldStrValue);
             }
           }
-          
+
           return true;
         });
       });
     }
-    
+
+    // Apply field status filters (filled or empty) to the entire result set
+    // These filters are in the format field_status_{fieldName}
+    const fieldStatusFilters = Object.entries(advancedFilters).filter(([key, _]) =>
+      key.startsWith('field_status_') &&
+      advancedFilters[key]?.type === 'field_status'
+    );
+
+    if (fieldStatusFilters.length > 0) {
+      result = result.filter(entry => {
+        // For each field status filter, check if the condition is met
+        return fieldStatusFilters.every(([key, filterValue]) => {
+          // Extract the field name from the key (field_status_{fieldName})
+          const fieldName = key.replace('field_status_', '');
+          const field = data.formDef.fields.find((f: any) => f.nama_field === fieldName);
+
+          if (!field) return true; // If field doesn't exist, consider condition satisfied
+
+          let fieldValue;
+
+          if (field.tipe_field === 'predefined') {
+            // For predefined fields, use penduduk data
+            fieldValue = entry.penduduk?.[field.nama_field];
+          } else {
+            // For custom fields, use data_custom
+            fieldValue = entry.data_custom?.[field.nama_field];
+          }
+
+          // Fallback to penduduk data if field value is not found in data_custom
+          if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
+            fieldValue = entry.penduduk?.[field.nama_field];
+          }
+
+          // Check if the field matches the required status
+          if (filterValue.value === 'filled') {
+            // Field should be filled (not empty, null, or undefined)
+            return fieldValue !== undefined && fieldValue !== null && fieldValue !== '';
+          } else if (filterValue.value === 'empty') {
+            // Field should be empty (null, or empty string)
+            return fieldValue === undefined || fieldValue === null || fieldValue === '';
+          }
+
+          return true; // If filter value is something else, consider condition satisfied
+        });
+      });
+    }
+
     return result;
   }, [data?.entries, data?.formDef.fields, searchTerm, searchFields, advancedFilters]);
 

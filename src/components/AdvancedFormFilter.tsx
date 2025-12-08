@@ -10,7 +10,7 @@ import { Filter, X, Download, Search } from 'lucide-react';
 import MultiSelectFilter from '@/components/ui/multi-select';
 
 interface FilterValue {
-  type: 'string' | 'number' | 'date' | 'boolean' | 'dropdown';
+  type: 'string' | 'number' | 'date' | 'boolean' | 'dropdown' | 'field_status';
   value: string | string[] | number | boolean | null;
 }
 
@@ -29,15 +29,15 @@ interface AdvancedFormFilterProps {
   formDef: any; // Form definition from FormDataEntry
 }
 
-const AdvancedFormFilter = ({ 
-  open, 
-  onOpenChange, 
-  onApplyFilter, 
-  onDownloadFiltered, 
-  initialFilters = {}, 
-  filteredCount, 
+const AdvancedFormFilter = ({
+  open,
+  onOpenChange,
+  onApplyFilter,
+  onDownloadFiltered,
+  initialFilters = {},
+  filteredCount,
   totalCount,
-  formDef 
+  formDef
 }: AdvancedFormFilterProps) => {
   const [filters, setFilters] = useState<FilterValues>(initialFilters);
 
@@ -45,8 +45,8 @@ const AdvancedFormFilter = ({
   const getUniqueFieldValues = (fieldName: string) => {
     // First, find the field definition
     const field = formDef?.fields?.find((f: any) => f.nama_field === fieldName);
-    
-    // For custom fields that have predefined options (like dropdown, radio, checkbox), 
+
+    // For custom fields that have predefined options (like dropdown, radio, checkbox),
     // return the available options from the field definition
     if (field && ['dropdown', 'select', 'radio', 'checkbox'].includes(field.tipe_field) && field.opsi_pilihan && Array.isArray(field.opsi_pilihan)) {
       // Return the options from the field definition
@@ -59,15 +59,15 @@ const AdvancedFormFilter = ({
         return String(opt);
       }).sort();
     }
-    
+
     // For other fields or if no predefined options, get values from actual entries
     if (!formDef?.entries || !Array.isArray(formDef.entries)) return [];
-    
+
     const uniqueValues = new Set();
-    
+
     formDef.entries.forEach(entry => {
       let value;
-      
+
       // First check if it's a predefined field (uses penduduk data)
       if (field && field.tipe_field === 'predefined') {
         value = entry.penduduk?.[fieldName];
@@ -75,17 +75,17 @@ const AdvancedFormFilter = ({
         // For custom fields, check data_custom
         value = entry.data_custom?.[fieldName];
       }
-      
+
       // If we still don't have a value in data_custom, check if it's in penduduk data
       if (value === undefined || value === null || value === '') {
         value = entry.penduduk?.[fieldName];
       }
-      
+
       if (value !== undefined && value !== null && value !== 'N/A' && value !== '') {
         uniqueValues.add(String(value));
       }
     });
-    
+
     return Array.from(uniqueValues).sort();
   };
 
@@ -98,8 +98,8 @@ const AdvancedFormFilter = ({
             value: value || null
           }
         }
-      : { 
-          ...prev, 
+      : {
+          ...prev,
           [fieldName]: undefined // Remove the filter if empty
         }
     );
@@ -107,8 +107,8 @@ const AdvancedFormFilter = ({
 
   const handleNumberFilterChange = (fieldName: string, value: string) => {
     const numValue = value ? Number(value) : null;
-    setFilters(prev => (!numValue && numValue !== 0) 
-      ? { ...prev, [fieldName]: undefined } 
+    setFilters(prev => (!numValue && numValue !== 0)
+      ? { ...prev, [fieldName]: undefined }
       : {
           ...prev,
           [fieldName]: {
@@ -161,9 +161,15 @@ const AdvancedFormFilter = ({
 
   const getActiveFiltersCount = () => {
     let count = 0;
-    Object.entries(filters).forEach(([_, filterValue]) => {
+    Object.entries(filters).forEach(([fieldName, filterValue]) => {
       if (filterValue && filterValue.value) {
-        if (Array.isArray(filterValue.value)) {
+        // Special handling for field_status filter - count as 1 if not 'remove'
+        if (filterValue.type === 'field_status') {
+          // For field_status filters, count them if the value is valid
+          if (filterValue.value !== 'remove' && filterValue.value !== null && filterValue.value !== '') {
+            count += 1;
+          }
+        } else if (Array.isArray(filterValue.value)) {
           count += filterValue.value.length;
         } else {
           count += 1;
@@ -177,9 +183,24 @@ const AdvancedFormFilter = ({
     const activeFilters = Object.entries(filters)
       .filter(([_, filterValue]) => filterValue && filterValue.value)
       .map(([fieldName, filterValue]) => {
+        // Handle the special field_status filter (keys like field_status_{fieldName})
+        if (filterValue.type === 'field_status') {
+          if (fieldName.startsWith('field_status_')) {
+            const originalFieldName = fieldName.replace('field_status_', '');
+            const field = formDef?.fields?.find((f: any) => f.nama_field === originalFieldName);
+            const fieldLabel = field?.label_field || originalFieldName;
+            const statusText = filterValue.value === 'filled' ? 'Terisi' : filterValue.value === 'empty' ? 'Kosong' : '';
+            return statusText ? [`${fieldLabel}: ${statusText}`] : [];
+          } else {
+            // For any other field_status filter (shouldn't happen with new format, but just in case)
+            const statusText = filterValue.value === 'filled' ? 'Terisi' : filterValue.value === 'empty' ? 'Kosong' : '';
+            return statusText ? [`Status Field: ${statusText}`] : [];
+          }
+        }
+
         const field = formDef?.fields?.find((f: any) => f.nama_field === fieldName);
         const label = field?.label_field || fieldName;
-        
+
         if (Array.isArray(filterValue.value)) {
           return filterValue.value.map(v => `${label}: ${v}`);
         } else {
@@ -200,7 +221,7 @@ const AdvancedFormFilter = ({
             <Filter className="h-5 w-5" />
             Filter Lanjutan Data Form
           </DialogTitle>
-          
+
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span>Total Data: <strong>{totalCount}</strong></span>
@@ -211,7 +232,7 @@ const AdvancedFormFilter = ({
                 </Badge>
               )}
             </div>
-            
+
             {getFilterSummary().length > 0 && (
               <div className="space-y-2">
                 <span className="text-sm font-medium">Filter Aktif:</span>
@@ -228,22 +249,112 @@ const AdvancedFormFilter = ({
         </DialogHeader>
 
         <Separator />
-        
+
         <div className="space-y-6">
+          {/* Field Status Filter - Select fields first, then status */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-foreground">Filter Status Field</h4>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium">Pilih Field</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border rounded-md">
+                  {formDef?.fields && formDef.fields.map((field: any) => (
+                    <div key={`field-checkbox-${field.nama_field}`} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`field-checkbox-${field.nama_field}`}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={!!filters[`field_status_${field.nama_field}`]}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            // Add the field to status filter with default "filled" status
+                            setFilters(prev => ({
+                              ...prev,
+                              [`field_status_${field.nama_field}`]: {
+                                type: 'field_status',
+                                value: 'filled'
+                              }
+                            }));
+                          } else {
+                            // Remove the field from status filter
+                            setFilters(prev => {
+                              const newFilters = { ...prev };
+                              delete newFilters[`field_status_${field.nama_field}`];
+                              return newFilters;
+                            });
+                          }
+                        }}
+                      />
+                      <Label
+                        htmlFor={`field-checkbox-${field.nama_field}`}
+                        className="text-sm font-normal cursor-pointer"
+                      >
+                        {field.label_field}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status Selection - only show if at least one field is selected */}
+              {Object.keys(filters).some(key => key.startsWith('field_status_') && filters[key]?.type === 'field_status') && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Status yang Dicari</Label>
+                  <div className="flex flex-wrap gap-4">
+                    {formDef?.fields && formDef.fields.map((field: any) => {
+                      const filterKey = `field_status_${field.nama_field}`;
+                      const filterValue = filters[filterKey];
+
+                      if (filterValue) {
+                        return (
+                          <div key={`status-select-${field.nama_field}`} className="flex flex-col space-y-1">
+                            <Label className="text-xs text-muted-foreground">{field.label_field}</Label>
+                            <Select
+                              value={filterValue.value as string || 'filled'}
+                              onValueChange={(value) => {
+                                setFilters(prev => ({
+                                  ...prev,
+                                  [filterKey]: {
+                                    type: 'field_status',
+                                    value: value
+                                  }
+                                }));
+                              }}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="filled">Terisi</SelectItem>
+                                <SelectItem value="empty">Kosong</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Pilih field-field yang ingin difilter berdasarkan status terisi/kosong</p>
+          </div>
+
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-foreground">Filter Field</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {formDef?.fields && formDef.fields.map((field: any) => {
                 // Determine if this field has options (dropdown, select, radio, checkbox)
                 const isOptionField = ['dropdown', 'select', 'predefined', 'radio', 'checkbox'].includes(field.tipe_field);
-                
+
                 if (isOptionField) {
                   // For option fields, get unique values
                   const uniqueValues = getUniqueFieldValues(field.nama_field);
                   if (uniqueValues.length === 0) return null; // Skip if no values available
-                  
+
                   const currentValue = filters[field.nama_field]?.value as string[] || [];
-                  
+
                   return (
                     <div key={field.nama_field} className="space-y-2">
                       <Label>{field.label_field}</Label>
@@ -282,8 +393,8 @@ const AdvancedFormFilter = ({
             <X className="h-4 w-4" />
             Reset Filter
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={onDownloadFiltered}
             className="flex items-center gap-2"
             disabled={filteredCount === 0}
