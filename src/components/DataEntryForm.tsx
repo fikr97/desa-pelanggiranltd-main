@@ -339,7 +339,6 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
       case 'image':
         return (
           <div key={field.id}>
-            <Label>{field.label_field}{requiredIndicator}</Label>
             <ImageUploadField
               label={field.label_field}
               value={value}
