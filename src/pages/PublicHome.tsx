@@ -1,34 +1,28 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building2, MapPin, Phone, Mail, Globe, Users, Calendar as CalendarIcon, Image, 
-         TrendingUp, Award, Heart, Eye, Star, Clock, FileText, Camera } from 'lucide-react';
+import {
+  Building2, MapPin, Phone, Mail, Users, Calendar as CalendarIcon,
+  TrendingUp, Award, Sparkles, ArrowUpRight, Clock, FileText, Camera,
+  Shield, Zap, HeartHandshake, CheckCircle2, Home, Megaphone, BookOpen,
+  Trophy, Star, ChevronRight, Globe, Layers, Activity
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PublicLayout from '@/components/PublicLayout';
-import { Calendar } from "@/components/ui/calendar"
 
 const PublicHome = () => {
-  const [date, setDate] = React.useState<Date | undefined>(new Date());
-
-  // Fetch info desa
+  // ----- Queries -----
   const { data: infoDesaData } = useQuery({
     queryKey: ['public-info-desa'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('info_desa')
-        .select('*')
-        .single();
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching info desa:', error);
-      }
+      const { data, error } = await supabase.from('info_desa').select('*').single();
+      if (error && error.code !== 'PGRST116') console.error(error);
       return data;
     }
   });
 
-  // Fetch berita terbaru
   const { data: beritaData } = useQuery({
     queryKey: ['public-berita'],
     queryFn: async () => {
@@ -38,15 +32,11 @@ const PublicHome = () => {
         .eq('status', 'published')
         .order('tanggal_publikasi', { ascending: false })
         .limit(3);
-      if (error) {
-        console.error('Error fetching berita:', error);
-        return [];
-      }
+      if (error) { console.error(error); return []; }
       return data || [];
     }
   });
 
-  // Fetch galeri
   const { data: galeriData } = useQuery({
     queryKey: ['public-galeri'],
     queryFn: async () => {
@@ -56,15 +46,11 @@ const PublicHome = () => {
         .eq('status', 'published')
         .order('created_at', { ascending: false })
         .limit(6);
-      if (error) {
-        console.error('Error fetching galeri:', error);
-        return [];
-      }
+      if (error) { console.error(error); return []; }
       return data || [];
     }
   });
 
-  // Fetch kepala desa dari perangkat desa
   const { data: kepalaDesaData } = useQuery({
     queryKey: ['public-kepala-desa'],
     queryFn: async () => {
@@ -74,579 +60,559 @@ const PublicHome = () => {
         .eq('status', 'Aktif')
         .ilike('jabatan', '%kepala desa%')
         .single();
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching kepala desa:', error);
-      }
+      if (error && error.code !== 'PGRST116') console.error(error);
       return data;
     }
   });
 
-  // Fetch statistik penduduk menggunakan secure function
   const { data: statistikData } = useQuery({
     queryKey: ['public-statistik'],
     queryFn: async () => {
       try {
-        console.log('Fetching population statistics using secure function...');
-        
-        // Use the secure function instead of direct database access
         const { data, error } = await supabase.rpc('get_public_population_stats');
-
-        if (error) {
-          console.error('Error fetching statistics from secure function:', error);
-          throw error;
-        }
-
-        if (data) {
-          console.log('Statistics received from secure function:', data);
-          
-          // Type cast the data to the expected structure
-          const stats = data as { total: number; laki: number; perempuan: number; kk: number };
-          
-          return {
-            total: stats.total || 0,
-            laki: stats.laki || 0,
-            perempuan: stats.perempuan || 0,
-            kk: stats.kk || 0
-          };
-        } else {
-          return { total: 0, laki: 0, perempuan: 0, kk: 0 };
-        }
-      } catch (error) {
-        console.error('Error fetching statistics:', error);
+        if (error) throw error;
+        const stats = data as { total: number; laki: number; perempuan: number; kk: number };
+        return {
+          total: stats?.total || 0,
+          laki: stats?.laki || 0,
+          perempuan: stats?.perempuan || 0,
+          kk: stats?.kk || 0,
+        };
+      } catch (e) {
+        console.error(e);
         return { total: 0, laki: 0, perempuan: 0, kk: 0 };
       }
     }
   });
 
+  const fmt = (n: number | undefined) => (n || 0).toLocaleString('id-ID');
+  const lokasi = infoDesaData?.nama_kecamatan
+    ? `${infoDesaData.nama_kecamatan}, ${infoDesaData.nama_kabupaten || ''}`.replace(/, $/, '')
+    : 'Wilayah Indonesia';
+
+  // ----- Features / Bento -----
+  const features = [
+    { icon: Home, title: 'Profil & Sejarah', desc: 'Kenali desa, sejarah, visi misi, dan kondisi geografisnya.', href: '/profil-desa', color: 'from-blue-500 to-indigo-600' },
+    { icon: Users, title: 'Struktur Pemerintahan', desc: 'Lihat perangkat desa dan lembaga pendukung secara transparan.', href: '/pemerintahan', color: 'from-fuchsia-500 to-purple-600' },
+    { icon: Megaphone, title: 'Berita & Pengumuman', desc: 'Info terkini dan pengumuman resmi dari pemerintah desa.', href: '/berita', color: 'from-emerald-500 to-teal-600' },
+    { icon: Camera, title: 'Galeri Desa', desc: 'Dokumentasi kegiatan dan potensi desa dalam foto & video.', href: '/galeri', color: 'from-amber-500 to-orange-600' },
+    { icon: CalendarIcon, title: 'Agenda Kegiatan', desc: 'Jadwal kegiatan, rapat, dan acara desa yang akan datang.', href: '/agenda', color: 'from-rose-500 to-pink-600' },
+    { icon: FileText, title: 'Layanan Surat Online', desc: 'Ajukan surat keterangan tanpa perlu antri di kantor desa.', href: '/surat-online', color: 'from-cyan-500 to-sky-600' },
+  ];
+
+  const trustPoints = [
+    { icon: Shield, label: 'Data Aman & Terenkripsi' },
+    { icon: Zap, label: 'Layanan 24/7 Online' },
+    { icon: HeartHandshake, label: 'Transparan & Akuntabel' },
+    { icon: CheckCircle2, label: 'Terverifikasi Pemerintah' },
+  ];
+
   return (
     <PublicLayout>
-      {/* Enhanced Hero Section */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-accent text-primary-foreground">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,hsl(var(--primary-glow))_0%,transparent_50%)] animate-pulse"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,hsl(var(--accent))_0%,transparent_50%)] animate-pulse delay-1000"></div>
-        </div>
-        
-        <div className="container mx-auto px-4 py-20 relative z-10">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
-            <div className="flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-8 flex-1">
-              {infoDesaData?.logo_desa ? (
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary-foreground/20 rounded-full blur-xl animate-pulse"></div>
-                  <img 
-                    src={infoDesaData.logo_desa} 
-                    alt="Logo Desa" 
-                    className="relative w-24 h-24 md:w-32 md:h-32 object-contain drop-shadow-2xl" 
-                  />
-                </div>
-              ) : (
-                <div className="relative w-24 h-24 md:w-32 md:h-32 flex items-center justify-center bg-primary-foreground/10 rounded-full backdrop-blur-sm">
-                  <Building2 className="h-12 w-12 md:h-16 md:w-16 text-primary-foreground" />
-                </div>
-              )}
-              <div className="text-center md:text-left">
-                <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 leading-tight">
-                  <span className="bg-gradient-to-r from-primary-foreground to-primary-foreground/80 bg-clip-text text-transparent">
-                    {infoDesaData?.nama_desa || 'Nama Desa'}
-                  </span>
-                </h1>
-                <p className="text-xl md:text-2xl opacity-90 mb-2">
-                  {infoDesaData?.nama_kecamatan ? `${infoDesaData.nama_kecamatan}` : 'Kecamatan'}
-                </p>
-                <p className="text-lg opacity-80">
-                  {infoDesaData?.nama_kabupaten ? `${infoDesaData.nama_kabupaten}, ${infoDesaData.nama_provinsi}` : 'Kabupaten, Provinsi'}
-                </p>
-                <div className="mt-6 flex flex-wrap justify-center md:justify-start gap-4">
-                  <Badge variant="secondary" className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30">
-                    <MapPin className="h-3 w-3 mr-1" />
-                    Kode Desa: {infoDesaData?.kode_desa || '-'}
-                  </Badge>
-                  <Badge variant="secondary" className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30">
-                    <Building2 className="h-3 w-3 mr-1" />
-                    Kode Pos: {infoDesaData?.kode_pos || '-'}
-                  </Badge>
-                </div>
-              </div>
+      {/* ============================================================= */}
+      {/* HERO SECTION                                                    */}
+      {/* ============================================================= */}
+      <section className="relative overflow-hidden">
+        {/* Animated backgrounds */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-muted/30" />
+        <div className="absolute inset-0 bg-mesh opacity-70" />
+        <div className="absolute inset-0 bg-grid mask-fade-radial opacity-[0.25]" />
+
+        {/* Floating blobs */}
+        <div className="absolute top-20 -left-24 h-80 w-80 rounded-full bg-primary/25 blur-3xl animate-blob" />
+        <div className="absolute top-40 right-0 h-96 w-96 rounded-full bg-accent/25 blur-3xl animate-blob delay-2000" />
+        <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-fuchsia-500/20 blur-3xl animate-blob delay-1000" />
+
+        <div className="container mx-auto px-4 pt-16 md:pt-24 pb-20 md:pb-28 relative z-10">
+          <div className="max-w-5xl mx-auto text-center">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-strong text-xs md:text-sm font-medium animate-fade-up">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-foreground/80">
+                <MapPin className="inline h-3 w-3 mr-1 text-primary" />
+                {lokasi}
+              </span>
+              <span className="hidden sm:inline text-border">|</span>
+              <span className="hidden sm:inline text-foreground/80">
+                Sistem Informasi Desa Digital
+              </span>
             </div>
-            
-            {/* Statistics Cards in Hero */}
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-1 lg:gap-6">
-              <div className="glass p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-300">
-                <Users className="h-8 w-8 mx-auto mb-2 text-accent" />
-                <div className="text-2xl font-bold">{statistikData?.total || 0}</div>
-                <div className="text-sm opacity-80">Total Penduduk</div>
-              </div>
-              <div className="glass p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-300">
-                <Building2 className="h-8 w-8 mx-auto mb-2 text-accent" />
-                <div className="text-2xl font-bold">{statistikData?.kk || 0}</div>
-                <div className="text-sm opacity-80">Kepala Keluarga</div>
-              </div>
+
+            {/* Heading */}
+            <h1 className="mt-6 font-display font-bold text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.05] tracking-tight animate-fade-up delay-100">
+              Selamat Datang di{' '}
+              <span className="relative inline-block">
+                <span className="text-gradient">{infoDesaData?.nama_desa || 'Desa Kami'}</span>
+                <svg className="absolute left-0 -bottom-2 w-full" height="10" viewBox="0 0 200 10" preserveAspectRatio="none">
+                  <path d="M0 5 Q50 0 100 5 T200 5" stroke="url(#underline-gradient)" strokeWidth="3" fill="none" strokeLinecap="round" />
+                  <defs>
+                    <linearGradient id="underline-gradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" />
+                      <stop offset="100%" stopColor="hsl(var(--accent))" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </span>
+            </h1>
+
+            <p className="mt-6 text-base md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed animate-fade-up delay-200">
+              Portal resmi desa dengan teknologi modern untuk layanan administrasi, informasi, dan interaksi warga.
+              Cepat, transparan, dan selalu tersedia kapanpun Anda butuhkan.
+            </p>
+
+            {/* CTA */}
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 animate-fade-up delay-300">
+              <Link to="/berita">
+                <Button size="lg" className="btn-gradient btn-shine rounded-full px-7 h-12 text-sm font-semibold">
+                  Jelajahi Desa
+                  <ArrowUpRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+              <Link to="/pemerintahan">
+                <Button size="lg" variant="outline" className="rounded-full px-7 h-12 text-sm font-semibold border-border/80 hover:border-primary/50 hover:bg-primary/5 backdrop-blur">
+                  <Users className="mr-2 h-4 w-4" />
+                  Lihat Pemerintahan
+                </Button>
+              </Link>
+            </div>
+
+            {/* Trust Points */}
+            <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl mx-auto animate-fade-up delay-400">
+              {trustPoints.map((tp) => (
+                <div key={tp.label} className="flex items-center gap-2 px-3 py-2.5 rounded-xl glass text-xs md:text-sm text-foreground/80 justify-center">
+                  <tp.icon className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span className="font-medium">{tp.label}</span>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-        
-        {/* Animated Wave */}
-        <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
-          <svg className="relative block w-full h-12" viewBox="0 0 1200 120" preserveAspectRatio="none">
-            <path 
-              d="M985.66,92.83C906.67,72,823.78,31,743.84,14.19c-82.26-17.34-168.06-16.33-250.45.39-57.84,11.73-114,31.07-172,41.86A600.21,600.21,0,0,1,0,27.35V120H1200V95.8C1132.19,118.92,1055.71,111.31,985.66,92.83Z" 
-              fill="hsl(var(--background))"
-              className="animate-pulse"
-            />
-          </svg>
-        </div>
-      </div>
 
-      <div className="container mx-auto px-4 py-12">
-        {/* Enhanced Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16 -mt-16">
-          <Card className="card-elegant transform hover:scale-105 transition-all duration-300 border-0">
-            <CardContent className="p-6 text-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-primary/10 rounded-full -translate-y-2 translate-x-2"></div>
-              <MapPin className="h-10 w-10 text-primary mx-auto mb-4 relative z-10" />
-              <h3 className="font-bold text-lg mb-2">Alamat Kantor</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {infoDesaData?.alamat_kantor || 'Alamat belum tersedia'}
-              </p>
-              <div className="mt-4 p-2 bg-primary/5 rounded-lg">
-                <Badge variant="outline" className="text-xs">Kantor Desa</Badge>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="card-elegant transform hover:scale-105 transition-all duration-300 border-0">
-            <CardContent className="p-6 text-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full -translate-y-2 translate-x-2"></div>
-              <Phone className="h-10 w-10 text-emerald-600 mx-auto mb-4 relative z-10" />
-              <h3 className="font-bold text-lg mb-2">Kontak Resmi</h3>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">
-                  {infoDesaData?.telepon || 'Telepon belum tersedia'}
-                </p>
-                {infoDesaData?.email && (
-                  <p className="text-xs text-muted-foreground">
-                    {infoDesaData.email}
-                  </p>
-                )}
-              </div>
-              <div className="mt-4 p-2 bg-emerald-50 rounded-lg">
-                <Badge variant="outline" className="text-xs border-emerald-200 text-emerald-700">24/7 Service</Badge>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Hero stats card cluster */}
+          <div className="relative mt-16 md:mt-20 animate-fade-up delay-500">
+            <div className="max-w-5xl mx-auto">
+              <div className="relative rounded-3xl overflow-hidden border border-border/60 bg-gradient-to-br from-background to-muted/50 shadow-[0_24px_70px_-24px_hsl(243_75%_40%/0.22)] p-6 md:p-10">
+                <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 h-56 w-56 rounded-full bg-accent/15 blur-3xl pointer-events-none" />
 
-          <Card className="card-elegant transform hover:scale-105 transition-all duration-300 border-0">
-            <CardContent className="p-6 text-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 rounded-full -translate-y-2 translate-x-2"></div>
-              <Award className="h-10 w-10 text-purple-600 mx-auto mb-4 relative z-10" />
-              <h3 className="font-bold text-lg mb-2">Kepala Desa</h3>
-              <p className="text-sm font-semibold mb-1">
-                {kepalaDesaData?.nama || infoDesaData?.nama_kepala_desa || 'Belum tersedia'}
-              </p>
-              {kepalaDesaData?.nip && (
-                <p className="text-xs text-muted-foreground mb-2">
-                  NIP: {kepalaDesaData.nip}
-                </p>
-              )}
-              <div className="mt-4 p-2 bg-purple-50 rounded-lg">
-                <Badge variant="outline" className="text-xs border-purple-200 text-purple-700">Pemimpin</Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card-elegant transform hover:scale-105 transition-all duration-300 border-0">
-            <CardContent className="p-6 text-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-full -translate-y-2 translate-x-2"></div>
-              <TrendingUp className="h-10 w-10 text-blue-600 mx-auto mb-4 relative z-10" />
-              <h3 className="font-bold text-lg mb-2">Statistik Desa</h3>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-blue-50 p-2 rounded">
-                  <div className="font-bold text-blue-600">{statistikData?.laki || 0}</div>
-                  <div className="text-blue-500">Laki-laki</div>
-                </div>
-                <div className="bg-pink-50 p-2 rounded">
-                  <div className="font-bold text-pink-600">{statistikData?.perempuan || 0}</div>
-                  <div className="text-pink-500">Perempuan</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Enhanced Berita Terbaru */}
-          <div className="lg:col-span-2">
-            <Card className="card-elegant border-0 overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5 border-b">
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <FileText className="h-5 w-5 text-primary" />
+                <div className="relative flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+                  <div>
+                    <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest uppercase text-primary mb-3">
+                      <Activity className="h-3.5 w-3.5" /> Data Desa Realtime
                     </div>
-                    <div>
-                      <span className="text-xl font-bold">Berita & Pengumuman</span>
-                      <p className="text-sm text-muted-foreground font-normal">Informasi terkini dari desa</p>
-                    </div>
+                    <h2 className="font-display font-bold text-2xl md:text-3xl">Statistik Desa</h2>
+                    <p className="text-muted-foreground text-sm mt-1">Informasi kependudukan yang diperbarui secara berkala</p>
                   </div>
-                  <Badge variant="secondary" className="bg-primary/10 text-primary">
-                    <Clock className="h-3 w-3 mr-1" />
-                    Terbaru
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                {beritaData && beritaData.length > 0 ? (
-                  <div className="space-y-0">
-                    {beritaData.map((berita, index) => (
-                      <div key={berita.id} className={`p-6 hover:bg-muted/50 transition-all duration-300 ${index < beritaData.length - 1 ? 'border-b' : ''}`}>
-                        <div className="flex flex-col lg:flex-row gap-4">
-                          {berita.gambar && (
-                            <div className="lg:w-48 lg:flex-shrink-0">
-                              <img 
-                                src={berita.gambar} 
-                                alt={berita.judul}
-                                className="w-full h-32 lg:h-24 object-cover rounded-lg shadow-md"
-                              />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-bold text-lg mb-2 line-clamp-2 hover:text-primary transition-colors">
-                              {berita.judul}
-                            </h3>
-                            <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
-                              {berita.isi.substring(0, 200)}...
-                            </p>
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-xs">
-                                  <CalendarIcon className="h-3 w-3 mr-1" />
-                                  {new Date(berita.tanggal_publikasi).toLocaleDateString('id-ID')}
-                                </Badge>
-                                <Badge variant="secondary" className="text-xs">
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  Hot
-                                </Badge>
-                              </div>
-                              <Link to={`/berita/${berita.slug}`}>
-                                <Button variant="ghost" size="sm" className="button-elegant text-xs px-4">
-                                  Baca Selengkapnya →
-                                </Button>
-                              </Link>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-16">
-                    <FileText className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
-                    <p className="text-muted-foreground text-lg mb-2">Belum ada berita</p>
-                    <p className="text-muted-foreground/60 text-sm">Pantau terus untuk informasi terbaru</p>
-                  </div>
-                )}
-                <div className="p-6 bg-muted/30 border-t">
-                  <Link to="/berita">
-                    <Button className="w-full button-elegant" size="lg">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Lihat Semua Berita & Pengumuman
+                  <Link to="/pemerintahan">
+                    <Button variant="ghost" className="rounded-full text-sm font-semibold hover:bg-primary/5">
+                      Selengkapnya <ChevronRight className="ml-1 h-4 w-4" />
                     </Button>
                   </Link>
                 </div>
-              </CardContent>
-            </Card>
+
+                <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                  {[
+                    { label: 'Total Penduduk', value: fmt(statistikData?.total), icon: Users, color: 'text-primary', bg: 'bg-primary/10', gradient: 'from-primary/20 to-primary/5' },
+                    { label: 'Kepala Keluarga', value: fmt(statistikData?.kk), icon: Home, color: 'text-fuchsia-600', bg: 'bg-fuchsia-500/10', gradient: 'from-fuchsia-500/20 to-fuchsia-500/5' },
+                    { label: 'Laki-laki', value: fmt(statistikData?.laki), icon: TrendingUp, color: 'text-cyan-600', bg: 'bg-cyan-500/10', gradient: 'from-cyan-500/20 to-cyan-500/5' },
+                    { label: 'Perempuan', value: fmt(statistikData?.perempuan), icon: Trophy, color: 'text-rose-600', bg: 'bg-rose-500/10', gradient: 'from-rose-500/20 to-rose-500/5' },
+                  ].map((s, i) => (
+                    <div
+                      key={s.label}
+                      className={`relative group rounded-2xl p-5 border border-border/60 bg-gradient-to-br ${s.gradient} overflow-hidden hover:border-primary/40 hover:-translate-y-1 transition-all duration-300`}
+                      style={{ animationDelay: `${i * 0.08}s` }}
+                    >
+                      <div className={`inline-flex p-2.5 rounded-xl ${s.bg} mb-3`}>
+                        <s.icon className={`h-5 w-5 ${s.color}`} />
+                      </div>
+                      <div className="font-display font-bold text-2xl md:text-3xl tracking-tight">{s.value}</div>
+                      <div className="text-xs md:text-sm text-muted-foreground mt-1">{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================= */}
+      {/* FEATURES / BENTO GRID                                           */}
+      {/* ============================================================= */}
+      <section className="relative py-20 md:py-28">
+        <div className="container mx-auto px-4">
+          <div className="text-center max-w-2xl mx-auto mb-14">
+            <div className="badge-premium mb-4">
+              <Layers className="h-3.5 w-3.5" /> Fitur Platform
+            </div>
+            <h2 className="font-display font-bold text-3xl md:text-5xl tracking-tight">
+              Semua dalam <span className="text-gradient">satu platform</span>
+            </h2>
+            <p className="text-muted-foreground mt-4 text-base md:text-lg">
+              Akses informasi, layanan, dan kegiatan desa dengan mudah — dari mana saja, kapan saja.
+            </p>
           </div>
 
-          {/* Enhanced Sidebar */}
-          <div className="space-y-8">
-            {/* Featured Galeri */}
-            <Card className="card-elegant border-0 overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-accent/5 to-primary/5 border-b">
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-accent/10 rounded-lg">
-                      <Camera className="h-5 w-5 text-accent" />
-                    </div>
-                    <div>
-                      <span className="font-bold">Galeri Desa</span>
-                      <p className="text-sm text-muted-foreground font-normal">Dokumentasi kegiatan</p>
-                    </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {features.map((f, i) => (
+              <Link to={f.href} key={f.title} className="group">
+                <div className="card-premium h-full p-6 md:p-7 rounded-3xl relative">
+                  <div className={`inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-gradient-to-br ${f.color} text-white shadow-lg mb-5 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500`}>
+                    <f.icon className="h-7 w-7" />
                   </div>
-                  <Badge variant="secondary" className="bg-accent/10 text-accent">
-                    <Star className="h-3 w-3 mr-1" />
-                    Terpilih
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                {galeriData && galeriData.length > 0 ? (
-                  <>
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      {galeriData.slice(0, 4).map((item, index) => (
-                        <div key={item.id} className="group relative overflow-hidden rounded-lg aspect-square">
-                          <img 
-                            src={item.url_media} 
-                            alt={item.judul}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <div className="absolute bottom-2 left-2 right-2">
-                              <p className="text-white text-xs font-medium line-clamp-2">{item.judul}</p>
-                            </div>
-                          </div>
-                          {index === 0 && (
-                            <div className="absolute top-2 right-2">
-                              <Badge className="bg-accent text-accent-foreground text-xs">
-                                <Heart className="h-3 w-3 mr-1" />
-                                Popular
-                              </Badge>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <Link to="/galeri">
-                      <Button className="w-full button-elegant">
-                        <Image className="h-4 w-4 mr-2" />
-                        Jelajahi Semua Foto
+                  <h3 className="font-display font-bold text-xl mb-2">{f.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+                  <div className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-primary opacity-80 group-hover:opacity-100 group-hover:gap-2 transition-all">
+                    Buka halaman <ArrowUpRight className="h-4 w-4" />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================= */}
+      {/* KEPALA DESA SPOTLIGHT                                           */}
+      {/* ============================================================= */}
+      {(kepalaDesaData || infoDesaData?.nama_kepala_desa) && (
+        <section className="relative py-20 md:py-28">
+          <div className="container mx-auto px-4">
+            <div className="relative rounded-[2rem] overflow-hidden bg-gradient-to-br from-primary via-fuchsia-600 to-accent text-white">
+              {/* Decorative */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.2),transparent_50%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(255,255,255,0.15),transparent_50%)]" />
+              <div className="absolute top-0 right-0 h-80 w-80 rounded-full bg-white/10 blur-3xl animate-float" />
+              <div className="absolute bottom-0 left-0 h-60 w-60 rounded-full bg-white/10 blur-3xl animate-float-slow" />
+
+              <div className="relative grid md:grid-cols-2 gap-8 md:gap-12 p-8 md:p-14 items-center">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur text-xs font-semibold tracking-wider uppercase mb-4">
+                    <Award className="h-3.5 w-3.5" /> Kepala Desa
+                  </div>
+                  <h2 className="font-display font-bold text-3xl md:text-5xl leading-tight">
+                    {kepalaDesaData?.nama || infoDesaData?.nama_kepala_desa || 'Kepala Desa'}
+                  </h2>
+                  {kepalaDesaData?.jabatan && (
+                    <p className="text-white/85 mt-2 text-lg">{kepalaDesaData.jabatan}</p>
+                  )}
+                  {kepalaDesaData?.nip && (
+                    <p className="text-white/70 mt-1 text-sm">NIP: {kepalaDesaData.nip}</p>
+                  )}
+                  <p className="text-white/85 mt-5 text-base md:text-lg leading-relaxed max-w-xl">
+                    "Bersama membangun desa yang maju, transparan, dan berdaya saing — demi kesejahteraan seluruh warga {infoDesaData?.nama_desa || 'desa'}."
+                  </p>
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <Link to="/pemerintahan">
+                      <Button className="rounded-full bg-white text-primary hover:bg-white/90 font-semibold h-11 px-6">
+                        Lihat Struktur <ArrowUpRight className="ml-1.5 h-4 w-4" />
                       </Button>
                     </Link>
-                  </>
-                ) : (
-                  <div className="text-center py-8">
-                    <Camera className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-                    <p className="text-muted-foreground text-sm">Belum ada foto dalam galeri</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Enhanced Navigation Menu */}
-            <Card className="card-elegant border-0 overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5 border-b">
-                <CardTitle className="flex items-center space-x-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <Building2 className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <span className="font-bold">Navigasi Cepat</span>
-                    <p className="text-sm text-muted-foreground font-normal">Akses informasi desa</p>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  <Link to="/profil-desa">
-                    <Button variant="ghost" className="w-full justify-start hover:bg-primary/5 hover:text-primary transition-all duration-200 group">
-                      <Building2 className="h-4 w-4 mr-3 group-hover:scale-110 transition-transform" />
-                      <div className="text-left">
-                        <div className="font-medium">Profil Desa</div>
-                        <div className="text-xs text-muted-foreground">Sejarah & visi misi</div>
-                      </div>
-                    </Button>
-                  </Link>
-                  <Link to="/pemerintahan">
-                    <Button variant="ghost" className="w-full justify-start hover:bg-accent/5 hover:text-accent transition-all duration-200 group">
-                      <Users className="h-4 w-4 mr-3 group-hover:scale-110 transition-transform" />
-                      <div className="text-left">
-                        <div className="font-medium">Pemerintahan Desa</div>
-                        <div className="text-xs text-muted-foreground">Struktur organisasi</div>
-                      </div>
-                    </Button>
-                  </Link>
-                  <Link to="/berita">
-                    <Button variant="ghost" className="w-full justify-start hover:bg-emerald-500/5 hover:text-emerald-600 transition-all duration-200 group">
-                      <FileText className="h-4 w-4 mr-3 group-hover:scale-110 transition-transform" />
-                      <div className="text-left">
-                        <div className="font-medium">Berita Terkini</div>
-                        <div className="text-xs text-muted-foreground">Info & pengumuman</div>
-                      </div>
-                    </Button>
-                  </Link>
-                  <Link to="/galeri">
-                    <Button variant="ghost" className="w-full justify-start hover:bg-purple-500/5 hover:text-purple-600 transition-all duration-200 group">
-                      <Camera className="h-4 w-4 mr-3 group-hover:scale-110 transition-transform" />
-                      <div className="text-left">
-                        <div className="font-medium">Galeri Kegiatan</div>
-                        <div className="text-xs text-muted-foreground">Dokumentasi foto</div>
-                      </div>
-                    </Button>
-                  </Link>
-                  {infoDesaData?.website && (
-                    <a href={infoDesaData.website} target="_blank" rel="noopener noreferrer">
-                      <Button variant="ghost" className="w-full justify-start hover:bg-blue-500/5 hover:text-blue-600 transition-all duration-200 group">
-                        <Globe className="h-4 w-4 mr-3 group-hover:scale-110 transition-transform" />
-                        <div className="text-left">
-                          <div className="font-medium">Website Resmi</div>
-                          <div className="text-xs text-muted-foreground">Link eksternal</div>
-                        </div>
+                    <Link to="/visi-misi">
+                      <Button variant="outline" className="rounded-full border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white font-semibold h-11 px-6">
+                        Visi & Misi
                       </Button>
-                    </a>
-                  )}
+                    </Link>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Modern Calendar */}
-            <Card className="card-elegant border-0 overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5 border-b">
-                <CardTitle className="flex items-center space-x-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <CalendarIcon className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <span className="font-bold">Kalender</span>
-                    <p className="text-sm text-muted-foreground font-normal">Hari ini: {new Date().toLocaleDateString('id-ID')}</p>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={setDate}
-                  className="rounded-lg border-0 shadow-sm bg-muted/20"
-                />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-
-      {/* Enhanced Footer */}
-      <footer className="relative bg-gradient-to-r from-muted via-muted/90 to-muted mt-20 overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,hsl(var(--primary))_0%,transparent_50%)]"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,hsl(var(--accent))_0%,transparent_50%)]"></div>
-        </div>
-        
-        <div className="container mx-auto px-4 py-12 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            {/* Kontak Section */}
-            <div className="md:col-span-2">
-              <div className="flex items-center space-x-3 mb-6">
-                {infoDesaData?.logo_desa ? (
-                  <img 
-                    src={infoDesaData.logo_desa} 
-                    alt="Logo Desa" 
-                    className="w-12 h-12 object-contain" 
-                  />
-                ) : (
-                  <div className="w-12 h-12 flex items-center justify-center bg-primary/10 rounded-lg">
-                    <Building2 className="h-6 w-6 text-primary" />
-                  </div>
-                )}
-                <div>
-                  <h3 className="font-bold text-xl text-foreground">{infoDesaData?.nama_desa || 'Nama Desa'}</h3>
-                  <p className="text-muted-foreground text-sm">Sistem Informasi Desa</p>
-                </div>
-              </div>
-              
-              <h4 className="font-semibold text-lg mb-4 text-foreground">Kontak Kami</h4>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-start space-x-3 p-3 bg-card rounded-lg">
-                  <MapPin className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
-                  <div>
-                    <p className="font-medium text-foreground">Alamat Kantor</p>
-                    <p className="text-muted-foreground">{infoDesaData?.alamat_kantor || 'Alamat belum tersedia'}</p>
-                  </div>
-                </div>
-                {infoDesaData?.telepon && (
-                  <div className="flex items-center space-x-3 p-3 bg-card rounded-lg">
-                    <Phone className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-foreground">Telepon</p>
-                      <p className="text-muted-foreground">{infoDesaData.telepon}</p>
+                <div className="relative flex justify-center md:justify-end">
+                  <div className="relative">
+                    <div className="absolute -inset-4 bg-white/20 blur-2xl rounded-full" />
+                    <div className="relative aspect-square w-64 md:w-80 rounded-[2rem] overflow-hidden ring-4 ring-white/40 shadow-2xl bg-white/10 backdrop-blur-sm">
+                      {kepalaDesaData?.foto ? (
+                        <img src={kepalaDesaData.foto} alt={kepalaDesaData.nama} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Users className="h-28 w-28 text-white/60" />
+                        </div>
+                      )}
+                    </div>
+                    {/* Floating badge */}
+                    <div className="absolute -bottom-4 -left-4 bg-white text-foreground rounded-2xl px-4 py-3 shadow-xl flex items-center gap-2.5">
+                      <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white">
+                        <Star className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Pemimpin</div>
+                        <div className="text-sm font-bold">Amanah & Melayani</div>
+                      </div>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ============================================================= */}
+      {/* BERITA TERBARU                                                  */}
+      {/* ============================================================= */}
+      <section className="relative py-20 md:py-28">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-12">
+            <div className="max-w-xl">
+              <div className="badge-premium mb-4">
+                <Megaphone className="h-3.5 w-3.5" /> Berita Terkini
+              </div>
+              <h2 className="font-display font-bold text-3xl md:text-5xl tracking-tight">
+                Informasi <span className="text-gradient">terbaru</span> dari desa
+              </h2>
+              <p className="text-muted-foreground mt-3 text-base md:text-lg">
+                Tetap terhubung dengan kegiatan, pengumuman, dan perkembangan desa.
+              </p>
+            </div>
+            <Link to="/berita">
+              <Button className="rounded-full btn-gradient btn-shine h-11 px-6 font-semibold">
+                Semua Berita <ArrowUpRight className="ml-1.5 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+
+          {beritaData && beritaData.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {beritaData.map((berita, i) => (
+                <Link key={berita.id} to={`/berita/${berita.slug}`} className="group">
+                  <article className="card-premium rounded-3xl h-full flex flex-col overflow-hidden">
+                    <div className="relative aspect-[16/10] overflow-hidden bg-muted">
+                      {berita.gambar ? (
+                        <img
+                          src={berita.gambar}
+                          alt={berita.judul}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
+                          <BookOpen className="h-16 w-16 text-primary/30" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {i === 0 && (
+                        <span className="absolute top-4 left-4 badge-premium !bg-white !border-white !text-primary">
+                          <Sparkles className="h-3 w-3" /> Terbaru
+                        </span>
+                      )}
+                      <span className="absolute bottom-4 left-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/95 backdrop-blur text-xs font-semibold text-foreground">
+                        <Clock className="h-3 w-3" />
+                        {new Date(berita.tanggal_publikasi).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <div className="p-6 flex-1 flex flex-col">
+                      <h3 className="font-display font-bold text-lg leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                        {berita.judul}
+                      </h3>
+                      <p className="mt-3 text-sm text-muted-foreground line-clamp-3 leading-relaxed flex-1">
+                        {berita.isi?.substring(0, 180)}...
+                      </p>
+                      <div className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-primary group-hover:gap-2 transition-all">
+                        Baca selengkapnya <ArrowUpRight className="h-4 w-4" />
+                      </div>
+                    </div>
+                  </article>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="card-premium rounded-3xl p-14 text-center">
+              <div className="inline-flex p-4 rounded-2xl bg-muted mb-4">
+                <BookOpen className="h-10 w-10 text-muted-foreground/50" />
+              </div>
+              <h3 className="font-display font-bold text-xl mb-2">Belum ada berita</h3>
+              <p className="text-muted-foreground">Berita dan pengumuman akan ditampilkan di sini.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ============================================================= */}
+      {/* GALERI SHOWCASE                                                 */}
+      {/* ============================================================= */}
+      {galeriData && galeriData.length > 0 && (
+        <section className="relative py-20 md:py-28 bg-gradient-to-b from-transparent to-muted/30">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-12">
+              <div className="max-w-xl">
+                <div className="badge-premium mb-4">
+                  <Camera className="h-3.5 w-3.5" /> Galeri Desa
+                </div>
+                <h2 className="font-display font-bold text-3xl md:text-5xl tracking-tight">
+                  Momen terbaik <span className="text-gradient-aurora">dari desa</span>
+                </h2>
+                <p className="text-muted-foreground mt-3 text-base md:text-lg">
+                  Dokumentasi kegiatan, acara, dan kehidupan warga dalam gambar.
+                </p>
+              </div>
+              <Link to="/galeri">
+                <Button variant="outline" className="rounded-full h-11 px-6 font-semibold border-border/80 hover:border-primary/50 hover:bg-primary/5">
+                  Semua Galeri <ArrowUpRight className="ml-1.5 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+
+            {/* Asymmetric grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 grid-rows-2 gap-3 md:gap-4 h-[420px] md:h-[560px]">
+              {galeriData.slice(0, 6).map((item, idx) => {
+                const classes = [
+                  'col-span-2 row-span-2',
+                  'col-span-1 row-span-1',
+                  'col-span-1 row-span-1',
+                  'col-span-1 row-span-1',
+                  'col-span-1 row-span-1',
+                  'col-span-2 row-span-1 md:col-span-2',
+                ];
+                return (
+                  <Link
+                    to="/galeri"
+                    key={item.id}
+                    className={`group relative rounded-2xl md:rounded-3xl overflow-hidden ${classes[idx] || ''} animate-fade-up`}
+                    style={{ animationDelay: `${idx * 0.07}s` }}
+                  >
+                    <img
+                      src={item.url_media}
+                      alt={item.judul}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 p-4 md:p-5 flex flex-col justify-end">
+                      <p className="text-white font-display font-semibold text-sm md:text-base line-clamp-2 drop-shadow">
+                        {item.judul}
+                      </p>
+                      <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-white/80">
+                        <CalendarIcon className="h-3 w-3" />
+                        {new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </div>
+                    </div>
+                    <div className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all">
+                      <ArrowUpRight className="h-4 w-4 text-primary" />
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ============================================================= */}
+      {/* CONTACT / INFO DESA                                             */}
+      {/* ============================================================= */}
+      <section className="relative py-20 md:py-28">
+        <div className="container mx-auto px-4">
+          <div className="grid lg:grid-cols-2 gap-10 items-center">
+            <div>
+              <div className="badge-premium mb-4">
+                <MapPin className="h-3.5 w-3.5" /> Kontak & Alamat
+              </div>
+              <h2 className="font-display font-bold text-3xl md:text-5xl tracking-tight leading-tight">
+                Kunjungi kantor desa atau <span className="text-gradient">hubungi kami</span>
+              </h2>
+              <p className="text-muted-foreground mt-4 text-base md:text-lg max-w-lg">
+                Tim pemerintah desa siap melayani kebutuhan warga. Datang langsung atau hubungi kami melalui kanal berikut.
+              </p>
+
+              <div className="mt-8 space-y-4">
+                {infoDesaData?.alamat_kantor && (
+                  <div className="flex items-start gap-4 p-4 rounded-2xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors">
+                    <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Alamat Kantor</p>
+                      <p className="font-medium mt-0.5">{infoDesaData.alamat_kantor}</p>
+                    </div>
+                  </div>
+                )}
+                {infoDesaData?.telepon && (
+                  <a href={`tel:${infoDesaData.telepon}`} className="flex items-start gap-4 p-4 rounded-2xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors">
+                    <div className="h-11 w-11 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                      <Phone className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Telepon</p>
+                      <p className="font-medium mt-0.5">{infoDesaData.telepon}</p>
+                    </div>
+                  </a>
                 )}
                 {infoDesaData?.email && (
-                  <div className="flex items-center space-x-3 p-3 bg-card rounded-lg">
-                    <Mail className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-foreground">Email</p>
-                      <p className="text-muted-foreground">{infoDesaData.email}</p>
+                  <a href={`mailto:${infoDesaData.email}`} className="flex items-start gap-4 p-4 rounded-2xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors">
+                    <div className="h-11 w-11 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                      <Mail className="h-5 w-5 text-blue-600" />
                     </div>
-                  </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Email</p>
+                      <p className="font-medium mt-0.5">{infoDesaData.email}</p>
+                    </div>
+                  </a>
+                )}
+                {infoDesaData?.website && (
+                  <a href={infoDesaData.website} target="_blank" rel="noreferrer" className="flex items-start gap-4 p-4 rounded-2xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors">
+                    <div className="h-11 w-11 rounded-xl bg-fuchsia-500/10 flex items-center justify-center flex-shrink-0">
+                      <Globe className="h-5 w-5 text-fuchsia-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Website</p>
+                      <p className="font-medium mt-0.5 truncate">{infoDesaData.website}</p>
+                    </div>
+                  </a>
                 )}
               </div>
             </div>
-            
-            {/* Info Desa Section */}
-            <div>
-              <h4 className="font-semibold text-lg mb-4 text-foreground">Informasi Desa</h4>
-              <div className="space-y-3 text-sm">
-                <div className="p-3 bg-card rounded-lg">
-                  <p className="font-medium text-foreground">Kode Desa</p>
-                  <p className="text-muted-foreground">{infoDesaData?.kode_desa || '-'}</p>
-                </div>
-                <div className="p-3 bg-card rounded-lg">
-                  <p className="font-medium text-foreground">Kode Pos</p>
-                  <p className="text-muted-foreground">{infoDesaData?.kode_pos || '-'}</p>
-                </div>
-                <div className="p-3 bg-card rounded-lg">
-                  <p className="font-medium text-foreground">Kecamatan</p>
-                  <p className="text-muted-foreground">{infoDesaData?.nama_kecamatan || '-'}</p>
-                </div>
-                <div className="p-3 bg-card rounded-lg">
-                  <p className="font-medium text-foreground">Kabupaten</p>
-                  <p className="text-muted-foreground">{infoDesaData?.nama_kabupaten || '-'}</p>
-                </div>
-              </div>
-            </div>
 
-            {/* Quick Stats */}
-            <div>
-              <h4 className="font-semibold text-lg mb-4 text-foreground">Statistik Penduduk</h4>
-              <div className="space-y-3">
-                <div className="p-3 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg border border-primary/20">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-primary">Total Penduduk</p>
-                      <p className="text-xl font-bold text-primary">{statistikData?.total || 0}</p>
+            {/* Info card cluster */}
+            <div className="relative">
+              <div className="absolute -inset-4 bg-gradient-to-br from-primary/20 to-accent/20 blur-3xl rounded-3xl" />
+              <Card className="relative card-premium rounded-3xl border-0 overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="relative h-40 bg-gradient-to-br from-primary via-fuchsia-600 to-accent overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.3),transparent_60%)]" />
+                    <div className="absolute inset-0 bg-grid opacity-20" />
+                    <div className="absolute bottom-0 left-0 right-0 p-6 flex items-center gap-4">
+                      {infoDesaData?.logo_desa ? (
+                        <img src={infoDesaData.logo_desa} alt="Logo" className="w-16 h-16 object-contain bg-white rounded-2xl p-2 ring-4 ring-white/50 shadow-xl" />
+                      ) : (
+                        <div className="w-16 h-16 flex items-center justify-center bg-white rounded-2xl shadow-xl">
+                          <Building2 className="h-8 w-8 text-primary" />
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="font-display font-bold text-lg text-white">{infoDesaData?.nama_desa || 'Desa'}</h3>
+                        <p className="text-xs text-white/85">{infoDesaData?.nama_kecamatan ? `Kec. ${infoDesaData.nama_kecamatan}` : ''}</p>
+                      </div>
                     </div>
-                    <Users className="h-8 w-8 text-primary/60" />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-3 bg-blue-50 rounded-lg text-center">
-                    <p className="text-lg font-bold text-blue-600">{statistikData?.laki || 0}</p>
-                    <p className="text-xs text-blue-600">Laki-laki</p>
+                  <div className="grid grid-cols-2 divide-x divide-border">
+                    <div className="p-5">
+                      <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Kode Desa</p>
+                      <p className="font-display font-bold text-xl mt-1">{infoDesaData?.kode_desa || '-'}</p>
+                    </div>
+                    <div className="p-5">
+                      <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Kode Pos</p>
+                      <p className="font-display font-bold text-xl mt-1">{infoDesaData?.kode_pos || '-'}</p>
+                    </div>
                   </div>
-                  <div className="p-3 bg-pink-50 rounded-lg text-center">
-                    <p className="text-lg font-bold text-pink-600">{statistikData?.perempuan || 0}</p>
-                    <p className="text-xs text-pink-600">Perempuan</p>
+                  <div className="grid grid-cols-2 divide-x divide-border border-t border-border">
+                    <div className="p-5">
+                      <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Kecamatan</p>
+                      <p className="font-semibold mt-1 truncate">{infoDesaData?.nama_kecamatan || '-'}</p>
+                    </div>
+                    <div className="p-5">
+                      <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Kabupaten</p>
+                      <p className="font-semibold mt-1 truncate">{infoDesaData?.nama_kabupaten || '-'}</p>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Footer */}
-          <div className="border-t border-border pt-8">
-            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-              <div className="text-sm text-muted-foreground text-center md:text-left">
-                <p className="font-medium">SIDesa - Sistem Informasi Desa</p>
-                <p>© {new Date().getFullYear()} Ihsanul Fikri. All rights reserved.</p>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <Badge variant="outline" className="bg-primary/5 border-primary/20 text-primary">
-                  <Globe className="h-3 w-3 mr-1" />
-                  Sistem Terpadu
-                </Badge>
-                <Badge variant="outline" className="bg-emerald-50 border-emerald-200 text-emerald-700">
-                  <Heart className="h-3 w-3 mr-1" />
-                  Made with Love
-                </Badge>
-              </div>
+                  <div className="p-5 bg-muted/30 border-t border-border">
+                    <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Provinsi</p>
+                    <p className="font-semibold mt-1">{infoDesaData?.nama_provinsi || '-'}</p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
-      </footer>
+      </section>
     </PublicLayout>
   );
 };
