@@ -349,6 +349,7 @@ const DataKeluarga = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="text-xs md:text-sm w-10">No</TableHead>
                         <TableHead className="text-xs md:text-sm">NIK</TableHead>
                         <TableHead className="text-xs md:text-sm">Nama</TableHead>
                         <TableHead className="text-xs md:text-sm">L/P</TableHead>
@@ -360,43 +361,75 @@ const DataKeluarga = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedKeluarga.anggota.map((anggota, index) => (
-                        <TableRow key={anggota.id || index}>
-                          <TableCell className="text-xs md:text-sm font-mono">
-                            {anggota.nik}
-                          </TableCell>
-                          <TableCell className="text-xs md:text-sm">
-                            <div className="flex items-center gap-2">
-                              {anggota.status_hubungan?.toLowerCase().includes('kepala') && (
-                                <UserCheck className="h-3 w-3 text-primary" />
-                              )}
-                              <span className={anggota.status_hubungan?.toLowerCase().includes('kepala') ? 'font-medium' : ''}>
-                                {anggota.nama}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs md:text-sm">
-                            {anggota.jenis_kelamin === 'Laki-laki' ? 'L' : anggota.jenis_kelamin === 'Perempuan' ? 'P' : '-'}
-                          </TableCell>
-                          <TableCell className="text-xs md:text-sm">
-                            {calculateAge(anggota.tanggal_lahir)} tahun
-                          </TableCell>
-                          <TableCell className="text-xs md:text-sm">
-                            <Badge variant={anggota.status_hubungan?.toLowerCase().includes('kepala') ? 'default' : 'secondary'}>
-                              {anggota.status_hubungan || '-'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-xs md:text-sm">
-                            {anggota.status_kawin || '-'}
-                          </TableCell>
-                          <TableCell className="text-xs md:text-sm">
-                            {anggota.pendidikan || '-'}
-                          </TableCell>
-                          <TableCell className="text-xs md:text-sm">
-                            {anggota.pekerjaan || '-'}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {(() => {
+                        // Urutkan anggota sesuai urutan KK: Kepala Keluarga -> Istri/Suami -> Anak -> lainnya
+                        const getOrderRank = (status?: string) => {
+                          const s = (status || '').toLowerCase();
+                          if (s.includes('kepala')) return 0;
+                          if (s.includes('istri') || s.includes('suami')) return 1;
+                          if (s.includes('anak')) return 2;
+                          if (s.includes('menantu')) return 3;
+                          if (s.includes('cucu')) return 4;
+                          if (s.includes('orang tua') || s.includes('ayah') || s.includes('ibu') || s.includes('mertua')) return 5;
+                          if (s.includes('saudara') || s.includes('famili')) return 6;
+                          if (s.includes('pembantu')) return 7;
+                          return 8; // lain-lain
+                        };
+                        const sortedAnggota = [...selectedKeluarga.anggota].sort((a, b) => {
+                          const ra = getOrderRank(a.status_hubungan);
+                          const rb = getOrderRank(b.status_hubungan);
+                          if (ra !== rb) return ra - rb;
+                          // dalam grup yang sama: urut berdasarkan tanggal lahir (tua dulu)
+                          const da = a.tanggal_lahir ? new Date(a.tanggal_lahir).getTime() : 0;
+                          const db = b.tanggal_lahir ? new Date(b.tanggal_lahir).getTime() : 0;
+                          if (!da && !db) return 0;
+                          if (!da) return 1;
+                          if (!db) return -1;
+                          return da - db;
+                        });
+                        return sortedAnggota.map((anggota, index) => {
+                          const isKepala = anggota.status_hubungan?.toLowerCase().includes('kepala');
+                          return (
+                          <TableRow key={anggota.id || index} className={isKepala ? 'bg-primary/5' : ''}>
+                            <TableCell className="text-xs md:text-sm font-semibold text-center">
+                              {index + 1}
+                            </TableCell>
+                            <TableCell className="text-xs md:text-sm font-mono">
+                              {anggota.nik}
+                            </TableCell>
+                            <TableCell className="text-xs md:text-sm">
+                              <div className="flex items-center gap-2">
+                                {isKepala && (
+                                  <UserCheck className="h-3 w-3 text-primary" />
+                                )}
+                                <span className={isKepala ? 'font-semibold' : ''}>
+                                  {anggota.nama}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs md:text-sm">
+                              {anggota.jenis_kelamin === 'Laki-laki' ? 'L' : anggota.jenis_kelamin === 'Perempuan' ? 'P' : '-'}
+                            </TableCell>
+                            <TableCell className="text-xs md:text-sm">
+                              {calculateAge(anggota.tanggal_lahir)} tahun
+                            </TableCell>
+                            <TableCell className="text-xs md:text-sm">
+                              <Badge variant={isKepala ? 'default' : 'secondary'}>
+                                {anggota.status_hubungan || '-'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs md:text-sm">
+                              {anggota.status_kawin || '-'}
+                            </TableCell>
+                            <TableCell className="text-xs md:text-sm">
+                              {anggota.pendidikan || '-'}
+                            </TableCell>
+                            <TableCell className="text-xs md:text-sm">
+                              {anggota.pekerjaan || '-'}
+                            </TableCell>
+                          </TableRow>
+                        )});
+                      })()}
                     </TableBody>
                   </Table>
                 </CardContent>

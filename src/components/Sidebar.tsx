@@ -98,7 +98,7 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
             </p>
           )}
           {collapsed && !isMobile && (
-            <div className="mx-2 mb-2 border-t border-sidebar-border/50" />
+            <div className="mx-2 mb-2 border-t border-border/50" />
           )}
           <div className="space-y-1">
             {group.items.map(item => {
@@ -138,7 +138,7 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
     const initials = (profile.nama || 'U').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
     if (collapsed) {
       return (
-        <div className="p-2 border-t border-sidebar-border/50">
+        <div className="p-2 border-t border-border">
           <div className="h-10 w-10 mx-auto rounded-full bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center font-bold text-sm shadow-md">
             {initials}
           </div>
@@ -146,8 +146,8 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
       );
     }
     return (
-      <div className="p-3 border-t border-sidebar-border/50">
-        <div className="rounded-xl border border-border/50 bg-gradient-to-br from-primary/5 to-accent/5 p-3">
+      <div className="p-3 border-t border-border">
+        <div className="rounded-xl border border-border/70 bg-gradient-to-br from-primary/5 to-accent/5 p-3">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center font-bold text-sm shadow-md flex-shrink-0">
               {initials}
@@ -173,7 +173,7 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
 
       {/* Desktop */}
       <aside className={cn(
-        "hidden md:flex bg-sidebar-background border-r border-sidebar-border h-screen fixed left-0 top-0 z-40",
+        "hidden md:flex bg-background border-r border-border h-screen fixed left-0 top-0 z-40",
         "transition-all duration-300 ease-in-out flex-col shadow-xl",
         isCollapsed ? "w-16" : "w-64"
       )}>
@@ -188,7 +188,7 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
         </Button>
 
         {/* Brand */}
-        <div className={cn("border-b border-sidebar-border/50 flex-shrink-0", isCollapsed ? "p-2 pt-4" : "p-4")}>
+        <div className={cn("border-b border-border flex-shrink-0", isCollapsed ? "p-2 pt-4" : "p-4")}>
           <Link to="/admin" className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
             <div className="relative flex-shrink-0">
               <div className="absolute inset-0 bg-gradient-to-br from-primary to-accent rounded-xl blur-md opacity-60" />
@@ -217,11 +217,11 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
 
       {/* Mobile */}
       {isMobileOpen && (
-        <aside className="fixed left-0 top-0 z-[999] w-72 h-screen bg-sidebar-background border-r border-sidebar-border flex flex-col md:hidden shadow-2xl">
+        <aside className="fixed left-0 top-0 z-[999] w-72 h-screen bg-background border-r border-border flex flex-col md:hidden shadow-2xl">
           <Button variant="ghost" size="icon" className="absolute top-4 right-4 h-8 w-8" onClick={closeMobileSidebar}>
             <X className="h-4 w-4" />
           </Button>
-          <div className="p-4 border-b border-sidebar-border/50 pr-12">
+          <div className="p-4 border-b border-border pr-12">
             <Link to="/admin" className="flex items-center gap-3" onClick={closeMobileSidebar}>
               {logoData?.logo_desa ? (
                 <img src={logoData.logo_desa} alt="Logo" className="w-10 h-10 object-contain bg-white rounded-xl p-1 ring-1 ring-border" />
