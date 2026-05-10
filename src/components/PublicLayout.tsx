@@ -69,20 +69,6 @@ const PublicLayout = ({ children }: PublicLayoutProps) => {
   return (
     <div className="min-h-screen bg-background overflow-x-hidden flex flex-col">
       {/* ============================================================= */}
-      {/* ANNOUNCEMENT BAR                                                */}
-      {/* ============================================================= */}
-      <div className="relative w-full overflow-hidden bg-gradient-to-r from-primary via-fuchsia-600 to-accent text-white text-xs md:text-sm">
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent)] animate-gradient-x" />
-        <div className="container mx-auto px-4 py-2 flex items-center justify-center gap-2 relative">
-          <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-          <span className="font-medium tracking-wide">
-            Selamat datang di portal digital {infoDesaData?.nama_desa || 'Desa Kami'} — layanan 24/7
-          </span>
-          <ArrowUpRight className="h-3.5 w-3.5 hidden sm:inline" />
-        </div>
-      </div>
-
-      {/* ============================================================= */}
       {/* HEADER - Glassmorphism sticky                                   */}
       {/* ============================================================= */}
       <header

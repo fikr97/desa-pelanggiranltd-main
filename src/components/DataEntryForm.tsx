@@ -157,6 +157,36 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
     setFormData(prev => ({ ...prev, [fieldName]: formattedValue }));
   };
 
+  // Evaluate whether a field should be visible based on its dependency rule
+  const isFieldVisible = (field) => {
+    const dep = field.dependency;
+    if (!dep || !dep.field) return true;
+    const sourceValue = formData[dep.field];
+    const hasVal = sourceValue !== undefined && sourceValue !== null && sourceValue !== '' &&
+      !(Array.isArray(sourceValue) && sourceValue.length === 0);
+
+    switch (dep.operator) {
+      case 'equals':
+        return String(sourceValue ?? '') === String(dep.value ?? '');
+      case 'not_equals':
+        return String(sourceValue ?? '') !== String(dep.value ?? '');
+      case 'in':
+        return Array.isArray(dep.value)
+          ? dep.value.map(String).includes(String(sourceValue ?? ''))
+          : false;
+      case 'not_in':
+        return Array.isArray(dep.value)
+          ? !dep.value.map(String).includes(String(sourceValue ?? ''))
+          : true;
+      case 'is_filled':
+        return hasVal;
+      case 'is_empty':
+        return !hasVal;
+      default:
+        return true;
+    }
+  };
+
   const renderField = (field) => {
     const value = formData[field.nama_field] || '';
     const dropdownFields = ['jenis_kelamin', 'golongan_darah', 'agama', 'status_kawin', 'status_hubungan', 'pendidikan', 'pekerjaan', 'dusun'];
@@ -434,18 +464,21 @@ const DataEntryForm = ({ formDef, residents, onSave, onCancel, initialData, isLo
             acc[sectionName].push(field);
             return acc;
           }, {})
-        ).map(([sectionName, sectionFields]) => (
+        ).map(([sectionName, sectionFields]) => {
+          const visibleFields = (sectionFields as any[]).filter(isFieldVisible);
+          if (visibleFields.length === 0) return null;
+          return (
           <div key={sectionName} className="p-4 border rounded-lg">
             <h3 className="text-lg font-semibold mb-4">{sectionName}</h3>
             <div className="space-y-4">
-              {(sectionFields as any[]).map(field => (
+              {visibleFields.map(field => (
                 <div key={field.id} className="relative">
                   {renderField(field)}
                 </div>
               ))}
             </div>
           </div>
-        ))}
+        )})}
       </div>
 
       <div className="flex justify-end pt-4 gap-2">
