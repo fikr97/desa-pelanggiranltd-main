@@ -274,9 +274,7 @@ const PermissionManager = () => {
               <Edit3 className="h-3.5 w-3.5" /> Editor
             </Button>
           </div>
-        </div>
       </div>
-
       {/* Search + Filter */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
