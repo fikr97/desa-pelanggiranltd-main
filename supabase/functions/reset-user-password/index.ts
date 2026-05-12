@@ -43,8 +43,8 @@ Deno.serve(async (req) => {
             status: 500,
         });
     }
-    if (!userProfile || userProfile.role !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Not authorized' }), {
+    if (!userProfile || userProfile.role !== 'superuser') {
+      return new Response(JSON.stringify({ error: 'Not authorized. Only superuser can reset passwords.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 403,
       });

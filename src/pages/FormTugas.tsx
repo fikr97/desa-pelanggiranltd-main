@@ -147,7 +147,7 @@ const FormTugas = () => {
               Kelola form tugas yang digunakan untuk pengumpulan data
             </p>
           </div>
-          {(profile?.role === 'admin' || canCreate) && (
+          {(profile?.role === 'superuser' || profile?.role === 'administrator' || canCreate) && (
             <div className="w-full md:w-auto mt-2 md:mt-0">
               <Button onClick={handleOpenCreateModal} className="w-full">
                 <PlusCircle className="h-4 w-4 mr-2" />
@@ -197,7 +197,7 @@ const FormTugas = () => {
                     <p className="text-muted-foreground text-sm">{form.deskripsi}</p>
                   </div>
                   <div className="flex items-center flex-wrap gap-2">
-                    {(profile?.role === 'admin' || canFill) && form.is_active && (
+                    {(profile?.role === 'superuser' || profile?.role === 'administrator' || canFill) && form.is_active && (
                       <Button variant="outline" size="sm" asChild>
                         <Link to={`/form-tugas/${form.id}/data`}>
                           <FileText className="h-4 w-4 mr-2" />
@@ -205,13 +205,13 @@ const FormTugas = () => {
                         </Link>
                       </Button>
                     )}
-                    {(profile?.role === 'admin' || canEdit) && (
+                    {(profile?.role === 'superuser' || profile?.role === 'administrator' || canEdit) && (
                       <Button variant="secondary" size="sm" onClick={() => handleEdit(form)}>
                         <Pencil className="h-4 w-4 mr-2" />
                         Edit
                       </Button>
                     )}
-                    {(profile?.role === 'admin' || canDelete) && (
+                    {(profile?.role === 'superuser' || profile?.role === 'administrator' || canDelete) && (
                       <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(form)}>
                         <Trash2 className="h-4 w-4 mr-2" />
                         Hapus
@@ -226,7 +226,7 @@ const FormTugas = () => {
       </div>
 
       {/* Fixed Add button for mobile */}
-      {(profile?.role === 'admin' || canCreate) && (
+      {(profile?.role === 'superuser' || profile?.role === 'administrator' || canCreate) && (
         <Button 
           onClick={handleOpenCreateModal} 
           className="fixed bottom-6 right-6 rounded-full w-14 h-14 p-0 shadow-lg md:hidden z-50"

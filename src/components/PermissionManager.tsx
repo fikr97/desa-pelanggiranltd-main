@@ -86,7 +86,16 @@ const PermissionManager = () => {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
+  const [selectedRole, setSelectedRole] = useState<string>('administrator');
   const [savingIds, setSavingIds] = useState<Set<number>>(new Set());
+
+  const ROLE_OPTIONS = [
+    { value: 'administrator', label: 'Administrator' },
+    { value: 'kades', label: 'Kepala Desa' },
+    { value: 'sekretaris_desa', label: 'Sekretaris Desa' },
+    { value: 'kaur_kasi', label: 'Kaur/Kasi' },
+    { value: 'kadus', label: 'Kepala Dusun (Kadus)' },
+  ];
 
   useEffect(() => {
     const fetchPermissions = async () => {
@@ -94,7 +103,7 @@ const PermissionManager = () => {
       const { data, error } = await supabase
         .from('role_permissions')
         .select('*')
-        .eq('role', 'kadus')
+        .eq('role', selectedRole)
         .order('permission', { ascending: true });
 
       if (error) {
@@ -106,7 +115,7 @@ const PermissionManager = () => {
       setLoading(false);
     };
     fetchPermissions();
-  }, []);
+  }, [selectedRole]);
 
   const togglePermission = async (permissionId: number, newStatus: boolean) => {
     setSavingIds(prev => new Set(prev).add(permissionId));
@@ -146,7 +155,7 @@ const PermissionManager = () => {
     if (error) {
       toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
       // reload
-      const { data } = await supabase.from('role_permissions').select('*').eq('role', 'kadus');
+      const { data } = await supabase.from('role_permissions').select('*').eq('role', selectedRole);
       if (data) setPermissions(data as Permission[]);
     } else {
       toast({ title: 'Tersimpan', description: `Semua akses kategori ${CATEGORY_META[category]?.label || category} ${enable ? 'diaktifkan' : 'dinonaktifkan'}.` });
@@ -226,7 +235,7 @@ const PermissionManager = () => {
               <Shield className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="font-display font-bold text-lg">Hak Akses Kepala Dusun (Kadus)</h3>
+              <h3 className="font-display font-bold text-lg">Hak Akses Peran</h3>
               <p className="text-sm text-muted-foreground">
                 <span className="font-semibold text-foreground">{totalEnabled}</span> dari{' '}
                 <span className="font-semibold text-foreground">{totalPerms}</span> izin aktif
@@ -234,8 +243,27 @@ const PermissionManager = () => {
             </div>
           </div>
 
-          {/* Presets */}
+          {/* Role Selector */}
           <div className="flex flex-wrap gap-2">
+            {ROLE_OPTIONS.map(r => (
+              <button
+                key={r.value}
+                onClick={() => setSelectedRole(r.value)}
+                className={cn(
+                  "px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors",
+                  selectedRole === r.value
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                )}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Presets */}
+        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-border/50">
             <Button size="sm" variant="outline" onClick={() => applyPreset('none')} className="gap-1.5">
               <Lock className="h-3.5 w-3.5" /> Tutup Semua
             </Button>

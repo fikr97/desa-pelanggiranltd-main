@@ -93,11 +93,19 @@ const UserProfilePage = () => {
   };
 
   const getRoleColor = (role: string) => {
-    return role === 'admin' ? 'default' : 'secondary';
+    return role === 'superuser' || role === 'administrator' ? 'default' : 'secondary';
   };
 
   const getRoleLabel = (role: string) => {
-    return role === 'admin' ? 'Administrator' : 'Kepala Dusun';
+    switch (role) {
+      case 'superuser': return 'Superuser';
+      case 'administrator': return 'Administrator';
+      case 'kades': return 'Kepala Desa';
+      case 'sekretaris_desa': return 'Sekretaris Desa';
+      case 'kaur_kasi': return 'Kaur/Kasi';
+      case 'kadus': return 'Kepala Dusun';
+      default: return role;
+    }
   };
 
   if (!profile) {

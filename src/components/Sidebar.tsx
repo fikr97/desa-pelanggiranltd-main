@@ -155,7 +155,7 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold truncate">{profile.nama}</p>
               <p className="text-[11px] text-muted-foreground uppercase tracking-wider truncate">
-                {profile.role === 'admin' ? 'Administrator' : profile.role === 'kadus' ? 'Kepala Dusun' : profile.role}
+                {profile.role === 'superuser' ? 'Superuser' : profile.role === 'administrator' ? 'Administrator' : profile.role === 'kades' ? 'Kepala Desa' : profile.role === 'sekretaris_desa' ? 'Sekretaris Desa' : profile.role === 'kaur_kasi' ? 'Kaur/Kasi' : profile.role === 'kadus' ? 'Kepala Dusun' : profile.role}
               </p>
             </div>
           </div>

@@ -1,11 +1,12 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { UserRole } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: 'admin' | 'kadus';
-  allowedRoles?: ('admin' | 'kadus')[];
+  requiredRole?: UserRole;
+  allowedRoles?: UserRole[];
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
@@ -28,6 +29,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   if (!user || !profile) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Superuser always has access
+  if (profile.role === 'superuser') {
+    return <>{children}</>;
   }
 
   // Check role-based access

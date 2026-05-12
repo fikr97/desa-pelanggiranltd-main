@@ -12,13 +12,15 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { UserPlus, Edit, Trash2, KeyRound } from 'lucide-react';
 
+import { UserRole } from '@/contexts/AuthContext';
+
 interface UserProfile {
   id: string;
   user_id: string;
   nama: string;
   email: string;
   dusun: string;
-  role: 'admin' | 'kadus';
+  role: UserRole;
   created_at: string;
   updated_at: string;
 }
@@ -32,7 +34,7 @@ const UserManagementPage = () => {
   const [nama, setNama] = useState('');
   const [email, setEmail] = useState('');
   const [dusun, setDusun] = useState('');
-  const [role, setRole] = useState<'admin' | 'kadus'>('kadus');
+  const [role, setRole] = useState<UserRole>('kadus');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const queryClient = useQueryClient();
@@ -92,7 +94,7 @@ const UserManagementPage = () => {
 
   // Create user mutation
   const createUserMutation = useMutation({
-    mutationFn: async (userData: { nama: string; email: string; password: string; role: 'admin' | 'kadus'; dusun?: string }) => {
+    mutationFn: async (userData: { nama: string; email: string; password: string; role: UserRole; dusun?: string }) => {
       const { data, error } = await supabase.functions.invoke('create-new-user', {
         body: {
           email: userData.email,
@@ -256,8 +258,8 @@ const UserManagementPage = () => {
       label: 'Role',
       type: 'custom' as const,
       render: (value: string) => (
-        <Badge variant={value === 'admin' ? 'default' : 'secondary'}>
-          {value === 'admin' ? 'Admin' : 'Kadus'}
+        <Badge variant={value === 'superuser' || value === 'administrator' ? 'default' : 'secondary'}>
+          {value === 'superuser' ? 'Superuser' : value === 'administrator' ? 'Administrator' : value === 'kades' ? 'Kepala Desa' : value === 'sekretaris_desa' ? 'Sekretaris Desa' : value === 'kaur_kasi' ? 'Kaur/Kasi' : 'Kadus'}
         </Badge>
       )
     },
@@ -321,8 +323,8 @@ const UserManagementPage = () => {
                     <td className="p-4">{user.nama}</td>
                     <td className="p-4">{user.email}</td>
                     <td className="p-4">
-                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                        {user.role === 'admin' ? 'Admin' : 'Kadus'}
+                      <Badge variant={user.role === 'superuser' ? 'destructive' : user.role === 'administrator' ? 'default' : 'secondary'}>
+                        {user.role === 'superuser' ? 'Superuser' : user.role === 'administrator' ? 'Administrator' : user.role === 'kades' ? 'Kepala Desa' : user.role === 'sekretaris_desa' ? 'Sekretaris Desa' : user.role === 'kaur_kasi' ? 'Kaur/Kasi' : 'Kadus'}
                       </Badge>
                     </td>
                     <td className="p-4">{user.dusun || '-'}</td>
@@ -391,13 +393,17 @@ const UserManagementPage = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="edit-role">Role</Label>
-                <Select value={role} onValueChange={(value: 'admin' | 'kadus') => setRole(value)}>
+                <Select value={role} onValueChange={(value: UserRole) => setRole(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih role" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="superuser">Superuser</SelectItem>
+                    <SelectItem value="administrator">Administrator</SelectItem>
+                    <SelectItem value="kades">Kepala Desa</SelectItem>
+                    <SelectItem value="sekretaris_desa">Sekretaris Desa</SelectItem>
+                    <SelectItem value="kaur_kasi">Kaur/Kasi</SelectItem>
                     <SelectItem value="kadus">Kadus (Kepala Dusun)</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -478,13 +484,16 @@ const UserManagementPage = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="create-role">Role</Label>
-                <Select value={role} onValueChange={(value: 'admin' | 'kadus') => setRole(value)}>
+                <Select value={role} onValueChange={(value: UserRole) => setRole(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih role" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="administrator">Administrator</SelectItem>
+                    <SelectItem value="kades">Kepala Desa</SelectItem>
+                    <SelectItem value="sekretaris_desa">Sekretaris Desa</SelectItem>
+                    <SelectItem value="kaur_kasi">Kaur/Kasi</SelectItem>
                     <SelectItem value="kadus">Kadus (Kepala Dusun)</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

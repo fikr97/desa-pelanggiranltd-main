@@ -2,13 +2,15 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+export type UserRole = 'superuser' | 'administrator' | 'kades' | 'sekretaris_desa' | 'kaur_kasi' | 'kadus';
+
 interface Profile {
   id: string;
   user_id: string;
   nama: string;
   email: string | null;
   dusun: string | null;
-  role: 'admin' | 'kadus';
+  role: UserRole;
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
@@ -62,8 +64,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const fetchPermissions = async (role: string): Promise<string[]> => {
-    if (role === 'admin') {
-      return []; // Admins have all permissions, no need to fetch
+    if (role === 'superuser') {
+      return []; // Superuser has all permissions, no need to fetch
     }
     try {
       const { data, error } = await supabase
@@ -145,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const hasPermission = (permission: string): boolean => {
-    if (profile?.role === 'admin') {
+    if (profile?.role === 'superuser') {
       return true;
     }
     return permissions.includes(permission);

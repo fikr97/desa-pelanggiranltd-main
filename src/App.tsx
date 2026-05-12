@@ -97,7 +97,7 @@ const App = () => (
               } />
               <Route path="/wilayah" element={
                 <AdminWrapper>
-                  <ProtectedRoute allowedRoles={['admin', 'kadus']}>
+                  <ProtectedRoute allowedRoles={['superuser', 'administrator', 'kades', 'sekretaris_desa', 'kaur_kasi', 'kadus']}>
                     <WilayahPage />
                   </ProtectedRoute>
                 </AdminWrapper>
@@ -160,14 +160,14 @@ const App = () => (
               } />
               <Route path="/admin/content" element={
                 <AdminWrapper>
-                  <ProtectedRoute allowedRoles={['admin', 'kadus']}>
+                  <ProtectedRoute allowedRoles={['superuser', 'administrator', 'kades', 'sekretaris_desa', 'kaur_kasi', 'kadus']}>
                     <AdminContentPage />
                   </ProtectedRoute>
                 </AdminWrapper>
               } />
               <Route path="/admin/users" element={
                 <AdminWrapper>
-                  <ProtectedRoute requiredRole="admin">
+                  <ProtectedRoute requiredRole="superuser">
                     <UserManagementPage />
                   </ProtectedRoute>
                 </AdminWrapper>

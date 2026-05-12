@@ -59,7 +59,7 @@ export const testKadusAccess = async (): Promise<boolean> => {
       } else {
         console.log('VERIFIKASI SUKSES: Kadus hanya mengakses penduduk dari dusun mereka:', profile.dusun);
       }
-    } else if (profile.role === 'admin') {
+    } else if (profile.role === 'superuser' || profile.role === 'administrator') {
       console.log('VERIFIKASI SUKSES: Admin dapat mengakses semua data penduduk');
     }
 

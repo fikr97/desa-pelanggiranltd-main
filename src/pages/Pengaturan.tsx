@@ -14,7 +14,7 @@ import PermissionManager from '@/components/PermissionManager';
 
 const Pengaturan = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
     smsNotifications: false,
@@ -50,8 +50,7 @@ const Pengaturan = () => {
     navigate('/info-desa');
   };
 
-  const { hasPermission } = useAuth();
-  const canManagePermissions = hasPermission('button:manage:permissions') || user?.role === 'admin';
+  const canManagePermissions = profile?.role === 'superuser';
 
   return (
     <div className="p-6 space-y-6">
@@ -307,7 +306,7 @@ const Pengaturan = () => {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Users className="h-5 w-5" />
-                  <span>Pengelolaan Hak Akses - Peran Kepala Dusun (Kadus)</span>
+                  <span>Pengelolaan Hak Akses</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>

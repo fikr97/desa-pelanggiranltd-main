@@ -30,11 +30,26 @@ const UserMenu = () => {
   };
 
   const getRoleColor = (role: string) => {
-    return role === 'admin' ? 'bg-red-500' : 'bg-blue-500';
+    switch (role) {
+      case 'superuser': return 'bg-red-600';
+      case 'administrator': return 'bg-red-500';
+      case 'kades': return 'bg-purple-500';
+      case 'sekretaris_desa': return 'bg-indigo-500';
+      case 'kaur_kasi': return 'bg-cyan-500';
+      default: return 'bg-blue-500';
+    }
   };
 
   const getRoleLabel = (role: string) => {
-    return role === 'admin' ? 'Admin' : 'Kadus';
+    switch (role) {
+      case 'superuser': return 'Superuser';
+      case 'administrator': return 'Administrator';
+      case 'kades': return 'Kepala Desa';
+      case 'sekretaris_desa': return 'Sekretaris Desa';
+      case 'kaur_kasi': return 'Kaur/Kasi';
+      case 'kadus': return 'Kadus';
+      default: return role;
+    }
   };
 
   return (
