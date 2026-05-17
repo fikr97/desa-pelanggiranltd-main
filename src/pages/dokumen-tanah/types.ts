@@ -42,6 +42,11 @@ export interface HargaJualData {
   buktiFiles: UploadedFile[];
 }
 
+export interface KoordinatData {
+  latitude: string;
+  longitude: string;
+}
+
 export interface DocumentState {
   jenisSurat: JenisSurat;
   alasDasar: UploadedFile[];
@@ -52,7 +57,7 @@ export interface DocumentState {
   suratKematian: UploadedFile[];
   fotoDokumentasi: UploadedFile[];
   sketGambar: UploadedFile[];
-  titikKoordinat: UploadedFile[];
+  koordinat: KoordinatData;
   hargaJual: HargaJualData;
   isSerikat: boolean;
   serikatKeterangan: string;

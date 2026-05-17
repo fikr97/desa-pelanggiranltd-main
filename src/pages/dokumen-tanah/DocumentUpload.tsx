@@ -13,9 +13,10 @@ import SempadanSection from './SempadanSection';
 import AhliWarisSection from './AhliWarisSection';
 import SerikatSection from './SerikatSection';
 import HargaJualSection from './HargaJualSection';
+import KoordinatSection from './KoordinatSection';
 import StatusWorkflow from './StatusWorkflow';
 import {
-  DocumentState, JenisSurat, UploadedFile, SempadanSlot, AhliWarisSlot, SerikatMember, HargaJualData,
+  DocumentState, JenisSurat, UploadedFile, SempadanSlot, AhliWarisSlot, SerikatMember, HargaJualData, KoordinatData,
 } from './types';
 import {
   JENIS_SURAT_LABELS, ACCEPTED_FORMATS_ALL, ACCEPTED_FORMATS_IMAGE,
@@ -52,7 +53,7 @@ function initialState(jenis: JenisSurat): DocumentState {
     suratKematian: [],
     fotoDokumentasi: [],
     sketGambar: [],
-    titikKoordinat: [],
+    koordinat: { latitude: '', longitude: '' },
     hargaJual: { harga: '', keterangan: '', buktiFiles: [] },
     isSerikat: false,
     serikatKeterangan: '',
@@ -162,7 +163,7 @@ const DocumentUpload: React.FC = () => {
     if (isRequired('suratKematian', jenis)) sections.push({ key: 'suratKematian', filled: state.suratKematian.length > 0 });
     if (isRequired('fotoDokumentasi', jenis)) sections.push({ key: 'fotoDokumentasi', filled: state.fotoDokumentasi.length > 0 });
     if (isRequired('sketGambar', jenis)) sections.push({ key: 'sketGambar', filled: state.sketGambar.length > 0 });
-    if (isRequired('titikKoordinat', jenis)) sections.push({ key: 'titikKoordinat', filled: state.titikKoordinat.length > 0 });
+    if (isRequired('titikKoordinat', jenis)) sections.push({ key: 'titikKoordinat', filled: state.koordinat.latitude.trim() !== '' && state.koordinat.longitude.trim() !== '' });
     if (isRequired('hargaJual', jenis)) sections.push({ key: 'hargaJual', filled: state.hargaJual.harga.length > 0 });
     return sections;
   }, [jenis, state]);
@@ -182,7 +183,6 @@ const DocumentUpload: React.FC = () => {
     state.suratKematian.filter(f => !f.error).forEach(f => result.push({ kategori: 'surat_kematian', file: f.file }));
     state.fotoDokumentasi.filter(f => !f.error).forEach(f => result.push({ kategori: 'foto_dokumentasi', file: f.file }));
     state.sketGambar.filter(f => !f.error).forEach(f => result.push({ kategori: 'sket_gambar', file: f.file }));
-    state.titikKoordinat.filter(f => !f.error).forEach(f => result.push({ kategori: 'titik_koordinat', file: f.file }));
     state.hargaJual.buktiFiles.filter(f => !f.error).forEach(f => result.push({ kategori: 'bukti_harga', file: f.file }));
     state.serikatPenjual.forEach(m => m.files.filter(f => !f.error).forEach(f => result.push({ kategori: 'serikat_penjual', slotId: m.id, file: f.file })));
     state.serikatPembeli.forEach(m => m.files.filter(f => !f.error).forEach(f => result.push({ kategori: 'serikat_pembeli', slotId: m.id, file: f.file })));
@@ -200,6 +200,8 @@ const DocumentUpload: React.FC = () => {
         serikat_keterangan: state.serikatKeterangan || null,
         harga_jual: state.hargaJual.harga || null,
         harga_keterangan: state.hargaJual.keterangan || null,
+        koordinat_latitude: state.koordinat.latitude || null,
+        koordinat_longitude: state.koordinat.longitude || null,
         sempadan_data: state.sempadan.map(s => ({ nama: s.nama, arah: s.arah, isFasilitasUmum: s.isFasilitasUmum })),
         ahli_waris_data: state.ktpAhliWaris.map(s => ({ nama: s.nama, hubungan: s.hubungan })),
         serikat_penjual_data: state.serikatPenjual.map(m => ({ nama: m.nama })),
@@ -364,8 +366,13 @@ const DocumentUpload: React.FC = () => {
           <FileDropzone files={state.sketGambar} onAdd={addFiles('sketGambar', ACCEPTED_FORMATS_ALL, false)} onRemove={removeFile('sketGambar')} accept={ACCEPTED_FORMATS_ALL} disabled={isReadOnly} />
         </Section>
 
-        <Section id="titikKoordinat" title="Titik Koordinat Tanah" fileCount={state.titikKoordinat.length} required={isRequired('titikKoordinat', jenis)}>
-          <FileDropzone files={state.titikKoordinat} onAdd={addFiles('titikKoordinat', ACCEPTED_FORMATS_ALL, false)} onRemove={removeFile('titikKoordinat')} accept={ACCEPTED_FORMATS_ALL} disabled={isReadOnly} />
+        {/* Titik Koordinat */}
+        <Section id="titikKoordinat" title="Titik Koordinat Tanah" required={isRequired('titikKoordinat', jenis)}>
+          <KoordinatSection
+            data={state.koordinat}
+            onChange={d => setState(prev => ({ ...prev, koordinat: d }))}
+            disabled={isReadOnly}
+          />
         </Section>
 
         {isVisible('hargaJual', jenis) && (

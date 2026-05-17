@@ -1,7 +1,8 @@
-import React, { useCallback, useRef } from 'react';
-import { Upload, X, FileText, RefreshCw } from 'lucide-react';
+import React, { useCallback, useRef, useState } from 'react';
+import { Upload, X, FileText, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { UploadedFile } from './types';
 import { MAX_FILE_SIZE } from './config';
 
@@ -25,6 +26,7 @@ function validateFile(file: File, accept: string): string | null {
 
 const FileDropzone: React.FC<FileDropzoneProps> = ({ files, onAdd, onRemove, accept, multiple = false, label, disabled }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -39,19 +41,30 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({ files, onAdd, onRemove, acc
     e.target.value = '';
   };
 
+  const handlePreview = (f: UploadedFile) => {
+    if (f.type === 'application/pdf') {
+      // PDF: open in new tab
+      const url = f.preview || URL.createObjectURL(f.file);
+      window.open(url, '_blank');
+    } else if (f.preview) {
+      // Image: show lightbox
+      setPreviewUrl(f.preview);
+    }
+  };
+
   return (
     <div className="space-y-2">
       {label && <p className="text-sm font-medium">{label}</p>}
       <div
         onDragOver={e => e.preventDefault()}
         onDrop={handleDrop}
-        className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+        className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50'}`}
         onClick={() => !disabled && inputRef.current?.click()}
       >
         <Upload className="mx-auto h-6 w-6 text-muted-foreground mb-1" />
         <p className="text-sm text-muted-foreground">Drag & drop atau <span className="text-primary font-medium">pilih file</span></p>
         <p className="text-xs text-muted-foreground mt-1">Maks 10MB · {accept.replace(/\./g, '').toUpperCase()}</p>
-        <input ref={inputRef} type="file" accept={accept} multiple={multiple} onChange={handleChange} className="hidden" />
+        <input ref={inputRef} type="file" accept={accept} multiple={multiple} onChange={handleChange} className="hidden" disabled={disabled} />
       </div>
 
       {files.length > 0 && (
@@ -69,18 +82,30 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({ files, onAdd, onRemove, acc
                 </div>
               )}
               {f.progress < 100 && !f.error && <Progress value={f.progress} className="h-1 mt-1" />}
-              <Button
-                variant="destructive"
-                size="icon"
-                className="absolute -top-2 -right-2 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={e => { e.stopPropagation(); onRemove(f.id); }}
-              >
-                <X className="h-3 w-3" />
-              </Button>
+              {/* Action buttons */}
+              <div className="absolute -top-2 -right-2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                {!f.error && (
+                  <Button variant="secondary" size="icon" className="h-5 w-5" onClick={e => { e.stopPropagation(); handlePreview(f); }}>
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                )}
+                {!disabled && (
+                  <Button variant="destructive" size="icon" className="h-5 w-5" onClick={e => { e.stopPropagation(); onRemove(f.id); }}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Image Lightbox */}
+      <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
+        <DialogContent className="max-w-3xl p-2">
+          {previewUrl && <img src={previewUrl} alt="Preview" className="w-full h-auto max-h-[80vh] object-contain rounded" />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
