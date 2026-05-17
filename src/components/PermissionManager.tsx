@@ -38,6 +38,7 @@ const CATEGORY_META: Record<string, { label: string; icon: any; color: string; b
   manajemen_user: { label: 'Manajemen User', icon: UserCog, color: 'text-pink-600', bg: 'bg-pink-500/10', description: 'Akun pengguna sistem' },
   pengaturan: { label: 'Pengaturan Sistem', icon: Settings, color: 'text-slate-600', bg: 'bg-slate-500/10', description: 'Konfigurasi & hak akses' },
   general: { label: 'Lainnya', icon: Shield, color: 'text-gray-600', bg: 'bg-gray-500/10', description: 'Perizinan umum' },
+  dokumen_tanah: { label: 'Dokumen Tanah', icon: Upload, color: 'text-orange-600', bg: 'bg-orange-500/10', description: 'Upload & verifikasi dokumen surat tanah' },
 };
 
 const PERMISSION_TYPE_META: Record<string, { icon: any; label: string; color: string }> = {
@@ -53,7 +54,7 @@ const PERMISSION_TYPE_META: Record<string, { icon: any; label: string; color: st
 // Categorization helpers
 const getPermissionCategory = (permission: string): string => {
   const keywords = [
-    'penduduk', 'keluarga', 'surat', 'form_tugas', 'berita', 'statistik',
+    'dokumen_tanah', 'penduduk', 'keluarga', 'surat', 'form_tugas', 'berita', 'statistik',
     'laporan', 'wilayah', 'info_desa', 'kelola_website', 'manajemen_user',
     'pengaturan', 'dashboard'
   ];

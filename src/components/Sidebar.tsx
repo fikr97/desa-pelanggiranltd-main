@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Home, Users, MapPin, FileText, Settings, BarChart3, Building2,
   ChevronLeft, ChevronRight, X, UsersRound, FileSignature, UserCog, Globe,
-  ClipboardList, Sparkles, LogOut
+  ClipboardList, Sparkles, LogOut, Upload
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,7 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
       label: 'Layanan & Konten',
       items: [
         { icon: FileSignature, label: 'Surat Menyurat', path: '/template-surat', permission: 'sidebar:view:surat_menyurat' },
+        { icon: Upload, label: 'Dokumen Tanah', path: '/upload-dokumen-tanah', permission: 'sidebar:view:dokumen_tanah' },
         { icon: ClipboardList, label: 'Form Tugas', path: '/form-tugas', permission: 'form_tugas:view' },
         { icon: Globe, label: 'Kelola Website', path: '/admin/content', permission: 'sidebar:view:kelola_website' },
         { icon: Building2, label: 'Info Desa', path: '/info-desa', permission: 'sidebar:view:info_desa' },
@@ -68,6 +69,7 @@ const Sidebar = ({ isMobileOpen = false, onMobileToggle, onSidebarToggle }: Side
       label: 'Administrasi',
       items: [
         { icon: UserCog, label: 'Manajemen User', path: '/admin/users', permission: 'sidebar:view:manajemen_user' },
+        { icon: Sparkles, label: 'Verifikasi Dok. Tanah', path: '/verifikasi-dokumen-tanah', permission: 'dokumen_tanah:verify' },
         { icon: Settings, label: 'Pengaturan', path: '/pengaturan', permission: 'sidebar:view:pengaturan' },
       ],
     },

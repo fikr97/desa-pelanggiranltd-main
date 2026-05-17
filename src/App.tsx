@@ -38,6 +38,8 @@ import PengumumanPage from "./pages/PengumumanPage";
 import AgendaPage from "./pages/AgendaPage";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import DocumentUploadPage from "./pages/dokumen-tanah";
+import { DokumenTanahVerifikasiPage } from "./pages/dokumen-tanah";
 
 const queryClient = new QueryClient();
 
@@ -176,6 +178,20 @@ const App = () => (
                 <AdminWrapper>
                   <ProtectedRoute>
                     <UserProfilePage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/upload-dokumen-tanah" element={
+                <AdminWrapper>
+                  <ProtectedRoute>
+                    <DocumentUploadPage />
+                  </ProtectedRoute>
+                </AdminWrapper>
+              } />
+              <Route path="/verifikasi-dokumen-tanah" element={
+                <AdminWrapper>
+                  <ProtectedRoute allowedRoles={['superuser', 'administrator', 'kades', 'sekretaris_desa']}>
+                    <DokumenTanahVerifikasiPage />
                   </ProtectedRoute>
                 </AdminWrapper>
               } />
